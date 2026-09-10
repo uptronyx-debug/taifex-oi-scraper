@@ -1,0 +1,5 @@
+date,option_type,investor_type,oi_buy_volume,oi_buy_value_k,oi_sell_volume,oi_sell_value_k,oi_net_volume,oi_net_value_k
+2026/09/10,call,dealer,32059,1240432,23171,932283,8888,308149
+2026/09/10,call,foreign,9433,362946,11392,679903,-1959,-316957
+2026/09/10,put,dealer,23244,286559,22253,226442,991,60117
+2026/09/10,put,foreign,8256,141278,6560,60015,1696,81263
