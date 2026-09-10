@@ -81,11 +81,12 @@ def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
 
     try:
         import pandas as pd
+        import io
     except ImportError:
         print("需要安裝 pandas 與 lxml：pip install pandas lxml")
         raise
 
-    tables = pd.read_html(resp.text)
+    tables = pd.read_html(io.StringIO(resp.text))
     # 🔶 假設：資料表是回傳的第 3 個 <table>（index=2）。
     # 如果 TAIFEX 改版導致抓到錯誤的表格，這裡是最先要檢查的地方。
     if len(tables) <= 2:
