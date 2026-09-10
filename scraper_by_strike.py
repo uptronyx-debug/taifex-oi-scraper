@@ -87,10 +87,13 @@ def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
         raise
 
     tables = pd.read_html(io.StringIO(resp.text))
-    # 🔶 假設：資料表是回傳的第 3 個 <table>（index=2）。
-    # 如果 TAIFEX 改版導致抓到錯誤的表格，這裡是最先要檢查的地方。
     if len(tables) <= 2:
         print(f"  ⚠️ 頁面回傳的表格數量不足（只有 {len(tables)} 個），可能是非交易日或格式改變")
+        print(f"  除錯資訊：回應內容長度 = {len(resp.text)} 字元")
+        for i, t in enumerate(tables):
+            print(f"  除錯資訊：table[{i}] shape = {t.shape}")
+            print(f"  除錯資訊：table[{i}] 前兩列內容 = {t.head(2).to_dict()}")
+        print(f"  除錯資訊：回應內容前 1000 字元 =\n{resp.text[:1000]}")
         return [], None
 
     df = tables[2]
