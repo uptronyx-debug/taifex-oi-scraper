@@ -1,0 +1,42 @@
+name: 回補歷史資料
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "起始日期，格式 YYYY/MM/DD"
+        required: true
+        default: "2026/08/27"
+      end_date:
+        description: "結束日期，格式 YYYY/MM/DD"
+        required: true
+        default: "2026/09/10"
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出 repo 程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安裝套件
+        run: pip install -r requirements.txt
+
+      - name: 回補三大法人未平倉資料
+        run: python scraper.py --backfill "${{ github.event.inputs.start_date }}" "${{ github.event.inputs.end_date }}"
+
+      - name: 把回補資料 commit 回 repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/txo_oi.csv
+          git diff --staged --quiet && echo "沒有新資料，不需要 commit" || git commit -m "backfill: 回補 ${{ github.event.inputs.start_date }} 至 ${{ github.event.inputs.end_date }}"
+          git push
