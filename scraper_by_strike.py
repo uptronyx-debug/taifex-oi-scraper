@@ -87,47 +87,42 @@ def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
         raise
 
     tables = pd.read_html(io.StringIO(resp.text))
-    if len(tables) <= 2:
-        print(f"  ⚠️ 頁面回傳的表格數量不足（只有 {len(tables)} 個），可能是非交易日或格式改變")
-        print(f"  除錯資訊：回應內容長度 = {len(resp.text)} 字元")
-        for i, t in enumerate(tables):
-            print(f"  除錯資訊：table[{i}] shape = {t.shape}")
-            print(f"  除錯資訊：table[{i}] 前兩列內容 = {t.head(2).to_dict()}")
-        print(f"  除錯資訊：回應內容前 1000 字元 =\n{resp.text[:1000]}")
+    if len(tables) == 0:
+        print(f"  ⚠️ 頁面完全沒有回傳表格，可能是非交易日")
         return [], None
 
-    df = tables[2]
-    # 表頭實際上藏在資料列裡（第 3 列），資料從第 4 列開始，最後一列是備註，要去掉
-    try:
-        df.columns = df.iloc[3]
-        df = df.iloc[4:-1, :].copy()
-    except Exception as e:
-        print(f"  ⚠️ 表格結構跟預期不同：{e}")
-        return [], None
+    # 🔶 已根據實測修正：資料表是回傳的第 1 個 <table>（index=0），
+    # 欄位名稱裡可能夾雜空白字元（例如 '到期月份 (週別)'），統一先清除空白再比對。
+    df = tables[0].copy()
+    df.columns = [str(c).replace(" ", "").replace("\u3000", "") for c in df.columns]
 
-    required_cols = ["到期月份(週別)", "履約價", "買賣權", "*未沖銷契約量"]
+    required_cols = ["契約到期日", "履約價", "買賣權", "*未沖銷契約量"]
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
         print(f"  ⚠️ 缺少欄位：{missing}，目前欄位有：{list(df.columns)}")
         return [], None
 
-    df = df[df["買賣權"].isin(["買權", "賣權"])]
+    if "契約" in df.columns:
+        df = df[df["契約"] == commodity_id]
+
+    df = df[df["買賣權"].isin(["Call", "Put", "買權", "賣權"])]
     if df.empty:
         print(f"  ⚠️ {date_str} 沒有符合的資料列（可能是非交易日）")
         return [], None
 
-    # 找出最近到期的合約（週選或月選皆可）
-    expiries = df["到期月份(週別)"].unique().tolist()
-    nearest_expiry = min(expiries, key=_expiry_sort_key)
-
-    df = df[df["到期月份(週別)"] == nearest_expiry]
+    # 用「契約到期日」（YYYYMMDD 數字）找出最近到期的合約，比字串解析週別代碼更可靠
+    df["契約到期日"] = pd.to_numeric(df["契約到期日"], errors="coerce")
+    df = df.dropna(subset=["契約到期日"])
+    nearest_expiry_date = int(df["契約到期日"].min())
+    df = df[df["契約到期日"] == nearest_expiry_date]
+    nearest_expiry = str(nearest_expiry_date)
 
     records = []
     for _, row in df.iterrows():
         strike = _clean_number(row["履約價"])
         if strike == 0:
             continue
-        option_type = "call" if row["買賣權"] == "買權" else "put"
+        option_type = "call" if row["買賣權"] in ("Call", "買權") else "put"
         oi = _clean_number(row["*未沖銷契約量"])
         records.append({
             "date": date_str,
