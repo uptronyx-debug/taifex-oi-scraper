@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台指選擇權法人籌碼儀表板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;600&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0F151C;
+    --surface:#1A232D;
+    --surface-2:#212C38;
+    --divider:#2A3644;
+    --text:#ECE7DD;
+    --text-muted:#8798A8;
+    --long:#DE5B4B;      /* 買方 / 多方力道 */
+    --long-soft:#4A2A28;
+    --short:#3FA37C;     /* 賣方 / 空方力道 */
+    --short-soft:#1E3B33;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Noto Sans TC', sans-serif;
+    line-height:1.6;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:960px;
+    margin:0 auto;
+    padding:48px 24px 80px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:12px;
+    padding-bottom:28px;
+    border-bottom:1px solid var(--divider);
+    margin-bottom:36px;
+  }
+  h1{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:28px;
+    margin:0;
+    letter-spacing:0.02em;
+  }
+  .meta{
+    color:var(--text-muted);
+    font-size:14px;
+    text-align:right;
+  }
+  .meta .date{
+    color:var(--text);
+    font-family:'Roboto Mono', monospace;
+    font-weight:500;
+  }
+
+  /* ---------- Status ---------- */
+  #status{
+    color:var(--text-muted);
+    font-size:15px;
+    padding:40px 0;
+    text-align:center;
+  }
+  #status.error{color:var(--long);}
+
+  /* ---------- Grid of institution cards ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+  @media (max-width:700px){
+    .grid{grid-template-columns:1fr;}
+  }
+
+  .inst-card{
+    background:var(--surface);
+    border:1px solid var(--divider);
+    border-radius:6px;
+    padding:26px 24px 22px;
+  }
+  .inst-name{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:20px;
+    margin:0 0 20px;
+  }
+
+  .opt-block + .opt-block{
+    margin-top:22px;
+    padding-top:22px;
+    border-top:1px solid var(--divider);
+  }
+  .opt-label{
+    font-size:13px;
+    color:var(--text-muted);
+    margin-bottom:10px;
+  }
+
+  /* ---------- Diverging bar ---------- */
+  .bar-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    align-items:center;
+    height:30px;
+    background:var(--surface-2);
+    border-radius:4px;
+    overflow:hidden;
+    margin-bottom:10px;
+  }
+  .bar-sell, .bar-buy{
+    height:100%;
+    display:flex;
+    align-items:center;
+  }
+  .bar-sell{
+    justify-content:flex-end;
+    background:linear-gradient(to left, var(--short-soft), transparent);
+  }
+  .bar-buy{
+    justify-content:flex-start;
+    background:linear-gradient(to right, var(--long-soft), transparent);
+  }
+  .bar-fill-sell{
+    height:100%;
+    background:var(--short);
+    border-radius:4px 0 0 4px;
+  }
+  .bar-fill-buy{
+    height:100%;
+    background:var(--long);
+    border-radius:0 4px 4px 0;
+  }
+
+  .bar-figures{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    font-family:'Roboto Mono', monospace;
+    font-size:14px;
+  }
+  .fig-sell{color:var(--short); text-align:right;}
+  .fig-buy{color:var(--long); text-align:left;}
+  .fig-tag{color:var(--text-muted); font-family:'Noto Sans TC', sans-serif; font-size:12px; margin:0 6px;}
+
+  /* ---------- Footer ---------- */
+  footer{
+    margin-top:40px;
+    padding-top:20px;
+    border-top:1px solid var(--divider);
+    color:var(--text-muted);
+    font-size:13px;
+  }
+  footer a{color:var(--text-muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>台指選擇權法人籌碼儀表板</h1>
+    <div class="meta">
+      資料日期：<span class="date" id="dataDate">—</span><br>
+      <span id="lastChecked"></span>
+    </div>
+  </header>
+
+  <div id="status">資料載入中…</div>
+  <div class="grid" id="grid" style="display:none;"></div>
+
+  <footer>
+    資料來源：臺灣期貨交易所（TAIFEX）三大法人查詢，僅呈現原始公開數據，非投資建議。<br>
+    金額單位：億元（新台幣）。
+  </footer>
+
+</div>
+
+<script>
+const CSV_URL = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/txo_oi.csv";
+
+const INSTITUTIONS = [
+  { key: "foreign", label: "外資 Foreign Investors" },
+  { key: "dealer",  label: "自營商 Dealers" },
+];
+const OPTION_TYPES = [
+  { key: "call", label: "買權 Call" },
+  { key: "put",  label: "賣權 Put" },
+];
+
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const cells = line.split(",");
+    const row = {};
+    headers.forEach((h, i) => row[h] = (cells[i] || "").trim());
+    return row;
+  });
+}
+
+function toYi(valueK) {
+  // 原始單位是千元；1億 = 100,000 千元
+  return Number(valueK) / 100000;
+}
+
+function fmtYi(n) {
+  return n.toLocaleString("zh-Hant", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function render(rows) {
+  const latestDate = rows.reduce((max, r) => r.date > max ? r.date : max, rows[0].date);
+  const latestRows = rows.filter(r => r.date === latestDate);
+
+  document.getElementById("dataDate").textContent = latestDate;
+  document.getElementById("lastChecked").textContent =
+    "頁面查詢時間：" + new Date().toLocaleString("zh-Hant-TW", { hour12: false });
+
+  // 找出全部買方/賣方金額中的最大值，讓所有長條共用同一個比例尺
+  let maxYi = 0;
+  latestRows.forEach(r => {
+    maxYi = Math.max(maxYi, toYi(r.oi_buy_value_k), toYi(r.oi_sell_value_k));
+  });
+  maxYi = maxYi || 1;
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+
+  INSTITUTIONS.forEach(inst => {
+    const card = document.createElement("div");
+    card.className = "inst-card";
+
+    const title = document.createElement("h2");
+    title.className = "inst-name";
+    title.textContent = inst.label;
+    card.appendChild(title);
+
+    OPTION_TYPES.forEach(opt => {
+      const row = latestRows.find(r => r.investor_type === inst.key && r.option_type === opt.key);
+      const block = document.createElement("div");
+      block.className = "opt-block";
+
+      const label = document.createElement("div");
+      label.className = "opt-label";
+      label.textContent = opt.label + "（未平倉契約金額）";
+      block.appendChild(label);
+
+      if (row) {
+        const buyYi = toYi(row.oi_buy_value_k);
+        const sellYi = toYi(row.oi_sell_value_k);
+        const buyPct = (buyYi / maxYi) * 100;
+        const sellPct = (sellYi / maxYi) * 100;
+
+        const barRow = document.createElement("div");
+        barRow.className = "bar-row";
+        barRow.innerHTML = `
+          <div class="bar-sell"><div class="bar-fill-sell" style="width:${sellPct}%"></div></div>
+          <div class="bar-buy"><div class="bar-fill-buy" style="width:${buyPct}%"></div></div>
+        `;
+        block.appendChild(barRow);
+
+        const figs = document.createElement("div");
+        figs.className = "bar-figures";
+        figs.innerHTML = `
+          <div><span class="fig-sell">${fmtYi(sellYi)} 億</span><span class="fig-tag">賣方 SC/SP</span></div>
+          <div><span class="fig-tag">買方 BC/BP</span><span class="fig-buy">${fmtYi(buyYi)} 億</span></div>
+        `;
+        block.appendChild(figs);
+      } else {
+        block.innerHTML += `<div style="color:var(--text-muted); font-size:13px;">當日無資料</div>`;
+      }
+
+      card.appendChild(block);
+    });
+
+    grid.appendChild(card);
+  });
+
+  document.getElementById("status").style.display = "none";
+  grid.style.display = "grid";
+}
+
+fetch(CSV_URL, { cache: "no-store" })
+  .then(res => {
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    return res.text();
+  })
+  .then(text => {
+    const rows = parseCSV(text);
+    if (rows.length === 0) throw new Error("CSV 是空的");
+    render(rows);
+  })
+  .catch(err => {
+    const status = document.getElementById("status");
+    status.textContent = "資料載入失敗：" + err.message + "（請確認 data/txo_oi.csv 是否已經有資料）";
+    status.classList.add("error");
+  });
+</script>
+</body>
+</html>
