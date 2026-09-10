@@ -152,6 +152,51 @@
   .fig-buy{color:var(--long); text-align:left;}
   .fig-tag{color:var(--text-muted); font-family:'Noto Sans TC', sans-serif; font-size:12px; margin:0 6px;}
 
+  /* ---------- Summary ---------- */
+  #summary{
+    background:var(--surface);
+    border:1px solid var(--divider);
+    border-left:3px solid var(--text-muted);
+    border-radius:6px;
+    padding:22px 24px;
+    margin-bottom:24px;
+  }
+  #summary h2{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:17px;
+    margin:0 0 14px;
+  }
+  .summary-lines{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    font-size:15px;
+  }
+  .summary-lines .inst-tag{
+    color:var(--text-muted);
+    font-size:13px;
+    margin-right:6px;
+  }
+  .summary-lines .pattern-plenum   { color:var(--text); }
+  .summary-lines .pattern-burst    { color:var(--text); }
+  .summary-lines .pattern-up       { color:var(--long); }
+  .summary-lines .pattern-down     { color:var(--short); }
+  .summary-agree{
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px solid var(--divider);
+    font-size:14px;
+  }
+  .summary-agree.agree{ color:var(--text-muted); }
+  .summary-agree.disagree{ color:#E0B84B; }
+  .summary-note{
+    margin-top:12px;
+    font-size:12.5px;
+    color:var(--text-muted);
+    line-height:1.6;
+  }
+
   /* ---------- Footer ---------- */
   footer{
     margin-top:40px;
@@ -175,6 +220,8 @@
   </header>
 
   <div id="status">資料載入中…</div>
+
+  <div id="summary" style="display:none;"></div>
   <div class="grid" id="grid" style="display:none;"></div>
 
   <footer>
@@ -216,6 +263,70 @@ function fmtYi(n) {
   return n.toLocaleString("zh-Hant", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
 
+const PATTERNS = {
+  plenum: { label: "盤整型態", detail: "雙邊賣方（賣call+賣put）金額最大，傾向認為指數會維持區間整理。", cls: "pattern-plenum" },
+  burst:  { label: "雙向噴出型態", detail: "雙邊買方（買call+買put）金額最大，傾向認為指數會出現大幅波動，但方向不明確。", cls: "pattern-burst" },
+  up:     { label: "偏多／向上噴出型態", detail: "買call＋賣put 金額最大，傾向偏多方向的部位組合。", cls: "pattern-up" },
+  down:   { label: "偏空／向下噴出型態", detail: "買put＋賣call 金額最大，傾向偏空方向的部位組合。", cls: "pattern-down" },
+};
+
+function classify(legs) {
+  // legs = { bc, sc, bp, sp }（單位：億，皆為正數契約金額）
+  const scores = {
+    plenum: legs.sc + legs.sp,
+    burst:  legs.bc + legs.bp,
+    up:     legs.bc + legs.sp,
+    down:   legs.bp + legs.sc,
+  };
+  let best = "plenum";
+  Object.keys(scores).forEach(k => { if (scores[k] > scores[best]) best = k; });
+  return { key: best, score: scores[best] };
+}
+
+function getLegs(latestRows, investorType) {
+  const call = latestRows.find(r => r.investor_type === investorType && r.option_type === "call");
+  const put  = latestRows.find(r => r.investor_type === investorType && r.option_type === "put");
+  if (!call || !put) return null;
+  return {
+    bc: toYi(call.oi_buy_value_k),
+    sc: toYi(call.oi_sell_value_k),
+    bp: toYi(put.oi_buy_value_k),
+    sp: toYi(put.oi_sell_value_k),
+  };
+}
+
+function renderSummary(latestRows) {
+  const box = document.getElementById("summary");
+  const foreignLegs = getLegs(latestRows, "foreign");
+  const dealerLegs  = getLegs(latestRows, "dealer");
+  if (!foreignLegs || !dealerLegs) { box.style.display = "none"; return; }
+
+  const foreignResult = classify(foreignLegs);
+  const dealerResult  = classify(dealerLegs);
+  const fp = PATTERNS[foreignResult.key];
+  const dp = PATTERNS[dealerResult.key];
+  const agree = foreignResult.key === dealerResult.key;
+
+  box.innerHTML = `
+    <h2>當日部位型態觀察</h2>
+    <div class="summary-lines">
+      <div><span class="inst-tag">外資</span><span class="${fp.cls}">${fp.label}</span> — ${fp.detail}</div>
+      <div><span class="inst-tag">自營商</span><span class="${dp.cls}">${dp.label}</span> — ${dp.detail}</div>
+    </div>
+    <div class="summary-agree ${agree ? "agree" : "disagree"}">
+      ${agree
+        ? "外資與自營商本日部位型態一致。"
+        : "⚠ 外資與自營商本日部位型態不一致，兩者對後市看法可能有分歧。"}
+    </div>
+    <div class="summary-note">
+      說明：以上是依「未平倉契約金額」推算出的部位組合型態，僅描述資金在買方/賣方的分佈狀況，
+      不是驗證過的預測指標。自營商部位中有相當比例來自造市與避險需求，不完全反映方向性看法，
+      解讀時請一併參考其他資訊，本頁面內容不構成投資建議。
+    </div>
+  `;
+  box.style.display = "block";
+}
+
 function render(rows) {
   const latestDate = rows.reduce((max, r) => r.date > max ? r.date : max, rows[0].date);
   const latestRows = rows.filter(r => r.date === latestDate);
@@ -223,6 +334,8 @@ function render(rows) {
   document.getElementById("dataDate").textContent = latestDate;
   document.getElementById("lastChecked").textContent =
     "頁面查詢時間：" + new Date().toLocaleString("zh-Hant-TW", { hour12: false });
+
+  renderSummary(latestRows);
 
   // 找出全部買方/賣方金額中的最大值，讓所有長條共用同一個比例尺
   let maxYi = 0;
