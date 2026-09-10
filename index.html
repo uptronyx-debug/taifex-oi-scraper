@@ -209,49 +209,58 @@
     font-family:'Noto Serif TC', serif;
     font-weight:700;
     font-size:17px;
-    margin:0 0 16px;
+    margin:0 0 14px;
   }
-  .trend-row{
-    display:grid;
-    grid-template-columns:70px 1fr;
-    align-items:center;
-    gap:10px;
-    margin-bottom:10px;
-  }
-  .trend-row .trend-tag{
-    font-size:13px;
-    color:var(--text-muted);
-  }
-  .trend-chips{
-    display:flex;
-    gap:4px;
-  }
-  .chip{
-    flex:1;
-    height:34px;
-    border-radius:4px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:12px;
+  #trend h3{
+    font-family:'Noto Sans TC', sans-serif;
     font-weight:600;
-    color:#0F151C;
-    cursor:default;
-  }
-  .chip-plenum{ background:#8798A8; }
-  .chip-burst { background:#E0B84B; }
-  .chip-up    { background:var(--long); color:#fff; }
-  .chip-down  { background:var(--short); color:#fff; }
-  .trend-dates{
-    display:flex;
-    gap:4px;
-  }
-  .trend-dates span{
-    flex:1;
-    text-align:center;
-    font-size:10px;
+    font-size:14px;
     color:var(--text-muted);
+    margin:0 0 8px;
+  }
+  .trend-inst + .trend-inst{
+    margin-top:28px;
+    padding-top:24px;
+    border-top:1px solid var(--divider);
+  }
+  .trend-legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    margin-bottom:14px;
+    font-size:12px;
+    color:var(--text-muted);
+  }
+  .legend-item{ display:flex; align-items:center; gap:5px; }
+  .swatch{
+    display:inline-block;
+    width:16px;
+    height:0;
+    border-top:2px solid;
+  }
+  .swatch.dash{ border-top-style:dashed; }
+
+  .trend-table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:12px;
     font-family:'Roboto Mono', monospace;
+    font-size:12.5px;
+  }
+  .trend-table th, .trend-table td{
+    padding:6px 8px;
+    text-align:right;
+    border-bottom:1px solid var(--divider);
+  }
+  .trend-table th:first-child, .trend-table td:first-child{
+    text-align:left;
+    font-family:'Noto Sans TC', sans-serif;
+    color:var(--text-muted);
+  }
+  .trend-table th{
+    color:var(--text-muted);
+    font-weight:500;
+    font-size:11px;
   }
 
   /* ---------- Footer ---------- */
@@ -384,42 +393,87 @@ function renderSummary(latestRows) {
 
 const CHIP_LABEL = { plenum: "盤", burst: "噴", up: "多", down: "空" };
 
+function buildSeries(allRows, institution, dates) {
+  return dates.map(d => {
+    const dayRows = allRows.filter(r => r.date === d);
+    const legs = getLegs(dayRows, institution);
+    return legs || { bc: 0, sc: 0, bp: 0, sp: 0 };
+  });
+}
+
+function lineChartSvg(series) {
+  const width = 880, height = 170;
+  const padL = 34, padR = 8, padT = 10, padB = 10;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const n = series.length;
+
+  const allVals = series.flatMap(s => [s.bc, s.sc, s.bp, s.sp]);
+  const maxV = Math.max(...allVals, 1) * 1.15;
+
+  const x = i => padL + (n === 1 ? 0 : (i / (n - 1)) * plotW);
+  const y = v => padT + plotH - (v / maxV) * plotH;
+
+  const pathFor = key =>
+    series.map((s, i) => (i === 0 ? "M" : "L") + x(i).toFixed(1) + "," + y(s[key]).toFixed(1)).join(" ");
+
+  const gridLines = [0, 0.5, 1].map(f => {
+    const yy = padT + plotH * (1 - f);
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>
+            <text x="${padL - 6}" y="${yy + 3}" font-size="9" fill="var(--text-muted)" text-anchor="end">${(maxV * f).toFixed(0)}</text>`;
+  }).join("");
+
+  const lineDefs = [
+    { key: "bc", color: "var(--long)",  dash: "" },
+    { key: "bp", color: "var(--long)",  dash: "4,3" },
+    { key: "sc", color: "var(--short)", dash: "" },
+    { key: "sp", color: "var(--short)", dash: "4,3" },
+  ];
+  const lines = lineDefs.map(ld =>
+    `<path d="${pathFor(ld.key)}" fill="none" stroke="${ld.color}" stroke-width="2" stroke-dasharray="${ld.dash}"/>`
+  ).join("");
+
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:${height}px; font-family:'Roboto Mono', monospace;">${gridLines}${lines}</svg>`;
+}
+
+function trendTableHtml(dates, series) {
+  const rows = dates.map((d, i) => {
+    const s = series[i];
+    return `<tr><td>${d}</td><td>${fmtYi(s.bc)}</td><td>${fmtYi(s.sc)}</td><td>${fmtYi(s.bp)}</td><td>${fmtYi(s.sp)}</td></tr>`;
+  }).join("");
+  return `<table class="trend-table">
+    <thead><tr><th>日期</th><th>買call(BC)</th><th>賣call(SC)</th><th>買put(BP)</th><th>賣put(SP)</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+const LEGEND_HTML = `
+  <div class="trend-legend">
+    <span class="legend-item"><span class="swatch" style="border-color:var(--long)"></span>買call BC</span>
+    <span class="legend-item"><span class="swatch dash" style="border-color:var(--long)"></span>買put BP</span>
+    <span class="legend-item"><span class="swatch" style="border-color:var(--short)"></span>賣call SC</span>
+    <span class="legend-item"><span class="swatch dash" style="border-color:var(--short)"></span>賣put SP</span>
+  </div>`;
+
 function renderTrend(allRows) {
   const box = document.getElementById("trend");
   const dates = [...new Set(allRows.map(r => r.date))].sort().slice(-10);
   if (dates.length === 0) { box.style.display = "none"; return; }
 
-  const rowsByInst = { foreign: [], dealer: [] };
-  dates.forEach(d => {
-    const dayRows = allRows.filter(r => r.date === d);
-    ["foreign", "dealer"].forEach(inst => {
-      const legs = getLegs(dayRows, inst);
-      rowsByInst[inst].push(legs ? classify(legs).key : null);
-    });
-  });
-
-  function chipsHtml(keys) {
-    return keys.map(k => {
-      if (!k) return `<div class="chip" style="background:var(--surface-2);color:var(--text-muted);">–</div>`;
-      return `<div class="chip chip-${k}" title="${PATTERNS[k].label}">${CHIP_LABEL[k]}</div>`;
-    }).join("");
-  }
+  const foreignSeries = buildSeries(allRows, "foreign", dates);
+  const dealerSeries  = buildSeries(allRows, "dealer", dates);
 
   box.innerHTML = `
-    <h2>近 10 個交易日部位型態趨勢</h2>
-    <div class="trend-row">
-      <div class="trend-tag">外資</div>
-      <div class="trend-chips">${chipsHtml(rowsByInst.foreign)}</div>
+    <h2>近 10 個交易日部位變化（未平倉契約金額，億元）</h2>
+    ${LEGEND_HTML}
+    <div class="trend-inst">
+      <h3>外資</h3>
+      ${lineChartSvg(foreignSeries)}
+      ${trendTableHtml(dates, foreignSeries)}
     </div>
-    <div class="trend-row">
-      <div class="trend-tag">自營商</div>
-      <div class="trend-chips">${chipsHtml(rowsByInst.dealer)}</div>
-    </div>
-    <div class="trend-row">
-      <div class="trend-tag"></div>
-      <div class="trend-dates">
-        ${dates.map(d => `<span>${d.slice(5)}</span>`).join("")}
-      </div>
+    <div class="trend-inst">
+      <h3>自營商</h3>
+      ${lineChartSvg(dealerSeries)}
+      ${trendTableHtml(dates, dealerSeries)}
     </div>
   `;
   box.style.display = "block";
