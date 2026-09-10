@@ -45,12 +45,18 @@ HEADERS = {
 }
 
 
-def _clean_number(text):
-    text = (text or "").strip().replace(",", "")
-    if text in ("", "-", "－"):
+def _clean_number(value):
+    if value is None:
+        return 0
+    if isinstance(value, (int, float)):
+        if value != value:  # NaN 檢查
+            return 0
+        return int(round(value))
+    text = str(value).strip().replace(",", "")
+    if text in ("", "-", "－", "nan"):
         return 0
     try:
-        return int(text)
+        return int(float(text))
     except ValueError:
         cleaned = "".join(ch for ch in text if ch.isdigit())
         return int(cleaned) if cleaned else 0
