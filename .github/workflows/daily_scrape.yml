@@ -1,4 +1,4 @@
-name: 每日抓取 TAIFEX 臺指選擇權未平倉資料
+name: 每日抓取 TAIFEX 臺指選擇權資料
 
 on:
   schedule:
@@ -23,13 +23,16 @@ jobs:
       - name: 安裝套件
         run: pip install -r requirements.txt
 
-      - name: 執行爬蟲（抓今天）
+      - name: 執行爬蟲（三大法人未平倉）
         run: python scraper.py
+
+      - name: 執行爬蟲（各履約價未平倉量）
+        run: python scraper_by_strike.py
 
       - name: 把新資料 commit 回 repo
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/txo_oi.csv
-          git diff --staged --quiet && echo "沒有新資料，不需要 commit" || git commit -m "auto: 更新 TAIFEX 未平倉資料 $(date +'%Y-%m-%d')"
+          git add data/txo_oi.csv data/txo_strike_oi.csv
+          git diff --staged --quiet && echo "沒有新資料，不需要 commit" || git commit -m "auto: 更新 TAIFEX 資料 $(date +'%Y-%m-%d')"
           git push
