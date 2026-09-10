@@ -197,6 +197,63 @@
     line-height:1.6;
   }
 
+  /* ---------- Trend ---------- */
+  #trend{
+    background:var(--surface);
+    border:1px solid var(--divider);
+    border-radius:6px;
+    padding:22px 24px;
+    margin-bottom:24px;
+  }
+  #trend h2{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:17px;
+    margin:0 0 16px;
+  }
+  .trend-row{
+    display:grid;
+    grid-template-columns:70px 1fr;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .trend-row .trend-tag{
+    font-size:13px;
+    color:var(--text-muted);
+  }
+  .trend-chips{
+    display:flex;
+    gap:4px;
+  }
+  .chip{
+    flex:1;
+    height:34px;
+    border-radius:4px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    font-weight:600;
+    color:#0F151C;
+    cursor:default;
+  }
+  .chip-plenum{ background:#8798A8; }
+  .chip-burst { background:#E0B84B; }
+  .chip-up    { background:var(--long); color:#fff; }
+  .chip-down  { background:var(--short); color:#fff; }
+  .trend-dates{
+    display:flex;
+    gap:4px;
+  }
+  .trend-dates span{
+    flex:1;
+    text-align:center;
+    font-size:10px;
+    color:var(--text-muted);
+    font-family:'Roboto Mono', monospace;
+  }
+
   /* ---------- Footer ---------- */
   footer{
     margin-top:40px;
@@ -222,11 +279,11 @@
   <div id="status">資料載入中…</div>
 
   <div id="summary" style="display:none;"></div>
+  <div id="trend" style="display:none;"></div>
   <div class="grid" id="grid" style="display:none;"></div>
 
   <footer>
-    資料來源：臺灣期貨交易所（TAIFEX）三大法人查詢，僅呈現原始公開數據，非投資建議。<br>
-    金額單位：億元（新台幣）。
+    TAIFEX 三大法人 ｜ 單位：億元
   </footer>
 
 </div>
@@ -319,9 +376,50 @@ function renderSummary(latestRows) {
         : "⚠ 外資與自營商本日部位型態不一致，兩者對後市看法可能有分歧。"}
     </div>
     <div class="summary-note">
-      說明：以上是依「未平倉契約金額」推算出的部位組合型態，僅描述資金在買方/賣方的分佈狀況，
-      不是驗證過的預測指標。自營商部位中有相當比例來自造市與避險需求，不完全反映方向性看法，
-      解讀時請一併參考其他資訊，本頁面內容不構成投資建議。
+      依「未平倉契約金額」推算的部位組合，非驗證過的訊號。
+    </div>
+  `;
+  box.style.display = "block";
+}
+
+const CHIP_LABEL = { plenum: "盤", burst: "噴", up: "多", down: "空" };
+
+function renderTrend(allRows) {
+  const box = document.getElementById("trend");
+  const dates = [...new Set(allRows.map(r => r.date))].sort().slice(-10);
+  if (dates.length === 0) { box.style.display = "none"; return; }
+
+  const rowsByInst = { foreign: [], dealer: [] };
+  dates.forEach(d => {
+    const dayRows = allRows.filter(r => r.date === d);
+    ["foreign", "dealer"].forEach(inst => {
+      const legs = getLegs(dayRows, inst);
+      rowsByInst[inst].push(legs ? classify(legs).key : null);
+    });
+  });
+
+  function chipsHtml(keys) {
+    return keys.map(k => {
+      if (!k) return `<div class="chip" style="background:var(--surface-2);color:var(--text-muted);">–</div>`;
+      return `<div class="chip chip-${k}" title="${PATTERNS[k].label}">${CHIP_LABEL[k]}</div>`;
+    }).join("");
+  }
+
+  box.innerHTML = `
+    <h2>近 10 個交易日部位型態趨勢</h2>
+    <div class="trend-row">
+      <div class="trend-tag">外資</div>
+      <div class="trend-chips">${chipsHtml(rowsByInst.foreign)}</div>
+    </div>
+    <div class="trend-row">
+      <div class="trend-tag">自營商</div>
+      <div class="trend-chips">${chipsHtml(rowsByInst.dealer)}</div>
+    </div>
+    <div class="trend-row">
+      <div class="trend-tag"></div>
+      <div class="trend-dates">
+        ${dates.map(d => `<span>${d.slice(5)}</span>`).join("")}
+      </div>
     </div>
   `;
   box.style.display = "block";
@@ -410,6 +508,7 @@ fetch(CSV_URL, { cache: "no-store" })
     const rows = parseCSV(text);
     if (rows.length === 0) throw new Error("CSV 是空的");
     render(rows);
+    renderTrend(rows);
   })
   .catch(err => {
     const status = document.getElementById("status");
