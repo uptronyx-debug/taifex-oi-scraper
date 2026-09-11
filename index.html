@@ -252,11 +252,21 @@
   }
   .strike-row{
     display:grid;
-    grid-template-columns:1fr 64px 1fr;
+    grid-template-columns:auto 1fr 64px 1fr auto;
     align-items:center;
     height:18px;
     margin-bottom:2px;
+    gap:6px;
   }
+  .strike-label-call, .strike-label-put{
+    font-family:'Roboto Mono', monospace;
+    font-size:11px;
+    white-space:nowrap;
+  }
+  .strike-label-call{ text-align:right; color:var(--long); }
+  .strike-label-put{ text-align:left; color:var(--short); }
+  .delta-up{ color:var(--long); }
+  .delta-down{ color:var(--short); }
   .strike-row.hi-call .strike-price{ color:var(--long); font-weight:700; }
   .strike-row.hi-put  .strike-price{ color:var(--short); font-weight:700; }
   .strike-call-cell{
@@ -289,7 +299,8 @@
   }
   .strike-axis-labels{
     display:grid;
-    grid-template-columns:1fr 64px 1fr;
+    grid-template-columns:auto 1fr 64px 1fr auto;
+    gap:6px;
     font-size:10px;
     color:var(--text-muted);
     margin-bottom:6px;
@@ -512,6 +523,23 @@ function render(rows) {
 
 const STRIKE_CSV_URL = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/txo_strike_oi.csv";
 
+function daysUntil(expiryYYYYMMDD, latestDateStr) {
+  const y = Number(expiryYYYYMMDD.slice(0, 4));
+  const m = Number(expiryYYYYMMDD.slice(4, 6)) - 1;
+  const d = Number(expiryYYYYMMDD.slice(6, 8));
+  const expiryDate = new Date(y, m, d);
+  const [ly, lm, ld] = latestDateStr.split("/").map(Number);
+  const latest = new Date(ly, lm - 1, ld);
+  const diffDays = Math.round((expiryDate - latest) / 86400000);
+  const expiryDisplay = `${y}/${String(m + 1).padStart(2, "0")}/${String(d).padStart(2, "0")}`;
+  return { diffDays, expiryDisplay };
+}
+
+function fmtDelta(d) {
+  if (d === undefined || d === null || d === 0) return "";
+  return d > 0 ? ` <span class="delta-up">(+${d.toLocaleString()})</span>` : ` <span class="delta-down">(${d.toLocaleString()})</span>`;
+}
+
 function renderStrikeSection(rows) {
   const box = document.getElementById("strikeSection");
   if (rows.length === 0) { box.style.display = "none"; return; }
@@ -609,19 +637,30 @@ function renderStrikeSection(rows) {
     const putPct = (put / maxOi) * 100;
     const hiCall = k === maxCallStrike ? "hi-call" : "";
     const hiPut  = k === maxPutStrike ? "hi-put" : "";
+    const callDelta = diffMap ? fmtDelta(diffMap[k].call) : "";
+    const putDelta  = diffMap ? fmtDelta(diffMap[k].put)  : "";
     return `
       <div class="strike-row ${hiCall} ${hiPut}">
+        <div class="strike-label-call">${call.toLocaleString()}${callDelta}</div>
         <div class="strike-call-cell"><div class="strike-bar-call" style="width:${callPct}%"></div></div>
         <div class="strike-price">${k.toLocaleString()}</div>
         <div class="strike-put-cell"><div class="strike-bar-put" style="width:${putPct}%"></div></div>
+        <div class="strike-label-put">${put.toLocaleString()}${putDelta}</div>
       </div>`;
   }).join("");
 
+  const { diffDays, expiryDisplay } = daysUntil(expiry, latestDate);
+  const countdownText = diffDays > 0
+    ? `到期日：${expiryDisplay}（倒數 ${diffDays} 天）`
+    : diffDays === 0
+      ? `到期日：${expiryDisplay}（今天到期）`
+      : `到期日：${expiryDisplay}（已過期 ${-diffDays} 天）`;
+
   box.innerHTML = `
-    <h2>履約價未平倉分佈（月合約 ${expiryCode}）</h2>
-    <div class="strike-sub">資料日期：${latestDate}　｜　紅：Call　綠：Put　外框標示當日最大量履約價</div>
+    <h2>履約價未平倉分佈（合約 ${expiryCode}）</h2>
+    <div class="strike-sub">資料日期：${latestDate}　｜　${countdownText}　｜　紅：Call　綠：Put　外框標示當日最大量履約價</div>
     ${callouts}
-    <div class="strike-axis-labels"><span class="call-label">Call 未平倉</span><span></span><span class="put-label">Put 未平倉</span></div>
+    <div class="strike-axis-labels"><span></span><span class="call-label">Call 未平倉</span><span></span><span class="put-label">Put 未平倉</span><span></span></div>
     <div class="strike-chart">${rowsHtml}</div>
   `;
   box.style.display = "block";
