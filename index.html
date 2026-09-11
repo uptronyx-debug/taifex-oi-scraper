@@ -73,85 +73,6 @@
   }
   #status.error{color:var(--long);}
 
-  /* ---------- Grid of institution cards ---------- */
-  .grid{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:24px;
-  }
-  @media (max-width:700px){
-    .grid{grid-template-columns:1fr;}
-  }
-
-  .inst-card{
-    background:var(--surface);
-    border:1px solid var(--divider);
-    border-radius:6px;
-    padding:26px 24px 22px;
-  }
-  .inst-name{
-    font-family:'Noto Serif TC', serif;
-    font-weight:700;
-    font-size:20px;
-    margin:0 0 20px;
-  }
-
-  .opt-block + .opt-block{
-    margin-top:22px;
-    padding-top:22px;
-    border-top:1px solid var(--divider);
-  }
-  .opt-label{
-    font-size:13px;
-    color:var(--text-muted);
-    margin-bottom:10px;
-  }
-
-  /* ---------- Diverging bar ---------- */
-  .bar-row{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    align-items:center;
-    height:30px;
-    background:var(--surface-2);
-    border-radius:4px;
-    overflow:hidden;
-    margin-bottom:10px;
-  }
-  .bar-sell, .bar-buy{
-    height:100%;
-    display:flex;
-    align-items:center;
-  }
-  .bar-sell{
-    justify-content:flex-end;
-    background:linear-gradient(to left, var(--short-soft), transparent);
-  }
-  .bar-buy{
-    justify-content:flex-start;
-    background:linear-gradient(to right, var(--long-soft), transparent);
-  }
-  .bar-fill-sell{
-    height:100%;
-    background:var(--short);
-    border-radius:4px 0 0 4px;
-  }
-  .bar-fill-buy{
-    height:100%;
-    background:var(--long);
-    border-radius:0 4px 4px 0;
-  }
-
-  .bar-figures{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    font-family:'Roboto Mono', monospace;
-    font-size:14px;
-  }
-  .fig-sell{color:var(--short); text-align:right;}
-  .fig-buy{color:var(--long); text-align:left;}
-  .fig-tag{color:var(--text-muted); font-family:'Noto Sans TC', sans-serif; font-size:12px; margin:0 6px;}
-
   /* ---------- Summary ---------- */
   #summary{
     background:var(--surface);
@@ -218,23 +139,32 @@
     color:var(--text-muted);
     margin:0 0 8px;
   }
-  .trend-inst + .trend-inst{
-    margin-top:28px;
-    padding-top:24px;
-    border-top:1px solid var(--divider);
+  .trend-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+  }
+  @media (max-width:700px){
+    .trend-grid{grid-template-columns:1fr;}
+  }
+  .trend-inst{
+    background:var(--surface-2);
+    border:1px solid var(--divider);
+    border-radius:6px;
+    padding:16px;
   }
   .trend-legend{
     display:flex;
     flex-wrap:wrap;
-    gap:16px;
-    margin-bottom:14px;
-    font-size:12px;
+    gap:12px;
+    margin-bottom:8px;
+    font-size:11px;
     color:var(--text-muted);
   }
-  .legend-item{ display:flex; align-items:center; gap:5px; }
+  .legend-item{ display:flex; align-items:center; gap:4px; }
   .swatch{
     display:inline-block;
-    width:16px;
+    width:14px;
     height:0;
     border-top:2px solid;
   }
@@ -243,14 +173,15 @@
   .trend-table{
     width:100%;
     border-collapse:collapse;
-    margin-top:12px;
+    margin-top:8px;
     font-family:'Roboto Mono', monospace;
-    font-size:12.5px;
+    font-size:11px;
   }
   .trend-table th, .trend-table td{
-    padding:6px 8px;
+    padding:5px 4px;
     text-align:right;
     border-bottom:1px solid var(--divider);
+    white-space:nowrap;
   }
   .trend-table th:first-child, .trend-table td:first-child{
     text-align:left;
@@ -262,6 +193,109 @@
     font-weight:500;
     font-size:11px;
   }
+
+  /* ---------- Strike OI ---------- */
+  #strikeSection{
+    background:var(--surface);
+    border:1px solid var(--divider);
+    border-radius:6px;
+    padding:22px 24px;
+    margin-bottom:24px;
+  }
+  #strikeSection h2{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:17px;
+    margin:0 0 6px;
+  }
+  .strike-sub{
+    font-size:12px;
+    color:var(--text-muted);
+    margin-bottom:14px;
+  }
+  .strike-callouts{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  @media (max-width:700px){
+    .strike-callouts{grid-template-columns:1fr;}
+  }
+  .callout{
+    background:var(--surface-2);
+    border:1px solid var(--divider);
+    border-radius:6px;
+    padding:12px 14px;
+  }
+  .callout-title{
+    font-size:11px;
+    color:var(--text-muted);
+    margin-bottom:4px;
+  }
+  .callout-value{
+    font-family:'Roboto Mono', monospace;
+    font-size:18px;
+    font-weight:700;
+  }
+  .callout-value.call{ color:var(--long); }
+  .callout-value.put{ color:var(--short); }
+  .callout-sub{
+    font-size:11px;
+    color:var(--text-muted);
+    margin-top:2px;
+  }
+
+  .strike-chart{
+    max-height:520px;
+    overflow-y:auto;
+  }
+  .strike-row{
+    display:grid;
+    grid-template-columns:1fr 64px 1fr;
+    align-items:center;
+    height:18px;
+    margin-bottom:2px;
+  }
+  .strike-row.hi-call .strike-price{ color:var(--long); font-weight:700; }
+  .strike-row.hi-put  .strike-price{ color:var(--short); font-weight:700; }
+  .strike-call-cell{
+    display:flex;
+    justify-content:flex-end;
+  }
+  .strike-put-cell{
+    display:flex;
+    justify-content:flex-start;
+  }
+  .strike-bar-call{
+    height:12px;
+    background:var(--long);
+    border-radius:3px 0 0 3px;
+    opacity:0.85;
+  }
+  .strike-row.hi-call .strike-bar-call{ opacity:1; box-shadow:0 0 0 1px var(--long); }
+  .strike-bar-put{
+    height:12px;
+    background:var(--short);
+    border-radius:0 3px 3px 0;
+    opacity:0.85;
+  }
+  .strike-row.hi-put .strike-bar-put{ opacity:1; box-shadow:0 0 0 1px var(--short); }
+  .strike-price{
+    text-align:center;
+    font-family:'Roboto Mono', monospace;
+    font-size:11px;
+    color:var(--text-muted);
+  }
+  .strike-axis-labels{
+    display:grid;
+    grid-template-columns:1fr 64px 1fr;
+    font-size:10px;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .strike-axis-labels .call-label{ text-align:right; }
+  .strike-axis-labels .put-label{ text-align:left; }
 
   /* ---------- Footer ---------- */
   footer{
@@ -289,7 +323,7 @@
 
   <div id="summary" style="display:none;"></div>
   <div id="trend" style="display:none;"></div>
-  <div class="grid" id="grid" style="display:none;"></div>
+  <div id="strikeSection" style="display:none;"></div>
 
   <footer>
     TAIFEX 三大法人 ｜ 單位：億元
@@ -299,15 +333,6 @@
 
 <script>
 const CSV_URL = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/txo_oi.csv";
-
-const INSTITUTIONS = [
-  { key: "foreign", label: "外資 Foreign Investors" },
-  { key: "dealer",  label: "自營商 Dealers" },
-];
-const OPTION_TYPES = [
-  { key: "call", label: "買權 Call" },
-  { key: "put",  label: "賣權 Put" },
-];
 
 function parseCSV(text) {
   const lines = text.trim().split("\n");
@@ -371,7 +396,6 @@ function renderSummary(latestRows) {
   const dealerResult  = classify(dealerLegs);
   const fp = PATTERNS[foreignResult.key];
   const dp = PATTERNS[dealerResult.key];
-  const agree = foreignResult.key === dealerResult.key;
 
   box.innerHTML = `
     <h2>當日部位型態觀察</h2>
@@ -379,19 +403,9 @@ function renderSummary(latestRows) {
       <div><span class="inst-tag">外資</span><span class="${fp.cls}">${fp.label}</span> — ${fp.detail}</div>
       <div><span class="inst-tag">自營商</span><span class="${dp.cls}">${dp.label}</span> — ${dp.detail}</div>
     </div>
-    <div class="summary-agree ${agree ? "agree" : "disagree"}">
-      ${agree
-        ? "外資與自營商本日部位型態一致。"
-        : "⚠ 外資與自營商本日部位型態不一致，兩者對後市看法可能有分歧。"}
-    </div>
-    <div class="summary-note">
-      依「未平倉契約金額」推算的部位組合，非驗證過的訊號。
-    </div>
   `;
   box.style.display = "block";
 }
-
-const CHIP_LABEL = { plenum: "盤", burst: "噴", up: "多", down: "空" };
 
 function buildSeries(allRows, institution, dates) {
   return dates.map(d => {
@@ -402,8 +416,8 @@ function buildSeries(allRows, institution, dates) {
 }
 
 function lineChartSvg(series) {
-  const width = 880, height = 170;
-  const padL = 34, padR = 8, padT = 10, padB = 10;
+  const width = 400, height = 150;
+  const padL = 32, padR = 6, padT = 8, padB = 8;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const n = series.length;
 
@@ -419,40 +433,42 @@ function lineChartSvg(series) {
   const gridLines = [0, 0.5, 1].map(f => {
     const yy = padT + plotH * (1 - f);
     return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>
-            <text x="${padL - 6}" y="${yy + 3}" font-size="9" fill="var(--text-muted)" text-anchor="end">${(maxV * f).toFixed(0)}</text>`;
+            <text x="${padL - 5}" y="${yy + 3}" font-size="8" fill="var(--text-muted)" text-anchor="end">${(maxV * f).toFixed(0)}</text>`;
   }).join("");
 
   const lineDefs = [
-    { key: "bc", color: "var(--long)",  dash: "" },
-    { key: "bp", color: "var(--long)",  dash: "4,3" },
-    { key: "sc", color: "var(--short)", dash: "" },
-    { key: "sp", color: "var(--short)", dash: "4,3" },
+    { key: "bc", color: "var(--long)",  dash: "4,3" },
+    { key: "sc", color: "var(--long)",  dash: "" },
+    { key: "bp", color: "var(--short)", dash: "4,3" },
+    { key: "sp", color: "var(--short)", dash: "" },
   ];
   const lines = lineDefs.map(ld =>
     `<path d="${pathFor(ld.key)}" fill="none" stroke="${ld.color}" stroke-width="2" stroke-dasharray="${ld.dash}"/>`
   ).join("");
 
-  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:${height}px; font-family:'Roboto Mono', monospace;">${gridLines}${lines}</svg>`;
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:150px;">${gridLines}${lines}</svg>`;
 }
 
+const CHART_LEGEND = `
+  <div class="trend-legend">
+    <span class="legend-item"><span class="swatch dash" style="border-color:var(--long)"></span>BC</span>
+    <span class="legend-item"><span class="swatch" style="border-color:var(--long)"></span>SC</span>
+    <span class="legend-item"><span class="swatch dash" style="border-color:var(--short)"></span>BP</span>
+    <span class="legend-item"><span class="swatch" style="border-color:var(--short)"></span>SP</span>
+  </div>`;
+
 function trendTableHtml(dates, series) {
+  const legKeys = ["bc", "sc", "bp", "sp"];
   const rows = dates.map((d, i) => {
     const s = series[i];
-    return `<tr><td>${d}</td><td>${fmtYi(s.bc)}</td><td>${fmtYi(s.sc)}</td><td>${fmtYi(s.bp)}</td><td>${fmtYi(s.sp)}</td></tr>`;
+    const cells = legKeys.map(k => `<td>${fmtYi(s[k])}</td>`).join("");
+    return `<tr><td>${d.slice(5)}</td>${cells}</tr>`;
   }).join("");
   return `<table class="trend-table">
-    <thead><tr><th>日期</th><th>買call(BC)</th><th>賣call(SC)</th><th>買put(BP)</th><th>賣put(SP)</th></tr></thead>
+    <thead><tr><th>日期</th><th>BC</th><th>SC</th><th>BP</th><th>SP</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
-
-const LEGEND_HTML = `
-  <div class="trend-legend">
-    <span class="legend-item"><span class="swatch" style="border-color:var(--long)"></span>買call BC</span>
-    <span class="legend-item"><span class="swatch dash" style="border-color:var(--long)"></span>買put BP</span>
-    <span class="legend-item"><span class="swatch" style="border-color:var(--short)"></span>賣call SC</span>
-    <span class="legend-item"><span class="swatch dash" style="border-color:var(--short)"></span>賣put SP</span>
-  </div>`;
 
 function renderTrend(allRows) {
   const box = document.getElementById("trend");
@@ -464,16 +480,19 @@ function renderTrend(allRows) {
 
   box.innerHTML = `
     <h2>近 10 個交易日部位變化（未平倉契約金額，億元）</h2>
-    ${LEGEND_HTML}
-    <div class="trend-inst">
-      <h3>外資</h3>
-      ${lineChartSvg(foreignSeries)}
-      ${trendTableHtml(dates, foreignSeries)}
-    </div>
-    <div class="trend-inst">
-      <h3>自營商</h3>
-      ${lineChartSvg(dealerSeries)}
-      ${trendTableHtml(dates, dealerSeries)}
+    <div class="trend-grid">
+      <div class="trend-inst">
+        <h3>外資</h3>
+        ${CHART_LEGEND}
+        ${lineChartSvg(foreignSeries)}
+        ${trendTableHtml(dates, foreignSeries)}
+      </div>
+      <div class="trend-inst">
+        <h3>自營商</h3>
+        ${CHART_LEGEND}
+        ${lineChartSvg(dealerSeries)}
+        ${trendTableHtml(dates, dealerSeries)}
+      </div>
     </div>
   `;
   box.style.display = "block";
@@ -488,70 +507,135 @@ function render(rows) {
     "頁面查詢時間：" + new Date().toLocaleString("zh-Hant-TW", { hour12: false });
 
   renderSummary(latestRows);
-
-  // 找出全部買方/賣方金額中的最大值，讓所有長條共用同一個比例尺
-  let maxYi = 0;
-  latestRows.forEach(r => {
-    maxYi = Math.max(maxYi, toYi(r.oi_buy_value_k), toYi(r.oi_sell_value_k));
-  });
-  maxYi = maxYi || 1;
-
-  const grid = document.getElementById("grid");
-  grid.innerHTML = "";
-
-  INSTITUTIONS.forEach(inst => {
-    const card = document.createElement("div");
-    card.className = "inst-card";
-
-    const title = document.createElement("h2");
-    title.className = "inst-name";
-    title.textContent = inst.label;
-    card.appendChild(title);
-
-    OPTION_TYPES.forEach(opt => {
-      const row = latestRows.find(r => r.investor_type === inst.key && r.option_type === opt.key);
-      const block = document.createElement("div");
-      block.className = "opt-block";
-
-      const label = document.createElement("div");
-      label.className = "opt-label";
-      label.textContent = opt.label + "（未平倉契約金額）";
-      block.appendChild(label);
-
-      if (row) {
-        const buyYi = toYi(row.oi_buy_value_k);
-        const sellYi = toYi(row.oi_sell_value_k);
-        const buyPct = (buyYi / maxYi) * 100;
-        const sellPct = (sellYi / maxYi) * 100;
-
-        const barRow = document.createElement("div");
-        barRow.className = "bar-row";
-        barRow.innerHTML = `
-          <div class="bar-sell"><div class="bar-fill-sell" style="width:${sellPct}%"></div></div>
-          <div class="bar-buy"><div class="bar-fill-buy" style="width:${buyPct}%"></div></div>
-        `;
-        block.appendChild(barRow);
-
-        const figs = document.createElement("div");
-        figs.className = "bar-figures";
-        figs.innerHTML = `
-          <div><span class="fig-sell">${fmtYi(sellYi)} 億</span><span class="fig-tag">賣方 SC/SP</span></div>
-          <div><span class="fig-tag">買方 BC/BP</span><span class="fig-buy">${fmtYi(buyYi)} 億</span></div>
-        `;
-        block.appendChild(figs);
-      } else {
-        block.innerHTML += `<div style="color:var(--text-muted); font-size:13px;">當日無資料</div>`;
-      }
-
-      card.appendChild(block);
-    });
-
-    grid.appendChild(card);
-  });
-
   document.getElementById("status").style.display = "none";
-  grid.style.display = "grid";
 }
+
+const STRIKE_CSV_URL = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/txo_strike_oi.csv";
+
+function renderStrikeSection(rows) {
+  const box = document.getElementById("strikeSection");
+  if (rows.length === 0) { box.style.display = "none"; return; }
+
+  const dates = [...new Set(rows.map(r => r.date))].sort();
+  const latestDate = dates[dates.length - 1];
+  const latestRows = rows.filter(r => r.date === latestDate);
+  const expiry = latestRows[0].expiry;
+  const expiryCode = latestRows[0].expiry_code || expiry;
+
+  // 建立 履約價 -> {call, put} 未平倉量
+  const oiMap = {};
+  latestRows.forEach(r => {
+    const k = r.strike;
+    if (!oiMap[k]) oiMap[k] = { call: 0, put: 0 };
+    oiMap[k][r.option_type] = Number(r.open_interest) || 0;
+  });
+  const strikes = Object.keys(oiMap).map(Number).sort((a, b) => a - b);
+  if (strikes.length === 0) { box.style.display = "none"; return; }
+
+  // 找出「前一個交易日、且到期合約相同」的資料，用來算新增量
+  const prevDate = [...dates].reverse().find(d => {
+    if (d >= latestDate) return false;
+    const sampleRow = rows.find(r => r.date === d);
+    return sampleRow && sampleRow.expiry === expiry;
+  });
+  let diffMap = null;
+  if (prevDate) {
+    diffMap = {};
+    const prevRows = rows.filter(r => r.date === prevDate);
+    const prevOi = {};
+    prevRows.forEach(r => {
+      const k = r.strike;
+      if (!prevOi[k]) prevOi[k] = { call: 0, put: 0 };
+      prevOi[k][r.option_type] = Number(r.open_interest) || 0;
+    });
+    strikes.forEach(k => {
+      const curr = oiMap[k];
+      const prev = prevOi[k] || { call: 0, put: 0 };
+      diffMap[k] = { call: curr.call - prev.call, put: curr.put - prev.put };
+    });
+  }
+
+  // 最大未平倉履約價
+  let maxCallStrike = strikes[0], maxPutStrike = strikes[0];
+  strikes.forEach(k => {
+    if (oiMap[k].call > oiMap[maxCallStrike].call) maxCallStrike = k;
+    if (oiMap[k].put  > oiMap[maxPutStrike].put)   maxPutStrike  = k;
+  });
+
+  // 最大新增量履約價
+  let maxCallGainStrike = null, maxPutGainStrike = null;
+  if (diffMap) {
+    strikes.forEach(k => {
+      if (maxCallGainStrike === null || diffMap[k].call > diffMap[maxCallGainStrike].call) maxCallGainStrike = k;
+      if (maxPutGainStrike  === null || diffMap[k].put  > diffMap[maxPutGainStrike].put)   maxPutGainStrike  = k;
+    });
+  }
+
+  const maxOi = Math.max(...strikes.map(k => Math.max(oiMap[k].call, oiMap[k].put)), 1);
+
+  const callouts = `
+    <div class="strike-callouts">
+      <div class="callout">
+        <div class="callout-title">最大未平倉 — Call（壓力參考）</div>
+        <div class="callout-value call">${maxCallStrike.toLocaleString()}</div>
+        <div class="callout-sub">${oiMap[maxCallStrike].call.toLocaleString()} 口</div>
+      </div>
+      <div class="callout">
+        <div class="callout-title">最大未平倉 — Put（支撐參考）</div>
+        <div class="callout-value put">${maxPutStrike.toLocaleString()}</div>
+        <div class="callout-sub">${oiMap[maxPutStrike].put.toLocaleString()} 口</div>
+      </div>
+      ${diffMap ? `
+      <div class="callout">
+        <div class="callout-title">最大新增量 — Call（較 ${prevDate}）</div>
+        <div class="callout-value call">${maxCallGainStrike.toLocaleString()}</div>
+        <div class="callout-sub">+${diffMap[maxCallGainStrike].call.toLocaleString()} 口</div>
+      </div>
+      <div class="callout">
+        <div class="callout-title">最大新增量 — Put（較 ${prevDate}）</div>
+        <div class="callout-value put">${maxPutGainStrike.toLocaleString()}</div>
+        <div class="callout-sub">+${diffMap[maxPutGainStrike].put.toLocaleString()} 口</div>
+      </div>` : `
+      <div class="callout">
+        <div class="callout-title">最大新增量</div>
+        <div class="callout-sub">合約剛轉倉或缺前一日資料，暫無法比較</div>
+      </div>`}
+    </div>
+  `;
+
+  const rowsHtml = [...strikes].reverse().map(k => {
+    const { call, put } = oiMap[k];
+    const callPct = (call / maxOi) * 100;
+    const putPct = (put / maxOi) * 100;
+    const hiCall = k === maxCallStrike ? "hi-call" : "";
+    const hiPut  = k === maxPutStrike ? "hi-put" : "";
+    return `
+      <div class="strike-row ${hiCall} ${hiPut}">
+        <div class="strike-call-cell"><div class="strike-bar-call" style="width:${callPct}%"></div></div>
+        <div class="strike-price">${k.toLocaleString()}</div>
+        <div class="strike-put-cell"><div class="strike-bar-put" style="width:${putPct}%"></div></div>
+      </div>`;
+  }).join("");
+
+  box.innerHTML = `
+    <h2>履約價未平倉分佈（月合約 ${expiryCode}）</h2>
+    <div class="strike-sub">資料日期：${latestDate}　｜　紅：Call　綠：Put　外框標示當日最大量履約價</div>
+    ${callouts}
+    <div class="strike-axis-labels"><span class="call-label">Call 未平倉</span><span></span><span class="put-label">Put 未平倉</span></div>
+    <div class="strike-chart">${rowsHtml}</div>
+  `;
+  box.style.display = "block";
+}
+
+fetch(STRIKE_CSV_URL, { cache: "no-store" })
+  .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
+  .then(text => {
+    const rows = parseCSV(text);
+    renderStrikeSection(rows);
+  })
+  .catch(() => {
+    document.getElementById("strikeSection").style.display = "none";
+  });
 
 fetch(CSV_URL, { cache: "no-store" })
   .then(res => {
