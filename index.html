@@ -79,44 +79,67 @@
     border:1px solid var(--divider);
     border-left:3px solid var(--text-muted);
     border-radius:6px;
-    padding:22px 24px;
-    margin-bottom:24px;
+    padding:14px 16px;
+    margin-bottom:16px;
   }
   #summary h2{
     font-family:'Noto Serif TC', serif;
     font-weight:700;
-    font-size:17px;
-    margin:0 0 14px;
-  }
-  .summary-lines{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    font-size:15px;
-  }
-  .summary-lines .inst-tag{
-    color:var(--text-muted);
-    font-size:13px;
-    margin-right:6px;
-  }
-  .summary-lines .pattern-plenum   { color:var(--text); }
-  .summary-lines .pattern-burst    { color:var(--text); }
-  .summary-lines .pattern-up       { color:var(--long); }
-  .summary-lines .pattern-down     { color:var(--short); }
-  .summary-agree{
-    margin-top:14px;
-    padding-top:14px;
-    border-top:1px solid var(--divider);
     font-size:14px;
+    margin:0 0 8px;
   }
-  .summary-agree.agree{ color:var(--text-muted); }
-  .summary-agree.disagree{ color:#E0B84B; }
-  .summary-note{
+  .lamp-inst + .lamp-inst{
     margin-top:12px;
-    font-size:12.5px;
-    color:var(--text-muted);
-    line-height:1.6;
+    padding-top:10px;
+    border-top:1px solid var(--divider);
   }
+  .lamp-inst-name{
+    font-family:'Noto Serif TC', serif;
+    font-weight:700;
+    font-size:12px;
+    color:var(--text-muted);
+    margin-bottom:6px;
+  }
+  .lamp-row{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:6px;
+  }
+  @media (max-width:600px){
+    .lamp-row{ grid-template-columns:1fr 1fr; }
+  }
+  .lamp{
+    background:var(--surface-2);
+    border:1px solid var(--divider);
+    border-radius:6px;
+    padding:6px 4px;
+    text-align:center;
+    opacity:0.4;
+    transition:opacity 0.15s;
+  }
+  .lamp-icon{
+    font-size:14px;
+    line-height:1;
+    margin-bottom:2px;
+    color:var(--text-muted);
+  }
+  .lamp-label{
+    font-size:10px;
+    color:var(--text-muted);
+  }
+  .lamp-formula{
+    display:none;
+  }
+  .lamp.lit{ opacity:1; }
+  .lamp.lit .lamp-label{ color:var(--text); font-weight:600; }
+  .lamp.lit.plenum{ border-color:#8798A8; box-shadow:0 0 8px rgba(135,152,168,0.35); }
+  .lamp.lit.plenum .lamp-icon{ color:#ECE7DD; }
+  .lamp.lit.burst{ border-color:#E0B84B; box-shadow:0 0 8px rgba(224,184,75,0.4); background:#3A3115; }
+  .lamp.lit.burst .lamp-icon, .lamp.lit.burst .lamp-formula{ color:#E0B84B; }
+  .lamp.lit.up{ border-color:var(--long); box-shadow:0 0 8px rgba(222,91,75,0.4); background:var(--long-soft); }
+  .lamp.lit.up .lamp-icon, .lamp.lit.up .lamp-formula{ color:var(--long); }
+  .lamp.lit.down{ border-color:var(--short); box-shadow:0 0 8px rgba(63,163,124,0.4); background:var(--short-soft); }
+  .lamp.lit.down .lamp-icon, .lamp.lit.down .lamp-formula{ color:var(--short); }
 
   /* ---------- Trend ---------- */
   #trend{
@@ -130,7 +153,7 @@
     font-family:'Noto Serif TC', serif;
     font-weight:700;
     font-size:17px;
-    margin:0 0 14px;
+    margin:0 0 8px;
   }
   #trend h3{
     font-family:'Noto Sans TC', sans-serif;
@@ -213,35 +236,63 @@
     color:var(--text-muted);
     margin-bottom:14px;
   }
-  .strike-callouts{
-    display:grid;
-    grid-template-columns:1fr 1fr;
-    gap:12px;
-    margin-bottom:18px;
+  .oi-summary{
+    margin-bottom:12px;
   }
-  @media (max-width:700px){
-    .strike-callouts{grid-template-columns:1fr;}
-  }
-  .callout{
-    background:var(--surface-2);
-    border:1px solid var(--divider);
-    border-radius:6px;
-    padding:12px 14px;
-  }
-  .callout-title{
+  .oi-summary h3{
+    font-family:'Noto Sans TC', sans-serif;
+    font-weight:600;
     font-size:11px;
     color:var(--text-muted);
-    margin-bottom:4px;
+    margin:0 0 6px;
   }
-  .callout-value{
+  .oi-cards{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  @media (max-width:700px){
+    .oi-cards{grid-template-columns:1fr;}
+  }
+  .oi-card{
+    border:1px solid var(--divider);
+    border-radius:6px;
+    padding:8px 10px;
+  }
+  .call-card{ background:linear-gradient(160deg, var(--long-soft), var(--surface-2)); }
+  .put-card{ background:linear-gradient(160deg, var(--short-soft), var(--surface-2)); }
+  .oi-card-title{
+    font-family:'Noto Sans TC', sans-serif;
+    font-weight:600;
+    font-size:11px;
+    color:var(--text-muted);
+    text-align:center;
+    margin-bottom:6px;
+  }
+  .oi-card-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:6px;
+    text-align:center;
+  }
+  .oi-label{
+    font-size:9px;
+    color:var(--text-muted);
+    margin-bottom:3px;
+  }
+  .oi-pill{
+    background:var(--surface-2);
+    border:1px solid var(--divider);
+    border-radius:5px;
+    padding:4px 2px;
     font-family:'Roboto Mono', monospace;
-    font-size:18px;
+    font-size:13px;
     font-weight:700;
   }
-  .callout-value.call{ color:var(--long); }
-  .callout-value.put{ color:var(--short); }
-  .callout-sub{
-    font-size:11px;
+  .oi-pill.call{ color:var(--long); }
+  .oi-pill.put{ color:var(--short); }
+  .oi-pill-sub{
+    font-size:9px;
     color:var(--text-muted);
     margin-top:2px;
   }
@@ -271,7 +322,7 @@
     .strike-row{ height:16px; }
     .strike-label-call, .strike-label-put{ font-size:9.5px; }
     .strike-price{ font-size:10px; }
-    .callout-value{ font-size:15px; }
+    .oi-pill{ font-size:12px; padding:4px 2px; }
   }
   .strike-row.hi-call .strike-price{ color:var(--long); font-weight:700; }
   .strike-row.hi-put  .strike-price{ color:var(--short); font-weight:700; }
@@ -372,11 +423,12 @@ function fmtYi(n) {
 }
 
 const PATTERNS = {
-  plenum: { label: "盤整型態", detail: "雙邊賣方（賣call+賣put）金額最大，傾向認為指數會維持區間整理。", cls: "pattern-plenum" },
-  burst:  { label: "雙向噴出型態", detail: "雙邊買方（買call+買put）金額最大，傾向認為指數會出現大幅波動，但方向不明確。", cls: "pattern-burst" },
-  up:     { label: "偏多／向上噴出型態", detail: "買call＋賣put 金額最大，傾向偏多方向的部位組合。", cls: "pattern-up" },
-  down:   { label: "偏空／向下噴出型態", detail: "買put＋賣call 金額最大，傾向偏空方向的部位組合。", cls: "pattern-down" },
+  plenum: { label: "盤整", formula: "SC+SP", icon: "↔", cls: "plenum" },
+  burst:  { label: "雙向噴出", formula: "BC+BP", icon: "⇅", cls: "burst" },
+  up:     { label: "偏多噴出", formula: "BC+SP", icon: "▲", cls: "up" },
+  down:   { label: "偏空噴出", formula: "BP+SC", icon: "▼", cls: "down" },
 };
+const PATTERN_ORDER = ["plenum", "burst", "up", "down"];
 
 function classify(legs) {
   // legs = { bc, sc, bp, sp }（單位：億，皆為正數契約金額）
@@ -403,6 +455,19 @@ function getLegs(latestRows, investorType) {
   };
 }
 
+function lampRowHtml(litKey) {
+  return `<div class="lamp-row">${PATTERN_ORDER.map(key => {
+    const p = PATTERNS[key];
+    const lit = key === litKey ? "lit" : "";
+    return `
+      <div class="lamp ${p.cls} ${lit}">
+        <div class="lamp-icon">${p.icon}</div>
+        <div class="lamp-label">${p.label}</div>
+        <div class="lamp-formula">${p.formula}</div>
+      </div>`;
+  }).join("")}</div>`;
+}
+
 function renderSummary(latestRows) {
   const box = document.getElementById("summary");
   const foreignLegs = getLegs(latestRows, "foreign");
@@ -411,14 +476,16 @@ function renderSummary(latestRows) {
 
   const foreignResult = classify(foreignLegs);
   const dealerResult  = classify(dealerLegs);
-  const fp = PATTERNS[foreignResult.key];
-  const dp = PATTERNS[dealerResult.key];
 
   box.innerHTML = `
     <h2>當日部位型態觀察</h2>
-    <div class="summary-lines">
-      <div><span class="inst-tag">外資</span><span class="${fp.cls}">${fp.label}</span> — ${fp.detail}</div>
-      <div><span class="inst-tag">自營商</span><span class="${dp.cls}">${dp.label}</span> — ${dp.detail}</div>
+    <div class="lamp-inst">
+      <div class="lamp-inst-name">外資</div>
+      ${lampRowHtml(foreignResult.key)}
+    </div>
+    <div class="lamp-inst">
+      <div class="lamp-inst-name">自營商</div>
+      ${lampRowHtml(dealerResult.key)}
     </div>
   `;
   box.style.display = "block";
@@ -609,36 +676,50 @@ function renderStrikeSection(rows) {
   const maxPutOi  = Math.max(...strikes.map(k => oiMap[k].put), 1);
 
   const callouts = `
-    <div class="strike-callouts">
-      <div class="callout">
-        <div class="callout-title">最大未平倉 — Call（壓力參考）</div>
-        <div class="callout-value call">${maxCallStrike.toLocaleString()}</div>
-        <div class="callout-sub">${oiMap[maxCallStrike].call.toLocaleString()} 口</div>
+    <div class="oi-summary">
+      <h3>選擇權最大未平倉</h3>
+      <div class="oi-cards">
+        <div class="oi-card call-card">
+          <div class="oi-card-title">買權 Call</div>
+          <div class="oi-card-row">
+            <div class="oi-col">
+              <div class="oi-label">最大未平倉</div>
+              <div class="oi-pill call">${maxCallStrike.toLocaleString()}</div>
+              <div class="oi-pill-sub">${oiMap[maxCallStrike].call.toLocaleString()} 口</div>
+            </div>
+            <div class="oi-col">
+              <div class="oi-label">增量最大</div>
+              ${diffMap ? `
+              <div class="oi-pill call">${maxCallGainStrike.toLocaleString()}</div>
+              <div class="oi-pill-sub">+${diffMap[maxCallGainStrike].call.toLocaleString()} 口</div>
+              ` : `<div class="oi-pill-sub">暫無法比較</div>`}
+            </div>
+          </div>
+        </div>
+        <div class="oi-card put-card">
+          <div class="oi-card-title">賣權 Put</div>
+          <div class="oi-card-row">
+            <div class="oi-col">
+              <div class="oi-label">最大未平倉</div>
+              <div class="oi-pill put">${maxPutStrike.toLocaleString()}</div>
+              <div class="oi-pill-sub">${oiMap[maxPutStrike].put.toLocaleString()} 口</div>
+            </div>
+            <div class="oi-col">
+              <div class="oi-label">增量最大</div>
+              ${diffMap ? `
+              <div class="oi-pill put">${maxPutGainStrike.toLocaleString()}</div>
+              <div class="oi-pill-sub">+${diffMap[maxPutGainStrike].put.toLocaleString()} 口</div>
+              ` : `<div class="oi-pill-sub">暫無法比較</div>`}
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="callout">
-        <div class="callout-title">最大未平倉 — Put（支撐參考）</div>
-        <div class="callout-value put">${maxPutStrike.toLocaleString()}</div>
-        <div class="callout-sub">${oiMap[maxPutStrike].put.toLocaleString()} 口</div>
-      </div>
-      ${diffMap ? `
-      <div class="callout">
-        <div class="callout-title">最大新增量 — Call（較 ${prevDate}）</div>
-        <div class="callout-value call">${maxCallGainStrike.toLocaleString()}</div>
-        <div class="callout-sub">+${diffMap[maxCallGainStrike].call.toLocaleString()} 口</div>
-      </div>
-      <div class="callout">
-        <div class="callout-title">最大新增量 — Put（較 ${prevDate}）</div>
-        <div class="callout-value put">${maxPutGainStrike.toLocaleString()}</div>
-        <div class="callout-sub">+${diffMap[maxPutGainStrike].put.toLocaleString()} 口</div>
-      </div>` : `
-      <div class="callout">
-        <div class="callout-title">最大新增量</div>
-        <div class="callout-sub">合約剛轉倉或缺前一日資料，暫無法比較</div>
-      </div>`}
     </div>
   `;
 
-  const rowsHtml = strikes.map(k => {
+  const visibleStrikes = strikes.filter(k => oiMap[k].call >= 1000 || oiMap[k].put >= 1000);
+
+  const rowsHtml = visibleStrikes.map(k => {
     const { call, put } = oiMap[k];
     const callPct = (Math.sqrt(call) / Math.sqrt(maxCallOi)) * 100;
     const putPct = (Math.sqrt(put) / Math.sqrt(maxPutOi)) * 100;
@@ -668,7 +749,7 @@ function renderStrikeSection(rows) {
     <div class="strike-sub">資料日期：${latestDate}　｜　${countdownText}　｜　紅：Call　綠：Put　外框標示當日最大量履約價　｜　數字僅標示≥1,000口</div>
     ${callouts}
     <div class="strike-axis-labels"><span class="call-label">Call 未平倉</span><span></span><span class="put-label">Put 未平倉</span></div>
-    <div class="strike-chart">${rowsHtml}</div>
+    <div class="strike-chart">${rowsHtml || '<div style="color:var(--text-muted); font-size:12px; padding:12px 0;">目前沒有履約價未平倉量達 1,000 口以上</div>'}</div>
   `;
   box.style.display = "block";
 }
