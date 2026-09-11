@@ -13,9 +13,11 @@ TAIFEX 臺指選擇權 各履約價未平倉量 每日爬蟲
   1. POST 欄位名稱：queryDate / commodity_id / MarketCode
      （這組已經有其他開發者實測成功過，可信度較高，但仍建議跑一次確認）
   2. commodity_id 固定用 'TXO'（臺指選擇權），MarketCode 用 '0'（日盤）
-  3. 「近月/當週」判斷：用 到期月份(週別) 欄位字串解析，挑最快到期的合約
-     （例如 '202511W3' 代表 2025年11月第3週到期；純數字如 '202512' 代表月選）
-     這個排序邏輯是我自己寫的簡化版，如果 TAIFEX 改變欄位格式，需要調整。
+  3. 「最快到期」判斷：直接比較「契約到期日」（YYYYMMDD 數字），取最小值，
+     不限定月選或週選。TAIFEX 同時掛牌多種週別代碼（例如帶W的、帶F的），
+     實際何者最快到期以「契約到期日」欄位為準，比自己解析代碼字串可靠。
+     這代表某些日子抓到的可能是月選，某些日子可能是週選——這是預期行為，
+     不是bug。畫面上會顯示 expiry_code 讓你知道抓到的到底是哪張合約。
 
 用法：
     python scraper_by_strike.py                    # 抓「今天」
@@ -34,7 +36,7 @@ import requests
 TARGET_URL = "https://www.taifex.com.tw/cht/3/optDailyMarketReport"
 CSV_PATH = os.path.join(os.path.dirname(__file__), "data", "txo_strike_oi.csv")
 
-CSV_HEADER = ["date", "expiry", "strike", "option_type", "open_interest"]
+CSV_HEADER = ["date", "expiry", "expiry_code", "strike", "option_type", "open_interest"]
 
 HEADERS = {
     "User-Agent": (
@@ -102,7 +104,7 @@ def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
     df = tables[0].copy()
     df.columns = [str(c).replace(" ", "").replace("\u3000", "") for c in df.columns]
 
-    required_cols = ["契約到期日", "履約價", "買賣權", "*未沖銷契約量"]
+    required_cols = ["到期月份(週別)", "契約到期日", "履約價", "買賣權", "*未沖銷契約量"]
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
         print(f"  ⚠️ 缺少欄位：{missing}，目前欄位有：{list(df.columns)}")
@@ -116,12 +118,19 @@ def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
         print(f"  ⚠️ {date_str} 沒有符合的資料列（可能是非交易日）")
         return [], None
 
-    # 用「契約到期日」（YYYYMMDD 數字）找出最近到期的合約，比字串解析週別代碼更可靠
+    # 抓「真正最快到期」的合約（不限月選/週選，純比較到期日）
+    df["到期月份(週別)"] = df["到期月份(週別)"].astype(str).str.strip()
     df["契約到期日"] = pd.to_numeric(df["契約到期日"], errors="coerce")
     df = df.dropna(subset=["契約到期日"])
+    if df.empty:
+        print(f"  ⚠️ 契約到期日欄位無法解析出有效數字")
+        return [], None
     nearest_expiry_date = int(df["契約到期日"].min())
-    df = df[df["契約到期日"] == nearest_expiry_date]
     nearest_expiry = str(nearest_expiry_date)
+    nearest_expiry_code = df.loc[
+        df["契約到期日"] == nearest_expiry_date, "到期月份(週別)"
+    ].iloc[0]
+    df = df[df["契約到期日"] == nearest_expiry_date]
 
     records = []
     for _, row in df.iterrows():
@@ -133,12 +142,13 @@ def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
         records.append({
             "date": date_str,
             "expiry": nearest_expiry,
+            "expiry_code": nearest_expiry_code,
             "strike": strike,
             "option_type": option_type,
             "open_interest": oi,
         })
 
-    return records, nearest_expiry
+    return records, nearest_expiry_code
 
 
 def load_existing_dates():
@@ -182,7 +192,7 @@ if __name__ == "__main__":
         print(f"{target_date} 已經在 data/txo_strike_oi.csv 裡了，略過。")
         sys.exit(0)
 
-    records, nearest_expiry = fetch_strike_oi(target_date)
+    records, nearest_expiry_code = fetch_strike_oi(target_date)
     if records:
-        print(f"  ✅ 成功抓到 {target_date}（合約 {nearest_expiry}）共 {len(records)} 筆履約價資料")
+        print(f"  ✅ 成功抓到 {target_date}（月合約 {nearest_expiry_code}）共 {len(records)} 筆履約價資料")
     append_records(records)
