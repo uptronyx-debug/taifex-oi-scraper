@@ -1,4 +1,4 @@
-date,expiry,strike,option_type,open_interest
+date,expiry,expiry_code,strike,option_type,open_interest
 2026/09/10,20260911,41200,call,0
 2026/09/10,20260911,41200,put,79
 2026/09/10,20260911,41300,call,0
