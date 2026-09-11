@@ -118,13 +118,22 @@ def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
         print(f"  ⚠️ {date_str} 沒有符合的資料列（可能是非交易日）")
         return [], None
 
-    # 抓「真正最快到期」的合約（不限月選/週選，純比較到期日）
+    # 抓「真正最快到期」的合約（不限月選/週選，純比較到期日），
+    # 但排除「到期日 ≤ 查詢當天」的合約——那種當天就結算/已結算，
+    # 不是真正「還在交易、接下來要看的」合約。
     df["到期月份(週別)"] = df["到期月份(週別)"].astype(str).str.strip()
     df["契約到期日"] = pd.to_numeric(df["契約到期日"], errors="coerce")
     df = df.dropna(subset=["契約到期日"])
     if df.empty:
         print(f"  ⚠️ 契約到期日欄位無法解析出有效數字")
         return [], None
+
+    query_date_num = int(date_str.replace("/", ""))
+    df = df[df["契約到期日"] > query_date_num]
+    if df.empty:
+        print(f"  ⚠️ 找不到到期日晚於 {date_str} 的合約（可能所有合約當天都已結算）")
+        return [], None
+
     nearest_expiry_date = int(df["契約到期日"].min())
     nearest_expiry = str(nearest_expiry_date)
     nearest_expiry_code = df.loc[
