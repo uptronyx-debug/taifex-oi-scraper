@@ -88,18 +88,6 @@
     font-size:14px;
     margin:0 0 8px;
   }
-  .lamp-inst + .lamp-inst{
-    margin-top:12px;
-    padding-top:10px;
-    border-top:1px solid var(--divider);
-  }
-  .lamp-inst-name{
-    font-family:'Noto Serif TC', serif;
-    font-weight:700;
-    font-size:12px;
-    color:var(--text-muted);
-    margin-bottom:6px;
-  }
   .lamp-row{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
@@ -124,22 +112,20 @@
     color:var(--text-muted);
   }
   .lamp-label{
+    font-family:'Roboto Mono', monospace;
     font-size:10px;
     color:var(--text-muted);
-  }
-  .lamp-formula{
-    display:none;
   }
   .lamp.lit{ opacity:1; }
   .lamp.lit .lamp-label{ color:var(--text); font-weight:600; }
   .lamp.lit.plenum{ border-color:#8798A8; box-shadow:0 0 8px rgba(135,152,168,0.35); }
   .lamp.lit.plenum .lamp-icon{ color:#ECE7DD; }
   .lamp.lit.burst{ border-color:#E0B84B; box-shadow:0 0 8px rgba(224,184,75,0.4); background:#3A3115; }
-  .lamp.lit.burst .lamp-icon, .lamp.lit.burst .lamp-formula{ color:#E0B84B; }
+  .lamp.lit.burst .lamp-icon, .lamp.lit.burst .lamp-label{ color:#E0B84B; }
   .lamp.lit.up{ border-color:var(--long); box-shadow:0 0 8px rgba(222,91,75,0.4); background:var(--long-soft); }
-  .lamp.lit.up .lamp-icon, .lamp.lit.up .lamp-formula{ color:var(--long); }
+  .lamp.lit.up .lamp-icon, .lamp.lit.up .lamp-label{ color:var(--long); }
   .lamp.lit.down{ border-color:var(--short); box-shadow:0 0 8px rgba(63,163,124,0.4); background:var(--short-soft); }
-  .lamp.lit.down .lamp-icon, .lamp.lit.down .lamp-formula{ color:var(--short); }
+  .lamp.lit.down .lamp-icon, .lamp.lit.down .lamp-label{ color:var(--short); }
 
   /* ---------- Trend ---------- */
   #trend{
@@ -462,8 +448,7 @@ function lampRowHtml(litKey) {
     return `
       <div class="lamp ${p.cls} ${lit}">
         <div class="lamp-icon">${p.icon}</div>
-        <div class="lamp-label">${p.label}</div>
-        <div class="lamp-formula">${p.formula}</div>
+        <div class="lamp-label">${p.formula}</div>
       </div>`;
   }).join("")}</div>`;
 }
@@ -479,13 +464,15 @@ function renderSummary(latestRows) {
 
   box.innerHTML = `
     <h2>當日部位型態觀察</h2>
-    <div class="lamp-inst">
-      <div class="lamp-inst-name">外資</div>
-      ${lampRowHtml(foreignResult.key)}
-    </div>
-    <div class="lamp-inst">
-      <div class="lamp-inst-name">自營商</div>
-      ${lampRowHtml(dealerResult.key)}
+    <div class="trend-grid">
+      <div class="trend-inst">
+        <h3>外資</h3>
+        ${lampRowHtml(foreignResult.key)}
+      </div>
+      <div class="trend-inst">
+        <h3>自營商</h3>
+        ${lampRowHtml(dealerResult.key)}
+      </div>
     </div>
   `;
   box.style.display = "block";
