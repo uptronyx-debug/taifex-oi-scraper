@@ -2,7 +2,7 @@ name: 每日抓取 TAIFEX 臺指選擇權資料
 
 on:
   schedule:
-    - cron: "45 7 * * 1-5"
+    - cron: "50 6 * * 1-5"
   workflow_dispatch: {}
 
 permissions:
