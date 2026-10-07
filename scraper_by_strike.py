@@ -1,57 +1,42 @@
 """
-TAIFEX 臺指選擇權 各履約價未平倉量 每日爬蟲
-=============================================
+抓取 TAIFEX 每日行情報表（依商品別，臺指選擇權 TXO），
+取得「最快到期合約」（不限月選或週選，純粹以契約到期日排序）
+的各履約價未平倉量（Call / Put），累積寫入 data/txo_strike_oi.csv。
 
-抓取來源：https://www.taifex.com.tw/cht/3/optDailyMarketReport
-（每日選擇權行情表，含每個履約價、買權/賣權的未沖銷契約量）
-
-用途：算出當天未平倉量最大的履約價，作為支撐/壓力參考點位
-（類似玩股網「台指選擇權支撐壓力表」的邏輯，但這裡是總市場未平倉量，
-不是法人限定的資料——TAIFEX 沒有公開「法人別 x 履約價」的交叉資料）。
-
-⚠️ 重要假設：
-  1. POST 欄位名稱：queryDate / commodity_id / MarketCode
-     （這組已經有其他開發者實測成功過，可信度較高，但仍建議跑一次確認）
-  2. commodity_id 固定用 'TXO'（臺指選擇權），MarketCode 用 '0'（日盤）
-  3. 「最快到期」判斷：直接比較「契約到期日」（YYYYMMDD 數字），取最小值，
-     不限定月選或週選。TAIFEX 同時掛牌多種週別代碼（例如帶W的、帶F的），
-     實際何者最快到期以「契約到期日」欄位為準，比自己解析代碼字串可靠。
-     這代表某些日子抓到的可能是月選，某些日子可能是週選——這是預期行為，
-     不是bug。畫面上會顯示 expiry_code 讓你知道抓到的到底是哪張合約。
-
-用法：
-    python scraper_by_strike.py                    # 抓「今天」
-    python scraper_by_strike.py --date 2026/09/09  # 抓指定日期
+資料來源：https://www.taifex.com.tw/cht/3/optDailyMarketReport
 """
 
-import argparse
 import csv
+import io
 import os
-import re
 import sys
+import time
 from datetime import datetime
 
+import pandas as pd
 import requests
 
 TARGET_URL = "https://www.taifex.com.tw/cht/3/optDailyMarketReport"
-CSV_PATH = os.path.join(os.path.dirname(__file__), "data", "txo_strike_oi.csv")
-
-CSV_HEADER = ["date", "expiry", "expiry_code", "strike", "option_type", "open_interest"]
-
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Referer": TARGET_URL,
 }
+
+CSV_PATH = os.path.join("data", "txo_strike_oi.csv")
+CSV_HEADER = ["date", "expiry", "expiry_code", "strike", "option_type", "open_interest"]
+
+MAX_RETRIES = 4
+RETRY_BACKOFF_SECONDS = 5  # 第一次失敗等 5 秒，之後倍增：5, 10, 20...
 
 
 def _clean_number(value):
+    """把 pandas 讀進來的欄位值（可能是字串、float、NaN）轉成乾淨的 int。"""
     if value is None:
         return 0
     if isinstance(value, (int, float)):
-        if value != value:  # NaN 檢查
+        if value != value:  # NaN 判斷
             return 0
         return int(round(value))
     text = str(value).strip().replace(",", "")
@@ -64,144 +49,161 @@ def _clean_number(value):
         return int(cleaned) if cleaned else 0
 
 
-def _expiry_sort_key(expiry_str):
-    """把 '202511W3' / '202512' 轉成可排序的 (年月, 週別) tuple，週選在同月月選之前到期。"""
-    m = re.match(r"(\d{6})(W(\d))?", (expiry_str or "").strip())
-    if not m:
-        return (999999, 99)
-    yyyymm = int(m.group(1))
-    week = int(m.group(3)) if m.group(3) else 99
-    return (yyyymm, week)
-
-
-def fetch_strike_oi(date_str, commodity_id="TXO", market_code="0"):
+def _post_with_retry(payload, date_str):
     """
-    回傳 (records, nearest_expiry)。
-    records: list[dict]，只包含「最近到期合約」的每個履約價 call/put 未平倉量。
+    對 TAIFEX 送出 POST 請求，失敗時自動重試。
+    這份報表回傳的 HTML 頗大（約 4MB），偶爾會在傳輸中被截斷
+    （requests.exceptions.ChunkedEncodingError / urllib3 ProtocolError:
+    Response ended prematurely）。這通常是暫時性的網路問題，
+    重試幾次通常就會成功，所以這裡做「失敗就等一下再試」的機制，
+    試滿 MAX_RETRIES 次都還是失敗才真的放棄、把例外往外丟。
+    """
+    last_exc = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = requests.post(
+                TARGET_URL, data=payload, headers=HEADERS, timeout=30
+            )
+            resp.raise_for_status()
+            # 有時候回應會被截斷成不完整的 HTML，但不一定會被 requests
+            # 判定為例外，這裡額外檢查一下內容是否明顯不完整。
+            if "</html>" not in resp.text.lower():
+                raise requests.exceptions.ChunkedEncodingError(
+                    "回應內容似乎被截斷（找不到結尾的 </html>）"
+                )
+            return resp
+        except (
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+        ) as exc:
+            last_exc = exc
+            wait = RETRY_BACKOFF_SECONDS * (2 ** (attempt - 1))
+            print(
+                f"  ⚠️ 第 {attempt} 次嘗試抓取 {date_str} 失敗（{exc!r}），"
+                f"{wait} 秒後重試..."
+            )
+            if attempt < MAX_RETRIES:
+                time.sleep(wait)
+    # 全部重試都失敗，把最後一次的例外往外丟出去
+    raise last_exc
+
+
+def fetch_strike_oi(date_str):
+    """
+    date_str 格式：YYYY/MM/DD
+    回傳 (records, nearest_expiry_code)
+    records 為 list[dict]，欄位對應 CSV_HEADER（不含 date，date 由呼叫端補上）
     """
     payload = {
         "queryDate": date_str,
-        "commodity_id": commodity_id,
-        "MarketCode": market_code,
+        "commodity_id": "TXO",
+        "MarketCode": "0",
     }
-    resp = requests.post(TARGET_URL, data=payload, headers=HEADERS, timeout=20)
-    resp.raise_for_status()
 
-    try:
-        import pandas as pd
-        import io
-    except ImportError:
-        print("需要安裝 pandas 與 lxml：pip install pandas lxml")
-        raise
+    resp = _post_with_retry(payload, date_str)
 
     tables = pd.read_html(io.StringIO(resp.text))
-    if len(tables) == 0:
-        print(f"  ⚠️ 頁面完全沒有回傳表格，可能是非交易日")
+    if not tables:
+        print(f"  ⚠️ {date_str} 找不到任何表格")
         return [], None
 
-    # 🔶 已根據實測修正：資料表是回傳的第 1 個 <table>（index=0），
-    # 欄位名稱裡可能夾雜空白字元（例如 '到期月份 (週別)'），統一先清除空白再比對。
-    df = tables[0].copy()
-    df.columns = [str(c).replace(" ", "").replace("\u3000", "") for c in df.columns]
+    df = tables[0]
+    df.columns = [
+        str(c).replace(" ", "").replace("　", "") for c in df.columns
+    ]
 
-    required_cols = ["到期月份(週別)", "契約到期日", "履約價", "買賣權", "*未沖銷契約量"]
-    missing = [c for c in required_cols if c not in df.columns]
+    required_cols = {"到期月份(週別)", "履約價", "契約到期日"}
+    missing = required_cols - set(df.columns)
     if missing:
-        print(f"  ⚠️ 缺少欄位：{missing}，目前欄位有：{list(df.columns)}")
+        print(f"  ⚠️ {date_str} 缺少欄位：{missing}，實際欄位：{list(df.columns)}")
         return [], None
 
-    if "契約" in df.columns:
-        df = df[df["契約"] == commodity_id]
-
-    df = df[df["買賣權"].isin(["Call", "Put", "買權", "賣權"])]
-    if df.empty:
-        print(f"  ⚠️ {date_str} 沒有符合的資料列（可能是非交易日）")
-        return [], None
-
-    # 抓「真正最快到期」的合約（不限月選/週選，純比較到期日），
-    # 但排除「到期日 ≤ 查詢當天」的合約——那種當天就結算/已結算，
-    # 不是真正「還在交易、接下來要看的」合約。
-    df["到期月份(週別)"] = df["到期月份(週別)"].astype(str).str.strip()
-    df["契約到期日"] = pd.to_numeric(df["契約到期日"], errors="coerce")
-    df = df.dropna(subset=["契約到期日"])
-    if df.empty:
-        print(f"  ⚠️ 契約到期日欄位無法解析出有效數字")
-        return [], None
-
+    # 只保留契約到期日「晚於」查詢日當天的合約（當天或已過期的合約不算
+    # 是「最快到期」要觀察的對象）
+    df["契約到期日"] = df["契約到期日"].apply(_clean_number)
     query_date_num = int(date_str.replace("/", ""))
     df = df[df["契約到期日"] > query_date_num]
+
     if df.empty:
         print(f"  ⚠️ 找不到到期日晚於 {date_str} 的合約（可能所有合約當天都已結算）")
         return [], None
 
     nearest_expiry_date = int(df["契約到期日"].min())
-    nearest_expiry = str(nearest_expiry_date)
     nearest_expiry_code = df.loc[
         df["契約到期日"] == nearest_expiry_date, "到期月份(週別)"
     ].iloc[0]
     df = df[df["契約到期日"] == nearest_expiry_date]
 
+    oi_col_candidates = [c for c in df.columns if "未沖銷" in c and "契約量" in c]
+    if not oi_col_candidates:
+        print(f"  ⚠️ {date_str} 找不到未沖銷契約量欄位，實際欄位：{list(df.columns)}")
+        return [], None
+    oi_col = oi_col_candidates[0]
+
     records = []
     for _, row in df.iterrows():
-        strike = _clean_number(row["履約價"])
-        if strike == 0:
+        strike = _clean_number(row.get("履約價"))
+        option_type_raw = str(row.get("買賣權", "")).strip()
+        if "買權" in option_type_raw or option_type_raw.upper() == "C":
+            option_type = "call"
+        elif "賣權" in option_type_raw or option_type_raw.upper() == "P":
+            option_type = "put"
+        else:
+            # 有些列可能是合計列或非選擇權列，跳過
             continue
-        option_type = "call" if row["買賣權"] in ("Call", "買權") else "put"
-        oi = _clean_number(row["*未沖銷契約量"])
-        records.append({
-            "date": date_str,
-            "expiry": nearest_expiry,
-            "expiry_code": nearest_expiry_code,
-            "strike": strike,
-            "option_type": option_type,
-            "open_interest": oi,
-        })
+        oi = _clean_number(row.get(oi_col))
+        records.append(
+            {
+                "expiry": nearest_expiry_date,
+                "expiry_code": nearest_expiry_code,
+                "strike": strike,
+                "option_type": option_type,
+                "open_interest": oi,
+            }
+        )
 
     return records, nearest_expiry_code
 
 
-def load_existing_dates():
-    if not os.path.exists(CSV_PATH):
-        return set()
-    with open(CSV_PATH, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        return {row["date"] for row in reader}
-
-
-def append_records(records):
+def append_records(date_str, records):
     if not records:
+        print(f"  {date_str} 沒有資料可寫入")
         return
-    file_exists = os.path.exists(CSV_PATH) and os.path.getsize(CSV_PATH) > 0
+
     os.makedirs(os.path.dirname(CSV_PATH), exist_ok=True)
+    file_exists = os.path.exists(CSV_PATH) and os.path.getsize(CSV_PATH) > 0
+
     with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_HEADER)
         if not file_exists:
             writer.writeheader()
-        for r in records:
-            writer.writerow(r)
+        for rec in records:
+            writer.writerow(
+                {
+                    "date": date_str,
+                    "expiry": rec["expiry"],
+                    "expiry_code": rec["expiry_code"],
+                    "strike": rec["strike"],
+                    "option_type": rec["option_type"],
+                    "open_interest": rec["open_interest"],
+                }
+            )
+    print(f"  已寫入 {len(records)} 筆資料到 {CSV_PATH}")
 
 
-def is_weekend(dt):
-    return dt.weekday() >= 5
+def main():
+    if len(sys.argv) > 1:
+        target_date = sys.argv[1]
+    else:
+        target_date = datetime.now().strftime("%Y/%m/%d")
+
+    print(f"抓取日期：{target_date}")
+    records, nearest_expiry_code = fetch_strike_oi(target_date)
+    if nearest_expiry_code is not None:
+        print(f"最快到期合約代碼：{nearest_expiry_code}")
+    append_records(target_date, records)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--date", help="抓取指定日期，格式 YYYY/MM/DD，預設為今天")
-    args = parser.parse_args()
-
-    target_date = args.date or datetime.now().strftime("%Y/%m/%d")
-    target_dt = datetime.strptime(target_date, "%Y/%m/%d")
-    if is_weekend(target_dt):
-        print(f"{target_date} 是週末，略過。")
-        sys.exit(0)
-
-    existing_dates = load_existing_dates()
-    if target_date in existing_dates:
-        print(f"{target_date} 已經在 data/txo_strike_oi.csv 裡了，略過。")
-        sys.exit(0)
-
-    records, nearest_expiry_code = fetch_strike_oi(target_date)
-    if records:
-        print(f"  ✅ 成功抓到 {target_date}（月合約 {nearest_expiry_code}）共 {len(records)} 筆履約價資料")
-    append_records(records)
+    main()
