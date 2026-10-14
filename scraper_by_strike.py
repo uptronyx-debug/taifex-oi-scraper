@@ -11,7 +11,7 @@ import io
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pandas as pd
 import requests
@@ -141,13 +141,20 @@ def fetch_strike_oi(date_str):
         return [], None
     oi_col = oi_col_candidates[0]
 
+    type_candidates = [c for c in df.columns if "買賣權" in c]
+    if not type_candidates:
+        print(f"  ⚠️ {date_str} 找不到買賣權欄位，實際欄位：{list(df.columns)}")
+        return [], None
+    type_col = type_candidates[0]
+
     records = []
     for _, row in df.iterrows():
         strike = _clean_number(row.get("履約價"))
-        option_type_raw = str(row.get("買賣權", "")).strip()
-        if "買權" in option_type_raw or option_type_raw.upper() == "C":
+        option_type_raw = str(row.get(type_col, "")).strip()
+        up = option_type_raw.upper()
+        if up.startswith("C") or "買" in option_type_raw:
             option_type = "call"
-        elif "賣權" in option_type_raw or option_type_raw.upper() == "P":
+        elif up.startswith("P") or "賣" in option_type_raw:
             option_type = "put"
         else:
             # 有些列可能是合計列或非選擇權列，跳過
@@ -192,17 +199,45 @@ def append_records(date_str, records):
     print(f"  已寫入 {len(records)} 筆資料到 {CSV_PATH}")
 
 
-def main():
-    if len(sys.argv) > 1:
-        target_date = sys.argv[1]
-    else:
-        target_date = datetime.now().strftime("%Y/%m/%d")
+def date_already_saved(date_str):
+    if not os.path.exists(CSV_PATH):
+        return False
+    with open(CSV_PATH, encoding="utf-8") as f:
+        return any(line.startswith(date_str + ",") for line in f)
 
-    print(f"抓取日期：{target_date}")
-    records, nearest_expiry_code = fetch_strike_oi(target_date)
+
+def run_one(date_str, skip_existing=False):
+    if skip_existing and date_already_saved(date_str):
+        print(f"{date_str} 已有資料，略過")
+        return True
+    print(f"抓取日期：{date_str}")
+    records, nearest_expiry_code = fetch_strike_oi(date_str)
     if nearest_expiry_code is not None:
         print(f"最快到期合約代碼：{nearest_expiry_code}")
-    append_records(target_date, records)
+    append_records(date_str, records)
+    return bool(records)
+
+
+def main():
+    args = sys.argv[1:]
+    if args and args[0] == "--backfill":
+        # 用法：python scraper_by_strike.py --backfill 2026/10/07 2026/10/14
+        start = datetime.strptime(args[1], "%Y/%m/%d")
+        end = datetime.strptime(args[2], "%Y/%m/%d")
+        day = start
+        while day <= end:
+            if day.weekday() < 5:  # 只抓週一到週五，假日期交所沒資料會被略過
+                run_one(day.strftime("%Y/%m/%d"), skip_existing=True)
+                time.sleep(2)
+            day = day + timedelta(days=1)
+        return
+
+    target_date = args[0] if args else datetime.now().strftime("%Y/%m/%d")
+    ok = run_one(target_date)
+    if not ok:
+        # 沒抓到資料就明確讓 Action 顯示失敗（紅叉），不要再靜悄悄綠勾
+        print("❌ 沒有寫入任何資料")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
