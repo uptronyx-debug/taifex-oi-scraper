@@ -1,0 +1,38 @@
+name: 補抓履約價未平倉資料
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "開始日期 (YYYY/MM/DD)"
+        required: true
+        default: "2026/10/07"
+      end_date:
+        description: "結束日期 (YYYY/MM/DD)"
+        required: true
+        default: "2026/10/14"
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: 補抓
+        env:
+          START: ${{ github.event.inputs.start_date }}
+          END: ${{ github.event.inputs.end_date }}
+        run: python scraper_by_strike.py --backfill "$START" "$END"
+      - name: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/txo_strike_oi.csv
+          git diff --staged --quiet && echo "沒有新資料" || git commit -m "auto: 補抓履約價資料"
+          git push
