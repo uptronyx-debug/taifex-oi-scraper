@@ -28,8 +28,7 @@ jobs:
         run: |
           TODAY_SLASH=$(TZ=Asia/Taipei date +%Y/%m/%d)
           TODAY_DASH=$(TZ=Asia/Taipei date +%Y-%m-%d)
-          if [ "${{ github.event_name }}" = "schedule" ] \
-             && grep -qE "^($TODAY_SLASH|$TODAY_DASH)," data/txo_oi.csv 2>/dev/null \
+          if grep -qE "^($TODAY_SLASH|$TODAY_DASH)," data/txo_oi.csv 2>/dev/null \
              && grep -qE "^($TODAY_SLASH|$TODAY_DASH)," data/txo_strike_oi.csv 2>/dev/null; then
             echo "今天已經有資料，略過"
             echo "skip=true" >> "$GITHUB_OUTPUT"
