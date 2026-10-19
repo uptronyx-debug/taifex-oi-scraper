@@ -2,7 +2,7 @@ name: 偵查資料來源（測試用，不寫資料）
 on:
   workflow_dispatch: {}
 permissions:
-  contents: read
+  contents: write
 jobs:
   probe:
     runs-on: ubuntu-latest
@@ -12,4 +12,13 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: python tools/probe.py
+      - run: python tools/probe.py > probe_output.txt 2>&1 || true
+      - name: 把結果推到獨立分支 probe-output（不影響 main 與網頁）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan probe-output
+          git rm -rq --cached .
+          git add -f probe_output.txt
+          git commit -qm "probe output"
+          git push -f origin probe-output
