@@ -396,6 +396,10 @@
   .stat-delta{ font-family:'Roboto Mono', monospace; font-size:11px; color:var(--text-muted); }
   .pos{ color:var(--long); }
   .neg{ color:var(--short); }
+  .stat.clickable{ cursor:pointer; transition:border-color .15s; }
+  .stat.clickable:hover{ border-color:#4A5A6C; }
+  .stat.clickable.selected{ border-color:var(--text-muted); box-shadow:inset 0 0 0 1px var(--text-muted); }
+  .table-scroll{ overflow-x:auto; }
   .chart-title{ font-size:12px; color:var(--text-muted); margin:16px 0 4px; }
   .note{ font-size:12px; color:var(--text-muted); padding:12px 0; }
 
@@ -429,7 +433,6 @@
 
   <section class="tab-panel active" id="panel-options">
     <div id="status">資料載入中…</div>
-    <div id="optNet" class="card" style="display:none;"></div>
     <div id="summary" style="display:none;"></div>
     <div id="trend" style="display:none;"></div>
     <div id="strikeSection" style="display:none;"></div>
@@ -642,7 +645,6 @@ function render(rows) {
     "頁面查詢時間：" + new Date().toLocaleString("zh-Hant-TW", { hour12: false });
 
   renderSummary(latestRows);
-  renderOptNet(rows);
   document.getElementById("status").style.display = "none";
 }
 
@@ -863,8 +865,9 @@ function barChartSvg(values, labels) {
     const yy = v >= 0 ? y0 - h : y0;
     return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(h, 0.5).toFixed(1)}" fill="${v >= 0 ? "var(--long)" : "var(--short)"}" opacity="0.9"><title>${labels[i]}：${v.toFixed(2)}</title></rect>`;
   }).join("");
-  const step = Math.ceil(values.length / 8);
-  const xl = labels.map((l, i) => i % step === 0 || i === labels.length - 1
+  const step = Math.ceil(values.length / Math.max(3, Math.floor(width / 75)));
+  const showLbl = (i, n) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75);
+  const xl = labels.map((l, i) => showLbl(i, labels.length)
     ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
   const grid = [maxAbs, 0, -maxAbs].map(v => {
     const yy = y0 - v * scale;
@@ -890,85 +893,100 @@ function netLineSvg(values, labels) {
     `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)" stroke-width="1"/>
      <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${Math.round(v).toLocaleString()}</text>`).join("");
   const zero = (lo < 0 && hi > 0) ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3"/>` : "";
-  const step = Math.ceil(n / 8);
-  const xl = labels.map((l, i) => i % step === 0 || i === n - 1
+  const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
+  const xl = labels.map((l, i) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75)
     ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
   const dots = values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${color}"><title>${labels[i]}：${Math.round(v).toLocaleString()}</title></circle>`).join("");
   return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xl}</svg>`;
 }
 
-// ================= 選擇權：外資買權/賣權淨未平倉口數 =================
-function renderOptNet(rows) {
-  const box = document.getElementById("optNet");
-  const dates = [...new Set(rows.map(r => r.date))].sort();
-  const d = dates[dates.length - 1], p = dates[dates.length - 2];
-  const get = (date, type) => {
-    const r = rows.find(x => x.date === date && x.investor_type === "foreign" && x.option_type === type);
-    return r ? Number(r.oi_net_volume) : null;
-  };
-  const items = [["外資買權淨未平倉（口）", "call"], ["外資賣權淨未平倉（口）", "put"]].map(([label, type]) => {
-    const now = get(d, type), prev = p ? get(p, type) : null;
-    if (now === null) return "";
-    const delta = prev === null ? "" : `較前日 ${fmtInt(now - prev)}`;
-    return statHtml(label, now, fmtInt(now), delta, true);
-  }).join("");
-  box.innerHTML = `<div class="stat-grid two">${items}</div>`;
-  box.style.padding = "12px";
-  box.style.marginBottom = "16px";
-  box.style.display = "block";
-}
-
 // ================= 期貨 =================
+let FUT_MODE = "vol";   // vol = 口數, val = 金額（億）
+function setFutMode(m) {
+  FUT_MODE = m;
+  try { localStorage.setItem("futMode", m); } catch (e) {}
+  if (FUT_ROWS) renderFutures(FUT_ROWS);
+}
+try { FUT_MODE = localStorage.getItem("futMode") || "vol"; } catch (e) {}
+
+// 每天的「近月、次月」：排除當天已結算（結算價為 0）的合約，取最近兩個月份
+function monthPairs(txmRows) {
+  const byDate = {};
+  (txmRows || []).forEach(r => {
+    if (Number(r.settle) <= 0) return;
+    (byDate[r.date] = byDate[r.date] || []).push({ contract: r.contract, oi: Number(r.oi) });
+  });
+  Object.values(byDate).forEach(list => list.sort((a, b) => a.contract < b.contract ? -1 : 1));
+  return byDate;
+}
+const fmtMonth = c => c ? `${c.slice(0, 4)}/${c.slice(4)}` : "";
+
 function renderFutures(rows) {
   const box = document.getElementById("futBox");
   const tx = rows.filter(r => r.product === "TX");
   const dates = [...new Set(tx.map(r => r.date))].sort();
   if (!dates.length) { box.innerHTML = `<div class="note">尚無期貨資料</div>`; return; }
-  const net = (date, inv) => {
-    const r = tx.find(x => x.date === date && x.investor_type === inv);
-    return r ? Number(r.oi_net_volume) : 0;
-  };
-  const netValYi = (date, inv) => {
-    const r = tx.find(x => x.date === date && x.investor_type === inv);
-    return r ? Number(r.oi_net_value_k) / 100000 : 0;
-  };
+  const find = (date, inv) => tx.find(x => x.date === date && x.investor_type === inv);
+  const vol = (date, inv) => { const r = find(date, inv); return r ? Number(r.oi_net_volume) : 0; };
+  const val = (date, inv) => { const r = find(date, inv); return r ? Number(r.oi_net_value_k) / 100000 : 0; };
   const d = dates[dates.length - 1], p = dates[dates.length - 2];
-  const dl = (inv) => p ? `較前日 ${fmtInt(net(d, inv) - net(p, inv))}` : "";
+
+  // 近月 / 次月 未沖銷
+  const pairs = monthPairs(TXM_ROWS);
+  const monthOi = (date, contract) => { const l = pairs[date] || []; const x = l.find(m => m.contract === contract); return x ? x.oi : null; };
+  const todayMonths = (pairs[d] || []).slice(0, 2);
+  const monthStat = (idx, label) => {
+    const m = todayMonths[idx];
+    if (!m) return statHtml(label, 0, "—", TXM_ROWS ? "尚無資料" : "載入中…", false);
+    const prev = p ? monthOi(p, m.contract) : null;
+    const delta = prev === null ? "" : `較前日 ${fmtInt(m.oi - prev)}`;
+    return `<div class="stat"><div class="stat-label">${label}　${fmtMonth(m.contract)}</div>
+      <div class="stat-value">${m.oi.toLocaleString()}</div><div class="stat-delta">${delta}</div></div>`;
+  };
+
+  const vDelta = p ? `較前日 ${fmtInt(vol(d, "foreign") - vol(p, "foreign"))}` : "";
+  const aDelta = p ? `較前日 ${fmtYi2(val(d, "foreign") - val(p, "foreign"))}` : "";
+  const clickStat = (mode, label, v, text, delta) =>
+    `<div class="stat clickable ${FUT_MODE === mode ? "selected" : ""}" onclick="setFutMode('${mode}')">
+      <div class="stat-label">${label}</div>
+      <div class="stat-value ${signCls(v)}">${text}</div>
+      <div class="stat-delta">${delta}</div></div>`;
 
   const stats = `<div class="stat-grid">
-    ${statHtml("外資大台淨未平倉（口）", net(d, "foreign"), fmtInt(net(d, "foreign")), dl("foreign"), true)}
-    ${statHtml("外資淨未平倉金額（億）", netValYi(d, "foreign"), fmtYi2(netValYi(d, "foreign")), "", false)}
-    ${statHtml("投信大台淨未平倉（口）", net(d, "trust"), fmtInt(net(d, "trust")), dl("trust"), false)}
-    ${statHtml("自營商大台淨未平倉（口）", net(d, "dealer"), fmtInt(net(d, "dealer")), dl("dealer"), false)}
+    ${clickStat("vol", "外資大台淨未平倉（口）", vol(d, "foreign"), fmtInt(vol(d, "foreign")), vDelta)}
+    ${clickStat("val", "外資大台淨未平倉金額（億）", val(d, "foreign"), fmtYi2(val(d, "foreign")), aDelta)}
+    ${monthStat(0, "大台近月未沖銷（口）")}
+    ${monthStat(1, "大台次月未沖銷（口）")}
   </div>`;
 
+  const series = FUT_MODE === "vol" ? (x => vol(x, "foreign")) : (x => val(x, "foreign"));
+  const unit = FUT_MODE === "vol" ? "口" : "億";
   const last20 = dates.slice(-20);
-  const foreignNet = last20.map(x => net(x, "foreign"));
-  const changes = last20.map(x => {
-    const i = dates.indexOf(x);
-    return i > 0 ? net(x, "foreign") - net(dates[i - 1], "foreign") : 0;
-  });
+  const netSeries = last20.map(series);
+  const changes = last20.map(x => { const i = dates.indexOf(x); return i > 0 ? series(x) - series(dates[i - 1]) : 0; });
 
   const last10 = dates.slice(-10).reverse();
   const tableRows = last10.map(x => {
     const i = dates.indexOf(x);
-    const chg = i > 0 ? net(x, "foreign") - net(dates[i - 1], "foreign") : null;
+    const chg = i > 0 ? vol(x, "foreign") - vol(dates[i - 1], "foreign") : null;
+    const ms = (pairs[x] || []).slice(0, 2);
     const td = v => `<td class="${signCls(v)}">${fmtInt(v)}</td>`;
-    return `<tr><td>${x.slice(5)}</td>${td(net(x, "foreign"))}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td>${td(net(x, "trust"))}${td(net(x, "dealer"))}</tr>`;
+    const mtd = m => `<td>${m ? m.oi.toLocaleString() : "—"}</td>`;
+    return `<tr><td>${x.slice(5)}</td>${td(vol(x, "foreign"))}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td><td class="${signCls(val(x, "foreign"))}">${fmtYi2(val(x, "foreign"))}</td>${td(vol(x, "dealer"))}${mtd(ms[0])}${mtd(ms[1])}</tr>`;
   }).join("");
 
   box.innerHTML = `<div class="card">
-    <h2>三大法人臺股期貨（大台）未平倉</h2>
-    <div class="sub">資料日期：${d}　｜　淨未平倉 = 多方 − 空方　｜　紅：淨多　綠：淨空</div>
+    <h2>外資臺股期貨（大台）未平倉</h2>
+    <div class="sub">資料日期：${d}　｜　淨未平倉 = 多方 − 空方　｜　紅：淨多　綠：淨空　｜　點前兩格切換「口數 / 金額」圖表</div>
     ${stats}
-    <div class="chart-title">外資大台淨未平倉（口），近 ${last20.length} 個交易日</div>
-    ${netLineSvg(foreignNet, last20)}
-    <div class="chart-title">外資大台淨未平倉每日增減（口）</div>
+    <div class="chart-title">外資大台淨未平倉${FUT_MODE === "vol" ? "（口）" : "金額（億）"}，近 ${last20.length} 個交易日</div>
+    ${netLineSvg(netSeries, last20)}
+    <div class="chart-title">每日增減（${unit}）</div>
     ${barChartSvg(changes, last20)}
-    <table class="trend-table">
-      <thead><tr><th>日期</th><th>外資淨OI</th><th>外資增減</th><th>投信淨OI</th><th>自營淨OI</th></tr></thead>
+    <div class="table-scroll"><table class="trend-table">
+      <thead><tr><th>日期</th><th>外資淨OI</th><th>增減</th><th>淨金額(億)</th><th>自營淨OI</th><th>近月未沖銷</th><th>次月未沖銷</th></tr></thead>
       <tbody>${tableRows}</tbody>
-    </table>
+    </table></div>
   </div>`;
 }
 
@@ -1025,8 +1043,12 @@ function loadCsv(name, onRows, boxId) {
       document.getElementById(boxId).innerHTML = `<div class="note">資料載入失敗：${err.message}（${name}）</div>`;
     });
 }
-let FUT_ROWS = null, SPOT_ROWS = null;
+let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null;
 loadCsv("fut_oi.csv", rows => { FUT_ROWS = rows; renderFutures(rows); }, "futBox");
+fetch(RAW + "tx_month_oi.csv?t=" + Date.now(), { cache: "no-store" })
+  .then(res => { if (!res.ok) throw new Error(); return res.text(); })
+  .then(text => { TXM_ROWS = parseCSV(text); if (FUT_ROWS) renderFutures(FUT_ROWS); })
+  .catch(() => { TXM_ROWS = []; if (FUT_ROWS) renderFutures(FUT_ROWS); });
 loadCsv("spot_net.csv", rows => { SPOT_ROWS = rows; renderSpot(rows); }, "spotBox");
 let resizeTimer = null, lastW = 0;
 window.addEventListener("resize", () => {
