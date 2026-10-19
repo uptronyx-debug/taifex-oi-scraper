@@ -1,0 +1,50 @@
+### hits.sh
+HTTP/1.1 200 
+Date: Mon, 19 Oct 2026 09:29:58 GMT
+Server: Apache/2.4.38 (Win64) OpenSSL/1.1.1b
+Cache-Control: no-cache, no-store, must-revalidate
+Expires: Thu, 01 Jan 1970 00:00:00 GMT
+Content-Type: image/svg+xml;charset=UTF-8
+Content-Length: 1105
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="48" height="20" role="img" aria-label="test: 1"><title>test: 1</title><linearGradient id="s" x2="0" y2="100%"><stop offset="0" stop-color="#bbb" stop-opacity=".1"/><stop offset="1" stop-opacity=".1"/></linearGradient><clipPath id="r"><rect width="48" height="20" rx="3" fill="#fff"/></clipPath><g clip-path="url(#r)"><rect width="31" height="20" fill="#555"/><rect x="31" width="17" height="20" fill="#4c1"/><rect width="48" height="20" fill="url(#s)"/></g><g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="110"><text aria-hidden="true" x="165" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="210">test</text><text x="165" y="140" transform="scale(.1)" fill="#fff" textLength="210">test</text><text aria-hidden="true" x="385" y="150" fill="#010101" fill-opacity=".3" transform="scale(.1)" textLength="70">1</text><text x="385" y="140" transform="scale(.1)" fill="#fff" textLength="70">1</text></g></svg>
+### hits.sh json
+HTTP/1.1 200 
+Date: Mon, 19 Oct 2026 09:29:58 GMT
+Server: Apache/2.4.38 (Win64) OpenSSL/1.1.1b
+Vary: Origin,Access-Control-Request-Method,Access-Control-Request-Headers
+Last-Modified: Mon, 12 Oct 2026 01:09:58 GMT
+Accept-Ranges: bytes
+Content-Type: text/html
+Content-Language: ko-KR
+Content-Length: 1869
+
+<!doctype html><html lang="en"><head><title>Hits</title><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><meta name="theme-color" content="#0B0F19"/><meta name="msapplication-TileColor" content="#0B0F19"><meta name="description" content="A fast, simple and privacy-friendly way to count hits on your GitHub repositories, websites and more."/><meta property="og:title" content="Hits"><meta property="og:description" content="A fast, simple and 
+### counterapi v1
+HTTP/2 410 
+date: Mon, 19 Oct 2026 09:29:59 GMT
+content-type: application/json; charset=utf-8
+content-length: 182
+x-ratelimit-limit: 600
+x-ratelimit-remaining: 599
+cf-cache-status: DYNAMIC
+nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+report-to: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uKZBISz7eockDysgurYMkTraFdwtEQEjjX3zAeccZJsqk0bxPYxPjd1HMpibH1LxrmzorfgbW0pRRJdV2Jbsu7sp%2FGk%2F3ZSxii2u9XjrpqUQSdxMl6Lv74iH8tS5%2BvbQmBai7%2Bs%3D"}]}
+server: cloudflare
+cf-ray: a4cec2efdca4d640-IAD
+alt-svc: h3=":443"; ma=86400
+
+{"code":"410","deprecated":true,"docs":"https://docs.counterapi.dev/api/endpoints/v2/","message":"This API version (v1) is deprecated and no longer available. Please migrate to v2."}
+### abacus
+HTTP/2 200 
+content-type: application/json; charset=utf-8
+ratelimit-policy: 30;w=10
+ratelimit-remaining: 29
+ratelimit-reset: 1792402209
+date: Mon, 19 Oct 2026 09:29:59 GMT
+content-length: 11
+server: Fly/42494bfe9c (2026-10-15)
+via: 2 fly.io, 2 fly.io
+fly-request-id: 01M59QY4VJ2BV0HRM4BZBERDK6-iad
+
+{"value":1}
