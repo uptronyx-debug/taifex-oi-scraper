@@ -28,7 +28,7 @@ jobs:
         run: |
           TODAY=$(TZ=Asia/Taipei date +%Y/%m/%d)
           missing=0
-          for f in data/txo_oi.csv data/txo_strike_oi.csv data/fut_oi.csv data/spot_net.csv; do
+          for f in data/txo_oi.csv data/txo_strike_oi.csv data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv; do
             if ! grep -q "^$TODAY," "$f" 2>/dev/null; then echo "$f 還沒有 $TODAY 的資料"; missing=1; fi
           done
           if [ "$missing" = "0" ]; then
@@ -60,6 +60,10 @@ jobs:
       - name: 執行爬蟲（期貨三大法人未平倉）
         if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
         run: python scraper_futures.py
+
+      - name: 執行爬蟲（大台各月份未沖銷量）
+        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
+        run: python scraper_tx_months.py
 
       - name: 執行爬蟲（現貨三大法人買賣超）
         if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}

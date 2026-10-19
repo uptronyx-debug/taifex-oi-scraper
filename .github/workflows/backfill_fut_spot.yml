@@ -34,6 +34,12 @@ jobs:
           START: ${{ github.event.inputs.start_date }}
           END: ${{ github.event.inputs.end_date }}
         run: python scraper_futures.py --backfill "$START" "$END"
+      - name: 補抓大台各月份未沖銷量
+        if: ${{ !cancelled() }}
+        env:
+          START: ${{ github.event.inputs.start_date }}
+          END: ${{ github.event.inputs.end_date }}
+        run: python scraper_tx_months.py --backfill "$START" "$END"
       - name: 補抓現貨
         if: ${{ !cancelled() }}
         env:
@@ -43,13 +49,13 @@ jobs:
       - name: 依日期排序並 commit
         if: ${{ !cancelled() }}
         run: |
-          for f in data/fut_oi.csv data/spot_net.csv; do
+          for f in data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv; do
             [ -f "$f" ] || continue
             { head -1 "$f"; tail -n +2 "$f" | sort -t, -k1,1 -s; } > tmp.csv && mv tmp.csv "$f"
           done
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/fut_oi.csv data/spot_net.csv
+          git add data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv
           git diff --staged --quiet && echo "沒有新資料" || git commit -m "auto: 補抓期貨與現貨歷史資料"
           git pull --rebase -q origin main
           git push
