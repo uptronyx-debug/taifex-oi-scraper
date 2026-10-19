@@ -1,0 +1,19 @@
+name: 測試計數器服務（暫時）
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          {
+          echo "### hits.sh"; curl -sS -m 20 -i "https://hits.sh/uptronyx-debug.github.io/taifex-oi-scraper-test.svg?label=test" | head -c 1500; echo
+          echo "### hits.sh json"; curl -sS -m 20 -i "https://hits.sh/uptronyx-debug.github.io/taifex-oi-scraper-test.json" | head -c 800; echo
+          echo "### counterapi v1"; curl -sS -m 20 -i "https://api.counterapi.dev/v1/uptronyx-test/visits/up" | head -c 800; echo
+          echo "### abacus"; curl -sS -m 20 -i "https://abacus.jasoncameron.dev/hit/uptronyx-test/visits" | head -c 800; echo
+          } > probe_output.txt 2>&1
+          git init -q . && git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git add probe_output.txt && git commit -qm out
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" probe-output
