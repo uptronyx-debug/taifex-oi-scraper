@@ -101,7 +101,8 @@ def fetch(date_str, debug=False):
     for _, row in table.iterrows():
         if str(row[c_contract]).strip() != "TX":
             continue
-        month = re.sub(r"\s+", "", str(row[c_month]))
+        mv = row[c_month]
+        month = str(int(mv)) if isinstance(mv, float) and mv == mv and mv.is_integer() else re.sub(r"\s+", "", str(mv))
         if not re.fullmatch(r"\d{6}", month):  # 只要月契約，排除週契約與價差
             continue
         records.append({
