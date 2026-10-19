@@ -1,0 +1,37 @@
+name: 刪除某一天的資料
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "要刪除的日期 (YYYY/MM/DD)"
+        required: true
+        default: "2026/10/19"
+
+permissions:
+  contents: write
+
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 刪除該日期的資料列（保留標題列）
+        env:
+          D: ${{ github.event.inputs.target_date }}
+        run: |
+          for f in data/txo_oi.csv data/txo_strike_oi.csv; do
+            [ -f "$f" ] || continue
+            before=$(wc -l < "$f")
+            grep -v "^$D," "$f" > tmp.csv || true
+            mv tmp.csv "$f"
+            after=$(wc -l < "$f")
+            echo "$f：刪除 $((before - after)) 列"
+          done
+      - name: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/txo_oi.csv data/txo_strike_oi.csv
+          git diff --staged --quiet && echo "沒有要刪的資料" || git commit -m "刪除 ${{ github.event.inputs.target_date }} 的資料"
+          git push
