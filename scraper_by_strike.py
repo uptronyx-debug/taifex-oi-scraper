@@ -170,6 +170,12 @@ def fetch_strike_oi(date_str):
             }
         )
 
+    # 盤中或資料尚未更新時，期交所的未沖銷契約量會全部是 0，
+    # 這種資料不能寫進去（否則收盤後的正確資料會被「今天已有資料」略過）
+    if records and sum(r["open_interest"] for r in records) == 0:
+        print(f"  ⚠️ {date_str} 未平倉量全部為 0（可能尚未收盤或資料未更新），不寫入")
+        return [], nearest_expiry_code
+
     return records, nearest_expiry_code
 
 
