@@ -119,8 +119,10 @@ def main():
         end = datetime.strptime(a.backfill[1], "%Y/%m/%d")
         while d <= end:
             if d.weekday() < 5:
-                run_one(d.strftime("%Y/%m/%d"), have)
-                time.sleep(3)  # 證交所有頻率限制
+                ds = d.strftime("%Y/%m/%d")
+                if ds not in have:
+                    run_one(ds, have)
+                    time.sleep(3)  # 證交所有頻率限制
             d += timedelta(days=1)
         return
     date_str = a.date or datetime.now().strftime("%Y/%m/%d")
