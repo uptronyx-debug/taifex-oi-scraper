@@ -1,0 +1,32 @@
+name: 測試新爬蟲（不寫入 data）
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: 測試（寫到 out/）
+        env:
+          DATA_DIR: out
+        run: |
+          {
+            python scraper_tx_months.py --date 2026/10/16 --debug || echo "exit=$?"
+            for d in 2026/10/15 2026/10/09 2026/10/19 2025/10/15; do python scraper_tx_months.py --date $d || echo "exit=$?"; done
+            echo "##### csv"; cat out/tx_month_oi.csv
+          } > probe_output.txt 2>&1 || true
+      - name: 結果推到 probe-output 分支
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan probe-output
+          git rm -rq --cached .
+          git add -f probe_output.txt
+          git commit -qm "probe output"
+          git push -f origin probe-output
