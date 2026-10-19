@@ -601,7 +601,7 @@ function trendTableHtml(dates, series) {
     const s = series[i];
     const cells = legKeys.map(k => `<td>${fmtYi(s[k])}</td>`).join("");
     return `<tr><td>${d.slice(5)}</td>${cells}</tr>`;
-  }).join("");
+  }).reverse().join("");  // 最新日期在最上面，和期貨、現貨一致
   return `<table class="trend-table">
     <thead><tr><th>日期</th><th>BC</th><th>SC</th><th>BP</th><th>SP</th></tr></thead>
     <tbody>${rows}</tbody>
