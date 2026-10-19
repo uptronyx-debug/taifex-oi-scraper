@@ -3,7 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台指法人籌碼儀表板</title>
+<title>台指法人籌碼</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0F151C">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;600&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -412,13 +416,16 @@
     font-size:13px;
   }
   footer a{color:var(--text-muted);}
+  .foot-row{ margin-bottom:6px; }
+  .foot-k{ display:inline-block; min-width:64px; margin-right:8px; color:var(--text); opacity:.75; }
+  .foot-num{ font-family:'Roboto Mono', monospace; color:var(--text); }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <h1>台指法人籌碼儀表板</h1>
+    <h1>台指法人籌碼</h1>
     <div class="meta">
       資料日期：<span class="date" id="dataDate">—</span><br>
       <span id="lastChecked"></span>
@@ -447,7 +454,15 @@
   </section>
 
   <footer>
-    TAIFEX 期交所、TWSE 證交所 三大法人
+    <div class="foot-row"><span class="foot-k">資料來源</span>
+      <a href="https://www.taifex.com.tw/cht/3/callsAndPutsDate" target="_blank" rel="noopener">期交所 選擇權三大法人</a>、
+      <a href="https://www.taifex.com.tw/cht/3/optDailyMarketReport" target="_blank" rel="noopener">選擇權每日行情</a>、
+      <a href="https://www.taifex.com.tw/cht/3/futContractsDate" target="_blank" rel="noopener">期貨三大法人</a>、
+      <a href="https://www.taifex.com.tw/cht/3/futDailyMarketReport" target="_blank" rel="noopener">期貨每日行情</a>、
+      <a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 三大法人買賣金額</a>
+    </div>
+    <div class="foot-row"><span class="foot-k">更新時間</span>每個交易日約 15:30 自動更新（17:30 再檢查一次）</div>
+    <div class="foot-row" id="visitRow" style="display:none;"><span class="foot-k">瀏覽人次</span><span id="visitCount" class="foot-num"></span></div>
   </footer>
 
 </div>
@@ -972,7 +987,7 @@ function renderFutures(rows) {
     const ms = (pairs[x] || []).slice(0, 2);
     const td = v => `<td class="${signCls(v)}">${fmtInt(v)}</td>`;
     const mtd = m => `<td>${m ? m.oi.toLocaleString() : "—"}</td>`;
-    return `<tr><td>${x.slice(5)}</td>${td(vol(x, "foreign"))}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td><td class="${signCls(val(x, "foreign"))}">${fmtYi2(val(x, "foreign"))}</td>${td(vol(x, "dealer"))}${mtd(ms[0])}${mtd(ms[1])}</tr>`;
+    return `<tr><td>${x.slice(5)}</td>${td(vol(x, "foreign"))}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td><td class="${signCls(val(x, "foreign"))}">${fmtYi2(val(x, "foreign"))}</td>${mtd(ms[0])}${mtd(ms[1])}</tr>`;
   }).join("");
 
   box.innerHTML = `<div class="card">
@@ -984,7 +999,7 @@ function renderFutures(rows) {
     <div class="chart-title">每日增減（${unit}）</div>
     ${barChartSvg(changes, last20)}
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>日期</th><th>外資淨OI</th><th>增減</th><th>淨金額(億)</th><th>自營淨OI</th><th>近月未沖銷</th><th>次月未沖銷</th></tr></thead>
+      <thead><tr><th>日期</th><th>外資淨OI(口)</th><th>增減(口)</th><th>淨金額(億)</th><th>近月未沖銷(全)</th><th>次月未沖銷(全)</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table></div>
   </div>`;
@@ -1074,6 +1089,22 @@ document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () =>
   let t = location.hash.slice(1);
   if (!t) { try { t = localStorage.getItem("tab") || ""; } catch (e) {} }
   if (["options", "futures", "spot"].includes(t)) showTab(t);
+})();
+
+// ================= 瀏覽人次 =================
+(function visits() {
+  const NS = "uptronyx-taifex", KEY = "visits";
+  const today = new Date().toLocaleDateString("zh-TW");
+  let seen = null;
+  try { seen = localStorage.getItem("visitDay"); } catch (e) {}
+  const url = `https://abacus.jasoncameron.dev/${seen === today ? "get" : "hit"}/${NS}/${KEY}`;
+  fetch(url).then(r => r.ok ? r.json() : Promise.reject())
+    .then(j => {
+      if (typeof j.value !== "number") return;
+      try { localStorage.setItem("visitDay", today); } catch (e) {}
+      document.getElementById("visitCount").textContent = j.value.toLocaleString();
+      document.getElementById("visitRow").style.display = "block";
+    }).catch(() => {});
 })();
 </script>
 </body>
