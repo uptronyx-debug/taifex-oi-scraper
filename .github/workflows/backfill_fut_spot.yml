@@ -1,0 +1,55 @@
+name: 補抓期貨與現貨歷史資料
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "開始日期 (YYYY/MM/DD)"
+        required: true
+        default: "2025/10/01"
+      end_date:
+        description: "結束日期 (YYYY/MM/DD)"
+        required: true
+        default: "2026/10/16"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: 補抓期貨
+        env:
+          START: ${{ github.event.inputs.start_date }}
+          END: ${{ github.event.inputs.end_date }}
+        run: python scraper_futures.py --backfill "$START" "$END"
+      - name: 補抓現貨
+        if: ${{ !cancelled() }}
+        env:
+          START: ${{ github.event.inputs.start_date }}
+          END: ${{ github.event.inputs.end_date }}
+        run: python scraper_spot.py --backfill "$START" "$END"
+      - name: 依日期排序並 commit
+        if: ${{ !cancelled() }}
+        run: |
+          for f in data/fut_oi.csv data/spot_net.csv; do
+            [ -f "$f" ] || continue
+            { head -1 "$f"; tail -n +2 "$f" | sort -t, -k1,1 -s; } > tmp.csv && mv tmp.csv "$f"
+          done
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/fut_oi.csv data/spot_net.csv
+          git diff --staged --quiet && echo "沒有新資料" || git commit -m "auto: 補抓期貨與現貨歷史資料"
+          git pull --rebase -q origin main
+          git push

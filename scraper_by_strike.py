@@ -239,7 +239,7 @@ def main():
         return
 
     target_date = args[0] if args else datetime.now().strftime("%Y/%m/%d")
-    ok = run_one(target_date)
+    ok = run_one(target_date, skip_existing=True)
     if not ok:
         # 沒抓到資料就明確讓 Action 顯示失敗（紅叉），不要再靜悄悄綠勾
         print("❌ 沒有寫入任何資料")
