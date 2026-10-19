@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台指選擇權法人籌碼儀表板</title>
+<title>台指法人籌碼儀表板</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;600&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -351,6 +351,58 @@
   .strike-axis-labels .call-label{ text-align:right; }
   .strike-axis-labels .put-label{ text-align:left; }
 
+
+  /* ---------- Tabs ---------- */
+  .tabs{
+    display:flex; gap:4px; margin:-12px 0 20px;
+    border-bottom:1px solid var(--divider);
+  }
+  .tab{
+    background:none; border:none; cursor:pointer;
+    color:var(--text-muted); font-family:'Noto Sans TC', sans-serif;
+    font-size:15px; font-weight:600; padding:10px 16px;
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .tab:hover{ color:var(--text); }
+  .tab.active{ color:var(--text); border-bottom-color:var(--text); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--divider);
+    border-radius:6px; padding:22px 24px; margin-bottom:24px;
+  }
+  .card h2{
+    font-family:'Noto Serif TC', serif; font-weight:700;
+    font-size:17px; margin:0 0 6px;
+  }
+  .card .sub{ font-size:12px; color:var(--text-muted); margin-bottom:14px; }
+  .stat-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; }
+  .stat-grid.three{ grid-template-columns:repeat(3, 1fr); }
+  .stat-grid.two{ grid-template-columns:repeat(2, 1fr); }
+  @media (max-width:700px){
+    .stat-grid, .stat-grid.three{ grid-template-columns:1fr 1fr; }
+  }
+  .stat{
+    background:var(--surface-2); border:1px solid var(--divider);
+    border-radius:6px; padding:10px 12px;
+  }
+  .stat.main{ border-color:#3A4858; }
+  .stat-label{ font-size:11px; color:var(--text-muted); margin-bottom:2px; }
+  .stat-value{
+    font-family:'Roboto Mono', monospace; font-weight:700; font-size:20px;
+    font-variant-numeric:tabular-nums; line-height:1.3;
+  }
+  .stat-delta{ font-family:'Roboto Mono', monospace; font-size:11px; color:var(--text-muted); }
+  .pos{ color:var(--long); }
+  .neg{ color:var(--short); }
+  .stat.clickable{ cursor:pointer; transition:border-color .15s; }
+  .stat.clickable:hover{ border-color:#4A5A6C; }
+  .stat.clickable.selected{ border-color:var(--text-muted); box-shadow:inset 0 0 0 1px var(--text-muted); }
+  .table-scroll{ overflow-x:auto; }
+  .chart-title{ font-size:12px; color:var(--text-muted); margin:16px 0 4px; }
+  .note{ font-size:12px; color:var(--text-muted); padding:12px 0; }
+
   /* ---------- Footer ---------- */
   footer{
     margin-top:40px;
@@ -366,21 +418,36 @@
 <div class="wrap">
 
   <header>
-    <h1>台指選擇權法人籌碼儀表板</h1>
+    <h1>台指法人籌碼儀表板</h1>
     <div class="meta">
       資料日期：<span class="date" id="dataDate">—</span><br>
       <span id="lastChecked"></span>
     </div>
   </header>
 
-  <div id="status">資料載入中…</div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="options">選擇權</button>
+    <button class="tab" data-tab="futures">期貨</button>
+    <button class="tab" data-tab="spot">現貨</button>
+  </nav>
 
-  <div id="summary" style="display:none;"></div>
-  <div id="trend" style="display:none;"></div>
-  <div id="strikeSection" style="display:none;"></div>
+  <section class="tab-panel active" id="panel-options">
+    <div id="status">資料載入中…</div>
+    <div id="summary" style="display:none;"></div>
+    <div id="trend" style="display:none;"></div>
+    <div id="strikeSection" style="display:none;"></div>
+  </section>
+
+  <section class="tab-panel" id="panel-futures">
+    <div id="futBox"><div class="note">資料載入中…</div></div>
+  </section>
+
+  <section class="tab-panel" id="panel-spot">
+    <div id="spotBox"><div class="note">資料載入中…</div></div>
+  </section>
 
   <footer>
-    TAIFEX 三大法人 ｜ 單位：億元
+    TAIFEX 期交所、TWSE 證交所 三大法人
   </footer>
 
 </div>
@@ -534,7 +601,7 @@ function trendTableHtml(dates, series) {
     const s = series[i];
     const cells = legKeys.map(k => `<td>${fmtYi(s[k])}</td>`).join("");
     return `<tr><td>${d.slice(5)}</td>${cells}</tr>`;
-  }).join("");
+  }).reverse().join("");  // 最新日期在最上面，和期貨、現貨一致
   return `<table class="trend-table">
     <thead><tr><th>日期</th><th>BC</th><th>SC</th><th>BP</th><th>SP</th></tr></thead>
     <tbody>${rows}</tbody>
@@ -741,7 +808,7 @@ function renderStrikeSection(rows) {
   box.style.display = "block";
 }
 
-fetch(STRIKE_CSV_URL, { cache: "no-store" })
+fetch(STRIKE_CSV_URL + "?t=" + Date.now(), { cache: "no-store" })
   .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
   .then(text => {
     const rows = parseCSV(text);
@@ -751,7 +818,7 @@ fetch(STRIKE_CSV_URL, { cache: "no-store" })
     document.getElementById("strikeSection").style.display = "none";
   });
 
-fetch(CSV_URL, { cache: "no-store" })
+fetch(CSV_URL + "?t=" + Date.now(), { cache: "no-store" })
   .then(res => {
     if (!res.ok) throw new Error("HTTP " + res.status);
     return res.text();
@@ -767,6 +834,247 @@ fetch(CSV_URL, { cache: "no-store" })
     status.textContent = "資料載入失敗：" + err.message + "（請確認 data/txo_oi.csv 是否已經有資料）";
     status.classList.add("error");
   });
+
+// ================= 共用小工具 =================
+const RAW = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/";
+const signCls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
+const fmtInt = v => (v > 0 ? "+" : "") + Math.round(v).toLocaleString();
+const fmtYi2 = v => (v > 0 ? "+" : "") + v.toLocaleString("zh-Hant", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function statHtml(label, value, valueText, deltaText, main) {
+  return `<div class="stat ${main ? "main" : ""}">
+    <div class="stat-label">${label}</div>
+    <div class="stat-value ${signCls(value)}">${valueText}</div>
+    ${deltaText ? `<div class="stat-delta">${deltaText}</div>` : ""}
+  </div>`;
+}
+
+const chartW = () => Math.max(300, Math.min(900, document.querySelector(".wrap").clientWidth - 60));
+
+// 正負值的長條圖（紅正綠負），labels 為日期
+function barChartSvg(values, labels) {
+  const width = chartW(), height = 170, padL = 44, padR = 6, padT = 8, padB = 18;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const maxAbs = Math.max(...values.map(v => Math.abs(v)), 1) * 1.1;
+  const y0 = padT + plotH / 2;
+  const scale = (plotH / 2) / maxAbs;
+  const bw = plotW / values.length;
+  const bars = values.map((v, i) => {
+    const h = Math.abs(v) * scale;
+    const x = padL + i * bw + bw * 0.15;
+    const yy = v >= 0 ? y0 - h : y0;
+    return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(h, 0.5).toFixed(1)}" fill="${v >= 0 ? "var(--long)" : "var(--short)"}" opacity="0.9"><title>${labels[i]}：${v.toFixed(2)}</title></rect>`;
+  }).join("");
+  const step = Math.ceil(values.length / Math.max(3, Math.floor(width / 75)));
+  const showLbl = (i, n) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75);
+  const xl = labels.map((l, i) => showLbl(i, labels.length)
+    ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
+  const grid = [maxAbs, 0, -maxAbs].map(v => {
+    const yy = y0 - v * scale;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
+      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${Math.round(v).toLocaleString()}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${bars}${xl}</svg>`;
+}
+
+// 淨部位折線（可為負值），含 0 軸
+function netLineSvg(values, labels) {
+  const width = chartW(), height = 170, padL = 52, padR = 6, padT = 8, padB = 18;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  let lo = Math.min(...values), hi = Math.max(...values);
+  const pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad;
+  const n = values.length;
+  const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const y = v => padT + (hi - v) / (hi - lo) * plotH;
+  const path = values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
+  const last = values[n - 1];
+  const color = last >= 0 ? "var(--long)" : "var(--short)";
+  const grid = [hi, (hi + lo) / 2, lo].map(v =>
+    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)" stroke-width="1"/>
+     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${Math.round(v).toLocaleString()}</text>`).join("");
+  const zero = (lo < 0 && hi > 0) ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3"/>` : "";
+  const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
+  const xl = labels.map((l, i) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75)
+    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
+  const dots = values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${color}"><title>${labels[i]}：${Math.round(v).toLocaleString()}</title></circle>`).join("");
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xl}</svg>`;
+}
+
+// ================= 期貨 =================
+let FUT_MODE = "vol";   // vol = 口數, val = 金額（億）
+function setFutMode(m) {
+  FUT_MODE = m;
+  try { localStorage.setItem("futMode", m); } catch (e) {}
+  if (FUT_ROWS) renderFutures(FUT_ROWS);
+}
+try { FUT_MODE = localStorage.getItem("futMode") || "vol"; } catch (e) {}
+
+// 每天的「近月、次月」：排除當天已結算（結算價為 0）的合約，取最近兩個月份
+function monthPairs(txmRows) {
+  const byDate = {};
+  (txmRows || []).forEach(r => {
+    if (Number(r.settle) <= 0) return;
+    (byDate[r.date] = byDate[r.date] || []).push({ contract: r.contract, oi: Number(r.oi) });
+  });
+  Object.values(byDate).forEach(list => list.sort((a, b) => a.contract < b.contract ? -1 : 1));
+  return byDate;
+}
+const fmtMonth = c => c ? `${c.slice(0, 4)}/${c.slice(4)}` : "";
+
+function renderFutures(rows) {
+  const box = document.getElementById("futBox");
+  const tx = rows.filter(r => r.product === "TX");
+  const dates = [...new Set(tx.map(r => r.date))].sort();
+  if (!dates.length) { box.innerHTML = `<div class="note">尚無期貨資料</div>`; return; }
+  const find = (date, inv) => tx.find(x => x.date === date && x.investor_type === inv);
+  const vol = (date, inv) => { const r = find(date, inv); return r ? Number(r.oi_net_volume) : 0; };
+  const val = (date, inv) => { const r = find(date, inv); return r ? Number(r.oi_net_value_k) / 100000 : 0; };
+  const d = dates[dates.length - 1], p = dates[dates.length - 2];
+
+  // 近月 / 次月 未沖銷
+  const pairs = monthPairs(TXM_ROWS);
+  const monthOi = (date, contract) => { const l = pairs[date] || []; const x = l.find(m => m.contract === contract); return x ? x.oi : null; };
+  const todayMonths = (pairs[d] || []).slice(0, 2);
+  const monthStat = (idx, label) => {
+    const m = todayMonths[idx];
+    if (!m) return statHtml(label, 0, "—", TXM_ROWS ? "尚無資料" : "載入中…", false);
+    const prev = p ? monthOi(p, m.contract) : null;
+    const delta = prev === null ? "" : `較前日 ${fmtInt(m.oi - prev)}`;
+    return `<div class="stat"><div class="stat-label">${label}　${fmtMonth(m.contract)}</div>
+      <div class="stat-value">${m.oi.toLocaleString()}</div><div class="stat-delta">${delta}</div></div>`;
+  };
+
+  const vDelta = p ? `較前日 ${fmtInt(vol(d, "foreign") - vol(p, "foreign"))}` : "";
+  const aDelta = p ? `較前日 ${fmtYi2(val(d, "foreign") - val(p, "foreign"))}` : "";
+  const clickStat = (mode, label, v, text, delta) =>
+    `<div class="stat clickable ${FUT_MODE === mode ? "selected" : ""}" onclick="setFutMode('${mode}')">
+      <div class="stat-label">${label}</div>
+      <div class="stat-value ${signCls(v)}">${text}</div>
+      <div class="stat-delta">${delta}</div></div>`;
+
+  const stats = `<div class="stat-grid">
+    ${clickStat("vol", "外資大台淨未平倉（口）", vol(d, "foreign"), fmtInt(vol(d, "foreign")), vDelta)}
+    ${clickStat("val", "外資大台淨未平倉金額（億）", val(d, "foreign"), fmtYi2(val(d, "foreign")), aDelta)}
+    ${monthStat(0, "大台近月未沖銷（口）")}
+    ${monthStat(1, "大台次月未沖銷（口）")}
+  </div>`;
+
+  const series = FUT_MODE === "vol" ? (x => vol(x, "foreign")) : (x => val(x, "foreign"));
+  const unit = FUT_MODE === "vol" ? "口" : "億";
+  const last20 = dates.slice(-20);
+  const netSeries = last20.map(series);
+  const changes = last20.map(x => { const i = dates.indexOf(x); return i > 0 ? series(x) - series(dates[i - 1]) : 0; });
+
+  const last10 = dates.slice(-10).reverse();
+  const tableRows = last10.map(x => {
+    const i = dates.indexOf(x);
+    const chg = i > 0 ? vol(x, "foreign") - vol(dates[i - 1], "foreign") : null;
+    const ms = (pairs[x] || []).slice(0, 2);
+    const td = v => `<td class="${signCls(v)}">${fmtInt(v)}</td>`;
+    const mtd = m => `<td>${m ? m.oi.toLocaleString() : "—"}</td>`;
+    return `<tr><td>${x.slice(5)}</td>${td(vol(x, "foreign"))}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td><td class="${signCls(val(x, "foreign"))}">${fmtYi2(val(x, "foreign"))}</td>${td(vol(x, "dealer"))}${mtd(ms[0])}${mtd(ms[1])}</tr>`;
+  }).join("");
+
+  box.innerHTML = `<div class="card">
+    <h2>外資臺股期貨（大台）未平倉</h2>
+    <div class="sub">資料日期：${d}　｜　淨未平倉 = 多方 − 空方　｜　紅：淨多　綠：淨空　｜　點前兩格切換「口數 / 金額」圖表</div>
+    ${stats}
+    <div class="chart-title">外資大台淨未平倉${FUT_MODE === "vol" ? "（口）" : "金額（億）"}，近 ${last20.length} 個交易日</div>
+    ${netLineSvg(netSeries, last20)}
+    <div class="chart-title">每日增減（${unit}）</div>
+    ${barChartSvg(changes, last20)}
+    <div class="table-scroll"><table class="trend-table">
+      <thead><tr><th>日期</th><th>外資淨OI</th><th>增減</th><th>淨金額(億)</th><th>自營淨OI</th><th>近月未沖銷</th><th>次月未沖銷</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table></div>
+  </div>`;
+}
+
+// ================= 現貨 =================
+function renderSpot(rows) {
+  const box = document.getElementById("spotBox");
+  if (!rows.length) { box.innerHTML = `<div class="note">尚無現貨資料</div>`; return; }
+  rows.sort((a, b) => a.date < b.date ? -1 : 1);
+  const yi = v => Number(v) / 1e8;
+  const pick = r => ({
+    date: r.date,
+    foreign: yi(r.foreign) + yi(r.foreign_dealer),
+    trust: yi(r.trust),
+    dealer: yi(r.dealer_self) + yi(r.dealer_hedge),
+    total: yi(r.total),
+  });
+  const data = rows.map(pick);
+  const t = data[data.length - 1];
+
+  const stats = `<div class="stat-grid">
+    ${statHtml("三大法人合計（億）", t.total, fmtYi2(t.total), "", true)}
+    ${statHtml("外資（億）", t.foreign, fmtYi2(t.foreign), "", false)}
+    ${statHtml("投信（億）", t.trust, fmtYi2(t.trust), "", false)}
+    ${statHtml("自營商（億）", t.dealer, fmtYi2(t.dealer), "", false)}
+  </div>`;
+
+  const last20 = data.slice(-20);
+  const last10 = data.slice(-10).reverse();
+  const td = v => `<td class="${signCls(v)}">${fmtYi2(v)}</td>`;
+  const tableRows = last10.map(r => `<tr><td>${r.date.slice(5)}</td>${td(r.foreign)}${td(r.trust)}${td(r.dealer)}${td(r.total)}</tr>`).join("");
+  const sum5 = data.slice(-5).reduce((a, r) => a + r.foreign, 0);
+  const sum20 = last20.reduce((a, r) => a + r.foreign, 0);
+
+  box.innerHTML = `<div class="card">
+    <h2>三大法人現貨買賣超（集中市場）</h2>
+    <div class="sub">資料日期：${t.date}　｜　單位：億元　｜　外資含外資自營商，自營商含自行買賣與避險</div>
+    ${stats}
+    <div class="chart-title">外資買賣超（億），近 ${last20.length} 個交易日　｜　近 5 日累計 <span class="${signCls(sum5)}">${fmtYi2(sum5)}</span>　近 ${last20.length} 日累計 <span class="${signCls(sum20)}">${fmtYi2(sum20)}</span></div>
+    ${barChartSvg(last20.map(r => r.foreign), last20.map(r => r.date))}
+    <div class="chart-title">投信買賣超（億）</div>
+    ${barChartSvg(last20.map(r => r.trust), last20.map(r => r.date))}
+    <table class="trend-table">
+      <thead><tr><th>日期</th><th>外資</th><th>投信</th><th>自營商</th><th>合計</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  </div>`;
+}
+
+function loadCsv(name, onRows, boxId) {
+  fetch(RAW + name + "?t=" + Date.now(), { cache: "no-store" })
+    .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
+    .then(text => onRows(parseCSV(text)))
+    .catch(err => {
+      document.getElementById(boxId).innerHTML = `<div class="note">資料載入失敗：${err.message}（${name}）</div>`;
+    });
+}
+let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null;
+loadCsv("fut_oi.csv", rows => { FUT_ROWS = rows; renderFutures(rows); }, "futBox");
+fetch(RAW + "tx_month_oi.csv?t=" + Date.now(), { cache: "no-store" })
+  .then(res => { if (!res.ok) throw new Error(); return res.text(); })
+  .then(text => { TXM_ROWS = parseCSV(text); if (FUT_ROWS) renderFutures(FUT_ROWS); })
+  .catch(() => { TXM_ROWS = []; if (FUT_ROWS) renderFutures(FUT_ROWS); });
+loadCsv("spot_net.csv", rows => { SPOT_ROWS = rows; renderSpot(rows); }, "spotBox");
+let resizeTimer = null, lastW = 0;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const w = chartW(); if (w === lastW) return; lastW = w;
+    if (FUT_ROWS) renderFutures(FUT_ROWS);
+    if (SPOT_ROWS) renderSpot(SPOT_ROWS);
+  }, 200);
+});
+
+// ================= 分頁切換 =================
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + name));
+  try { localStorage.setItem("tab", name); } catch (e) {}
+}
+document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => {
+  showTab(b.dataset.tab);
+  history.replaceState(null, "", "#" + b.dataset.tab);
+}));
+(function initTab() {
+  let t = location.hash.slice(1);
+  if (!t) { try { t = localStorage.getItem("tab") || ""; } catch (e) {} }
+  if (["options", "futures", "spot"].includes(t)) showTab(t);
+})();
 </script>
 </body>
 </html>
