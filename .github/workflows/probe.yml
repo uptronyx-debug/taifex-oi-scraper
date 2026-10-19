@@ -12,7 +12,18 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - run: python tools/probe.py > probe_output.txt 2>&1 || true
+      - name: 測試新爬蟲（寫到 out/，不碰 data/）
+        env:
+          DATA_DIR: out
+        run: |
+          {
+            for d in 2026/10/16 2026/10/15 2026/10/09 2026/10/19; do
+              echo "##### futures $d"; python scraper_futures.py --date $d || echo "exit=$?"
+              echo "##### spot $d"; python scraper_spot.py --date $d || echo "exit=$?"
+            done
+            echo "##### fut_oi.csv"; cat out/fut_oi.csv
+            echo "##### spot_net.csv"; cat out/spot_net.csv
+          } > probe_output.txt 2>&1 || true
       - name: 把結果推到獨立分支 probe-output（不影響 main 與網頁）
         run: |
           git config user.name "github-actions[bot]"
