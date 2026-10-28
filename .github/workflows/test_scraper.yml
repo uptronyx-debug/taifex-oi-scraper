@@ -1,0 +1,18 @@
+name: 測試（暫時，不寫入 data）
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          {
+          curl -sS -m 30 "https://www.twse.com.tw/rwd/zh/holidaySchedule/holidaySchedule?response=json" | python3 -c "import sys,json; j=json.load(sys.stdin); print(json.dumps({k:v for k,v in j.items() if k!='data'}, ensure_ascii=False)); [print(r) for r in j.get('data',[])]"
+          echo "##### 2025"
+          curl -sS -m 30 "https://www.twse.com.tw/rwd/zh/holidaySchedule/holidaySchedule?response=json&queryYear=2025" | head -c 600
+          } > probe_output.txt 2>&1
+          git init -q . && git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git add probe_output.txt && git commit -qm out
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" probe-output
