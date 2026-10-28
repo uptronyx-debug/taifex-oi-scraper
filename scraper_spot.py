@@ -130,8 +130,8 @@ def main():
         print(f"{date_str} 是週末，略過")
         return
     if not run_one(date_str, have):
-        print("❌ 沒有寫入現貨資料")
-        sys.exit(1)
+        # 沒資料不在這裡報錯；由 tools/check_today.py post 統一判斷是休市、尚未公布，還是真的壞掉
+        print("⚠️ 沒有寫入現貨資料（是否異常由最後的資料檢查步驟判斷）")
 
 
 if __name__ == "__main__":

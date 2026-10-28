@@ -2,8 +2,7 @@ name: 每日抓取 TAIFEX 臺指選擇權資料
 
 on:
   schedule:
-    # 台灣時間 15:30、16:30、18:00（UTC 07:30、08:30、10:00），週一到週五
-    # 主要靠 Google Apps Script 準時觸發；這裡的排程只是備援。已經抓到的話會自動略過
+    # 主要靠 Google Apps Script 準時觸發；這裡的排程只是備援（GitHub 排程常延遲數小時）
     - cron: "30 7 * * 1-5"
     - cron: "30 8 * * 1-5"
     - cron: "0 10 * * 1-5"
@@ -23,20 +22,10 @@ jobs:
       - name: 取出 repo 程式碼
         uses: actions/checkout@v4
 
-      - name: 檢查今天是否已經全部抓過
+      # 週末、證交所公布的休市日、今天已經全部抓完 → 直接略過（綠勾）
+      - name: 檢查今天要不要抓
         id: check
-        run: |
-          TODAY=$(TZ=Asia/Taipei date +%Y/%m/%d)
-          missing=0
-          for f in data/txo_oi.csv data/txo_strike_oi.csv data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv; do
-            if ! grep -q "^$TODAY," "$f" 2>/dev/null; then echo "$f 還沒有 $TODAY 的資料"; missing=1; fi
-          done
-          if [ "$missing" = "0" ]; then
-            echo "今天的資料都已經有了，略過"
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+        run: python3 tools/check_today.py pre
 
       - name: 設定 Python
         if: steps.check.outputs.skip != 'true'
@@ -48,7 +37,7 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      # 每支爬蟲都會自己略過已經有的日期；其中一支失敗也不影響其他支和 commit
+      # 每支爬蟲都會自己略過已經有的日期；沒資料不會報錯，其中一支出問題也不影響其他支
       - name: 執行爬蟲（選擇權三大法人未平倉）
         if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
         run: python scraper.py
@@ -77,3 +66,8 @@ jobs:
           git add data/*.csv
           git diff --staged --quiet && echo "沒有新資料，不需要 commit" || git commit -m "auto: 更新 TAIFEX 資料 $(date +'%Y-%m-%d')"
           git push
+
+      # 17:00 後還有部分資料缺漏才報紅叉；全部都沒有（尚未公布／臨時休市）不算錯
+      - name: 檢查今天資料是否齊全
+        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
+        run: python3 tools/check_today.py post

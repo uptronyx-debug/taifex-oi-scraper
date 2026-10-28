@@ -7,12 +7,29 @@ jobs:
   t:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
       - run: |
+          mkdir out && cp data/*.csv out/
+          export DATA_DIR=out
           {
-          curl -sS -m 30 "https://www.twse.com.tw/rwd/zh/holidaySchedule/holidaySchedule?response=json" | python3 -c "import sys,json; j=json.load(sys.stdin); print(json.dumps({k:v for k,v in j.items() if k!='data'}, ensure_ascii=False)); [print(r) for r in j.get('data',[])]"
-          echo "##### 2025"
-          curl -sS -m 30 "https://www.twse.com.tw/rwd/zh/holidaySchedule/holidaySchedule?response=json&queryYear=2025" | head -c 600
-          } > probe_output.txt 2>&1
-          git init -q . && git config user.name bot && git config user.email bot@x
-          git checkout -q --orphan probe-output && git add probe_output.txt && git commit -qm out
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" probe-output
+          echo "##### 10/26 補假（休市表內）pre"; FAKE_NOW="2026/10/26 15:30" python3 tools/check_today.py pre; echo "exit=$?"
+          echo "##### 10/25 週日 pre"; FAKE_NOW="2026/10/25 15:30" python3 tools/check_today.py pre; echo "exit=$?"
+          echo "##### 10/23 臨時休市 pre"; FAKE_NOW="2026/10/23 18:00" python3 tools/check_today.py pre; echo "exit=$?"
+          echo "##### 10/23 各爬蟲（應該都 exit=0、不寫入）"
+          python scraper.py --date 2026/10/23; echo "scraper.py exit=$?"
+          python scraper_by_strike.py 2026/10/23; echo "strike exit=$?"
+          python scraper_futures.py --date 2026/10/23; echo "futures exit=$?"
+          python scraper_tx_months.py --date 2026/10/23; echo "tx_months exit=$?"
+          python scraper_spot.py --date 2026/10/23; echo "spot exit=$?"
+          echo "##### 10/23 post"; FAKE_NOW="2026/10/23 18:00" python3 tools/check_today.py post; echo "exit=$?"
+          echo "##### 今天 pre（實際時間）"; python3 tools/check_today.py pre; echo "exit=$?"
+          echo "##### 10/27 post"; FAKE_NOW="2026/10/27 18:00" python3 tools/check_today.py post; echo "exit=$?"
+          echo "##### data 有沒有被改到（應該沒有輸出）"; git status --short data
+          } > probe_output.txt 2>&1 || true
+          git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
+          git push -f origin probe-output

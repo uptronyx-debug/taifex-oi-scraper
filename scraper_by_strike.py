@@ -241,9 +241,8 @@ def main():
     target_date = args[0] if args else datetime.now().strftime("%Y/%m/%d")
     ok = run_one(target_date, skip_existing=True)
     if not ok:
-        # 沒抓到資料就明確讓 Action 顯示失敗（紅叉），不要再靜悄悄綠勾
-        print("❌ 沒有寫入任何資料")
-        sys.exit(1)
+        # 沒資料不在這裡報錯；由 tools/check_today.py post 統一判斷是休市、尚未公布，還是真的壞掉
+        print("⚠️ 沒有寫入任何資料（是否異常由最後的資料檢查步驟判斷）")
 
 
 if __name__ == "__main__":
