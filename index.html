@@ -502,6 +502,8 @@
 
   .anchor-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; font-size:13px; color:var(--text-muted); margin-bottom:12px; }
   .anchor-row select{ background:var(--surface-2); color:var(--text); border:1px solid var(--divider); border-radius:6px; padding:4px 8px; font-family:inherit; font-size:13px; }
+  .anchor-reset{ background:none; border:1px solid var(--divider); color:var(--text-muted); border-radius:6px; padding:3px 10px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .range-info{ color:var(--text-muted); margin:-4px 0 12px; }
   .anchor-info{ font-family:'Roboto Mono', monospace; font-size:12px; }
   .sq{ display:inline-block; width:9px; height:9px; border-radius:2px; }
   .warn-row td{ background:var(--gold-soft); }
@@ -1139,6 +1141,8 @@ function setMarginAnchor(v) {
   try { v ? localStorage.setItem("marginAnchor", v) : localStorage.removeItem("marginAnchor"); } catch (e) {}
   renderMargin();
 }
+let MARGIN_END = null;   // 結算日：預設最新一天，不記憶（新資料進來時自動跟上）
+function setMarginEnd(v) { MARGIN_END = v || null; renderMargin(); }
 const pct = v => (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 
 // 每日對照：兩組長條（指數漲跌%、融資金額增減%），警訊日（指數跌、融資增）加底色
@@ -1198,46 +1202,63 @@ function renderMargin() {
     date: r.date, taiex: Number(r.taiex), lots: Number(r.margin_lots), amt: Number(r.margin_amount_k) / 100000,
   })).filter(r => r.taiex > 0 && r.amt > 0).sort((a, b) => a.date < b.date ? -1 : 1);
   if (rows.length < 2) { box.innerHTML = `<div class="note">融資資料累積中</div>`; return; }
-  const L = rows.length - 1, last = rows[L];
+  const latest = rows[rows.length - 1];
+  // 結算日（預設最新）
+  let endRow = latest, endManual = false;
+  if (MARGIN_END) {
+    const e = rows.find(r => r.date === MARGIN_END);
+    if (e && e !== rows[0]) { endRow = e; endManual = e !== latest; }
+  }
+  const EI = rows.indexOf(endRow);
+  const upto = rows.slice(0, EI + 1);
+  const last = endRow;
 
-  // 起算日
-  const win = rows.slice(-60);
+  // 起算日：預設為結算日往前 60 個交易日內的最高收盤
+  const win = upto.slice(-60);
   let auto = win.reduce((m, r) => r.taiex > m.taiex ? r : m, win[0]);
+  if (auto === last && upto.length > 1) auto = upto.slice(-60, -1).reduce((m, r) => r.taiex > m.taiex ? r : m, upto.slice(-60, -1)[0]);
   let anchor = auto, manual = false;
   if (MARGIN_ANCHOR) {
     const m = rows.find(r => r.date === MARGIN_ANCHOR);
     if (m && m.date < last.date) { anchor = m; manual = true; }
   }
   const ai = rows.indexOf(anchor);
-  const since = rows.slice(ai);
+  const since = rows.slice(ai, EI + 1);
   const idxChg = last.taiex / anchor.taiex - 1;
   const amtChg = last.amt / anchor.amt - 1;
   const lotChg = last.lots / anchor.lots - 1;
   const ratio = idxChg < 0 ? amtChg / idxChg : null;
 
   const verdict = ratio === null
-    ? `<div class="stat"><div class="stat-label">減幅 ÷ 跌幅</div><div class="stat-value">—</div><div class="stat-delta">指數在起算點之上</div></div>`
+    ? `<div class="stat"><div class="stat-label">減幅 ÷ 跌幅</div><div class="stat-value">—</div><div class="stat-delta">區間內指數上漲，不適用</div></div>`
     : `<div class="stat" style="background:${ratio >= 1 ? "var(--short-soft)" : "var(--long-soft)"}">
          <div class="stat-label">融資減幅 ÷ 指數跌幅</div>
          <div class="stat-value" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio.toFixed(2)} 倍</div>
-         <div class="stat-delta" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio >= 1 ? "融資退場 > 指數跌幅" : "融資退場不足"}</div></div>`;
+         <div class="stat-delta" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio >= 1 ? "融資退場 > 指數跌幅" : ratio < 0 ? "指數跌，融資不減反增" : "融資退場不足"}</div></div>`;
   const stats = `<div class="stat-grid">
-    ${statHtml("加權指數自起算點", idxChg, pct(idxChg), `${anchor.taiex.toLocaleString()} → ${last.taiex.toLocaleString()}`, false)}
-    ${statHtml("融資金額自起算點", amtChg, pct(amtChg), `${anchor.amt.toFixed(0)} → ${last.amt.toFixed(0)} 億`, false)}
-    ${statHtml("融資張數自起算點", lotChg, pct(lotChg), "全市場融資股數，不受股價影響", false)}
+    ${statHtml("加權指數 區間變化", idxChg, pct(idxChg), `${anchor.taiex.toLocaleString()} → ${last.taiex.toLocaleString()}`, false)}
+    ${statHtml("融資金額 區間變化", amtChg, pct(amtChg), `${anchor.amt.toFixed(0)} → ${last.amt.toFixed(0)} 億`, false)}
+    ${statHtml("融資張數 區間變化", lotChg, pct(lotChg), "全市場融資股數，不受股價影響", false)}
     ${verdict}
   </div>`;
 
   // 起算日選單（近 120 個交易日）
-  const opts = rows.slice(-120, -1).reverse().map(r =>
+  const opts = upto.slice(0, -1).reverse().map(r =>
     `<option value="${r.date}" ${manual && r.date === anchor.date ? "selected" : ""}>${r.date}（${r.taiex.toLocaleString()}）</option>`).join("");
+  const endOpts = rows.slice(1, -1).reverse().map(r =>
+    `<option value="${r.date}" ${endManual && r.date === last.date ? "selected" : ""}>${r.date}（${r.taiex.toLocaleString()}）</option>`).join("");
   const picker = `<div class="anchor-row">
     <span>起算日</span>
     <select onchange="setMarginAnchor(this.value)">
       <option value="" ${manual ? "" : "selected"}>自動：近 60 日最高 ${auto.date.slice(5)}</option>${opts}
     </select>
-    <span class="anchor-info">${anchor.date}　加權 ${anchor.taiex.toLocaleString()}　共 ${since.length - 1} 個交易日</span>
-  </div>`;
+    <span>結算日</span>
+    <select onchange="setMarginEnd(this.value)">
+      <option value="" ${endManual ? "" : "selected"}>最新 ${latest.date.slice(5)}</option>${endOpts}
+    </select>
+    ${manual || endManual ? `<button class="anchor-reset" onclick="MARGIN_END=null; setMarginAnchor('')">重設</button>` : ""}
+  </div>
+  <div class="anchor-info range-info">${anchor.date}（${anchor.taiex.toLocaleString()}）→ ${last.date}（${last.taiex.toLocaleString()}）　共 ${since.length - 1} 個交易日</div>`;
 
   const lineChart = multiLineSvg([
     { values: since.map(r => r.taiex / anchor.taiex - 1), color: "var(--text-muted)" },
@@ -1246,14 +1267,14 @@ function renderMargin() {
   ], since.map(r => r.date));
 
   // 每日對照（近 20 日）
-  const daily = rows.slice(-21).map((r, i, a) => i === 0 ? null : {
+  const daily = upto.slice(-21).map((r, i, a) => i === 0 ? null : {
     date: r.date, idx: r.taiex / a[i - 1].taiex - 1, amt: r.amt / a[i - 1].amt - 1,
     amtDiff: r.amt - a[i - 1].amt, lotDiff: r.lots - a[i - 1].lots,
   }).filter(Boolean);
   const warn = daily.map(d => d.idx < 0 && d.amt > 0);
   const warnCount = warn.slice(-5).filter(Boolean).length;
 
-  const tableRows = rows.slice(-11).map((r, i, a) => {
+  const tableRows = upto.slice(-11).map((r, i, a) => {
     if (i === 0) return "";
     const p = a[i - 1];
     const di = r.taiex / p.taiex - 1, da = r.amt - p.amt, dl = r.lots - p.lots;
@@ -1268,10 +1289,10 @@ function renderMargin() {
 
   box.innerHTML = `<div class="card">
     <h2>融資減幅 vs 大盤跌幅</h2>
-    <div class="sub">資料日期：${last.date}　｜　集中市場融資餘額　｜　倍數 ≥ 1 代表融資退場比指數跌得多</div>
+    <div class="sub">資料日期：${latest.date}　｜　集中市場融資餘額　｜　倍數 ≥ 1 代表融資退場比指數跌得多</div>
     ${picker}
     ${stats}
-    <div class="chart-title">自起算日累計變化</div>
+    <div class="chart-title">區間累計變化（以起算日為 0）</div>
     <div class="trend-legend">
       <span class="legend-item"><span class="swatch" style="border-color:var(--text-muted)"></span>加權指數</span>
       <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>融資金額</span>
