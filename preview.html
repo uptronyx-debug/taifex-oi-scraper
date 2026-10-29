@@ -433,9 +433,62 @@
   .chart-title{ font-size:12px; color:var(--text-muted); margin:16px 0 4px; }
   .note{ font-size:12px; color:var(--text-muted); padding:12px 0; }
 
-  .theme-switch{ display:inline-flex; border:1px solid var(--divider); border-radius:6px; overflow:hidden; margin-bottom:6px; }
-  .theme-switch button{ background:var(--surface); color:var(--text-muted); border:none; padding:3px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
-  .theme-switch button.on{ background:var(--text); color:var(--bg); font-weight:600; }
+
+  /* ===== 介面整理：減少框線、燈號精簡 ===== */
+  header{ display:block; padding-bottom:16px; margin-bottom:20px; }
+  .head-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .meta{ text-align:left; font-size:13px; margin-top:6px; }
+  .meta-sep{ margin:0 8px; opacity:.5; }
+  .theme-toggle{
+    position:relative; display:inline-flex; padding:3px; gap:0; cursor:pointer;
+    background:var(--surface-2); border:1px solid var(--divider); border-radius:999px;
+    font-family:inherit; font-size:13px;
+  }
+  .tt-opt{ position:relative; z-index:1; padding:3px 12px; border-radius:999px; color:var(--text-muted); }
+  .theme-toggle[data-on="dark"] .tt-opt[data-v="dark"],
+  .theme-toggle[data-on="light"] .tt-opt[data-v="light"]{ background:var(--text); color:var(--bg); font-weight:600; }
+
+  .tabs{ margin:0 0 20px; }
+
+  /* 燈號：一行看完 */
+  #summary{ border:none; border-radius:8px; padding:12px 18px; margin-bottom:20px; }
+  .signal-row{ display:flex; align-items:center; gap:10px 28px; flex-wrap:wrap; }
+  .signal-title{ font-size:13px; color:var(--text-muted); font-weight:600; }
+  .signal{ display:flex; align-items:center; gap:8px; }
+  .signal-who{ font-size:14px; font-weight:600; }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px;
+    font-family:'Roboto Mono', monospace; font-size:13px; line-height:1.4;
+    border:1px solid currentColor;
+  }
+  .chip b{ font-weight:700; }
+  .chip.plenum{ color:var(--text); background:var(--surface-2); }
+  .chip.burst{ color:var(--gold); background:var(--gold-soft); }
+  .chip.up{ color:var(--long); background:var(--long-soft); }
+  .chip.down{ color:var(--short); background:var(--short-soft); }
+  @media (max-width:700px){
+    .signal-title{ width:100%; }
+  }
+
+  /* 外框只留最外層卡片 */
+  #trend, #strikeSection, .card{ border:none; border-radius:8px; }
+  .trend-inst{ background:none; border:none; border-radius:0; padding:0; }
+  @media (min-width:701px){
+    .trend-grid > .trend-inst + .trend-inst{ border-left:1px solid var(--divider); padding-left:20px; }
+  }
+  @media (max-width:700px){
+    .trend-grid{ gap:0; }
+    .trend-grid > .trend-inst + .trend-inst{ border-top:1px solid var(--divider); padding-top:18px; margin-top:18px; }
+  }
+  .trend-table th, .trend-table td{ border-bottom:1px solid color-mix(in srgb, var(--divider) 45%, transparent); }
+  .trend-table thead th{ border-bottom:1px solid var(--divider); }
+  .trend-table tbody tr:last-child td{ border-bottom:none; }
+  .stat{ border-color:transparent; }
+  .stat.main{ border-color:transparent; }
+  .stat.clickable:hover{ border-color:var(--divider); }
+  .stat.clickable.selected{ border-color:var(--text-muted); box-shadow:none; }
+  .oi-card{ border:none; }
+  .oi-pill{ border:none; background:color-mix(in srgb, var(--surface) 70%, transparent); }
 
   /* ---------- Footer ---------- */
   footer{
@@ -455,13 +508,14 @@
 <div class="wrap">
 
   <header>
-    <h1>台指法人籌碼</h1>
+    <div class="head-top">
+      <h1>台指法人籌碼</h1>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="切換深色／淺色">
+        <span class="tt-opt" data-v="dark">深</span><span class="tt-opt" data-v="light">淺</span>
+      </button>
+    </div>
     <div class="meta">
-      <div class="theme-switch" role="group" aria-label="底色">
-        <button data-theme-btn="dark">黑</button><button data-theme-btn="light">淡藍</button>
-      </div>
-      資料日期：<span class="date" id="dataDate">—</span><br>
-      <span id="lastChecked"></span>
+      資料日期 <span class="date" id="dataDate">—</span><span class="meta-sep">｜</span><span id="lastChecked"></span>
     </div>
   </header>
 
@@ -568,28 +622,21 @@ function lampRowHtml(litKey) {
   }).join("")}</div>`;
 }
 
+function signalHtml(who, key) {
+  const p = PATTERNS[key];
+  return `<div class="signal"><span class="signal-who">${who}</span>
+    <span class="chip ${p.cls}" title="${p.label}">${p.icon}<b>${p.formula}</b></span></div>`;
+}
 function renderSummary(latestRows) {
   const box = document.getElementById("summary");
   const foreignLegs = getLegs(latestRows, "foreign");
   const dealerLegs  = getLegs(latestRows, "dealer");
   if (!foreignLegs || !dealerLegs) { box.style.display = "none"; return; }
-
-  const foreignResult = classify(foreignLegs);
-  const dealerResult  = classify(dealerLegs);
-
-  box.innerHTML = `
-    <h2>當日部位型態觀察</h2>
-    <div class="trend-grid">
-      <div class="trend-inst">
-        <h3>外資</h3>
-        ${lampRowHtml(foreignResult.key)}
-      </div>
-      <div class="trend-inst">
-        <h3>自營商</h3>
-        ${lampRowHtml(dealerResult.key)}
-      </div>
-    </div>
-  `;
+  box.innerHTML = `<div class="signal-row">
+      <div class="signal-title">當日部位型態</div>
+      ${signalHtml("外資", classify(foreignLegs).key)}
+      ${signalHtml("自營商", classify(dealerLegs).key)}
+    </div>`;
   box.style.display = "block";
 }
 
@@ -1001,7 +1048,7 @@ function renderFutures(rows) {
 
   box.innerHTML = `<div class="card">
     <h2>外資臺股期貨（大台）未平倉</h2>
-    <div class="sub">資料日期：${d}　｜　淨未平倉 = 多方 − 空方　｜　紅：淨多　綠：淨空　｜　點前兩格切換「口數 / 金額」圖表</div>
+    <div class="sub">資料日期：${d}　｜　紅淨多・綠淨空　｜　點前兩格切換口數／金額</div>
     ${stats}
     <div class="chart-title">外資大台淨未平倉${FUT_MODE === "vol" ? "（口）" : "金額（億）"}，近 ${last20.length} 個交易日</div>
     ${netLineSvg(netSeries, last20)}
@@ -1112,8 +1159,8 @@ async function checkUpdate(force) {
   const ref = sha || "main";
   if (force || ref === "main" || ref !== CUR_REF) await loadAll(ref);
   const el = document.getElementById("lastChecked");
-  const t = new Date().toLocaleTimeString("zh-Hant-TW", { hour12: false, timeZone: "Asia/Taipei" });
-  el.textContent = (inAfterHoursWindow() ? "盤後自動更新中・" : "") + "最後檢查 " + t;
+  const t = new Date().toLocaleTimeString("zh-Hant-TW", { hour12: false, timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit" });
+  el.textContent = (inAfterHoursWindow() ? "自動更新中・" : "") + "檢查於 " + t;
 }
 checkUpdate(true);
 setInterval(() => { if (document.visibilityState === "visible" && inAfterHoursWindow()) checkUpdate(false); }, 90000);
@@ -1147,10 +1194,13 @@ document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () =>
 }));
 function setTheme(t) {
   document.documentElement.dataset.theme = t;
-  document.querySelectorAll("[data-theme-btn]").forEach(b => b.classList.toggle("on", b.dataset.themeBtn === t));
+  const btn = document.getElementById("themeToggle");
+  btn.dataset.on = t;
+  btn.setAttribute("aria-pressed", t === "light" ? "true" : "false");
   try { localStorage.setItem("theme", t); } catch (e) {}
 }
-document.querySelectorAll("[data-theme-btn]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeBtn)));
+document.getElementById("themeToggle").addEventListener("click", () =>
+  setTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light"));
 setTheme(document.documentElement.dataset.theme || "dark");
 (function initTab() {
   let t = location.hash.slice(1);
