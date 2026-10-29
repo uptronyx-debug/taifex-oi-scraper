@@ -12,18 +12,43 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;600&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script>
+  try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <style>
-  :root{
-    --bg:#0F151C;
-    --surface:#1A232D;
-    --surface-2:#212C38;
-    --divider:#2A3644;
-    --text:#ECE7DD;
-    --text-muted:#8798A8;
-    --long:#DE5B4B;      /* 買方 / 多方力道 */
-    --long-soft:#4A2A28;
-    --short:#3FA37C;     /* 賣方 / 空方力道 */
-    --short-soft:#1E3B33;
+  /* 黑（預設）：提高對比 */
+  :root, :root[data-theme="dark"]{
+    --bg:#090C10;
+    --surface:#131920;
+    --surface-2:#1A222C;
+    --divider:#2E3A48;
+    --text:#F5F2EB;
+    --text-muted:#AEBCCA;
+    --long:#F2604D;      /* 紅：買方 / 多方 / Call */
+    --long-soft:#4D2420;
+    --short:#2FC08A;     /* 綠：賣方 / 空方 / Put */
+    --short-soft:#163E30;
+    --gold:#F2C14E;
+    --gold-soft:#3D3112;
+    --accent-border:#4A5A6C;
+    color-scheme:dark;
+  }
+  /* 淡藍 */
+  :root[data-theme="light"]{
+    --bg:#E4EEF7;
+    --surface:#FFFFFF;
+    --surface-2:#F2F7FC;
+    --divider:#C5D4E3;
+    --text:#0E1B28;
+    --text-muted:#4B6075;
+    --long:#D2311E;
+    --long-soft:#FCE3DF;
+    --short:#0E8F5E;
+    --short-soft:#DDF4EA;
+    --gold:#B07A00;
+    --gold-soft:#FFF1CC;
+    --accent-border:#7F97AE;
+    color-scheme:light;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -107,7 +132,7 @@
     border-radius:6px;
     padding:6px 4px;
     text-align:center;
-    opacity:0.4;
+    opacity:0.5;
     transition:opacity 0.15s;
   }
   .lamp-icon{
@@ -123,13 +148,13 @@
   }
   .lamp.lit{ opacity:1; }
   .lamp.lit .lamp-label{ color:var(--text); font-weight:600; }
-  .lamp.lit.plenum{ border-color:#8798A8; box-shadow:0 0 8px rgba(135,152,168,0.35); }
-  .lamp.lit.plenum .lamp-icon{ color:#ECE7DD; }
-  .lamp.lit.burst{ border-color:#E0B84B; box-shadow:0 0 8px rgba(224,184,75,0.4); background:#3A3115; }
-  .lamp.lit.burst .lamp-icon, .lamp.lit.burst .lamp-label{ color:#E0B84B; }
-  .lamp.lit.up{ border-color:var(--long); box-shadow:0 0 8px rgba(222,91,75,0.4); background:var(--long-soft); }
+  .lamp.lit.plenum{ border-color:var(--text-muted); box-shadow:0 0 8px color-mix(in srgb, var(--text-muted) 40%, transparent); }
+  .lamp.lit.plenum .lamp-icon{ color:var(--text); }
+  .lamp.lit.burst{ border-color:var(--gold); box-shadow:0 0 8px color-mix(in srgb, var(--gold) 45%, transparent); background:var(--gold-soft); }
+  .lamp.lit.burst .lamp-icon, .lamp.lit.burst .lamp-label{ color:var(--gold); }
+  .lamp.lit.up{ border-color:var(--long); box-shadow:0 0 8px color-mix(in srgb, var(--long) 45%, transparent); background:var(--long-soft); }
   .lamp.lit.up .lamp-icon, .lamp.lit.up .lamp-label{ color:var(--long); }
-  .lamp.lit.down{ border-color:var(--short); box-shadow:0 0 8px rgba(63,163,124,0.4); background:var(--short-soft); }
+  .lamp.lit.down{ border-color:var(--short); box-shadow:0 0 8px color-mix(in srgb, var(--short) 45%, transparent); background:var(--short-soft); }
   .lamp.lit.down .lamp-icon, .lamp.lit.down .lamp-label{ color:var(--short); }
 
   /* ---------- Trend ---------- */
@@ -392,7 +417,7 @@
     background:var(--surface-2); border:1px solid var(--divider);
     border-radius:6px; padding:10px 12px;
   }
-  .stat.main{ border-color:#3A4858; }
+  .stat.main{ border-color:var(--accent-border); }
   .stat-label{ font-size:11px; color:var(--text-muted); margin-bottom:2px; }
   .stat-value{
     font-family:'Roboto Mono', monospace; font-weight:700; font-size:20px;
@@ -402,11 +427,15 @@
   .pos{ color:var(--long); }
   .neg{ color:var(--short); }
   .stat.clickable{ cursor:pointer; transition:border-color .15s; }
-  .stat.clickable:hover{ border-color:#4A5A6C; }
+  .stat.clickable:hover{ border-color:var(--accent-border); }
   .stat.clickable.selected{ border-color:var(--text-muted); box-shadow:inset 0 0 0 1px var(--text-muted); }
   .table-scroll{ overflow-x:auto; }
   .chart-title{ font-size:12px; color:var(--text-muted); margin:16px 0 4px; }
   .note{ font-size:12px; color:var(--text-muted); padding:12px 0; }
+
+  .theme-switch{ display:inline-flex; border:1px solid var(--divider); border-radius:6px; overflow:hidden; margin-bottom:6px; }
+  .theme-switch button{ background:var(--surface); color:var(--text-muted); border:none; padding:3px 12px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .theme-switch button.on{ background:var(--text); color:var(--bg); font-weight:600; }
 
   /* ---------- Footer ---------- */
   footer{
@@ -428,6 +457,9 @@
   <header>
     <h1>台指法人籌碼</h1>
     <div class="meta">
+      <div class="theme-switch" role="group" aria-label="底色">
+        <button data-theme-btn="dark">黑</button><button data-theme-btn="light">淡藍</button>
+      </div>
       資料日期：<span class="date" id="dataDate">—</span><br>
       <span id="lastChecked"></span>
     </div>
@@ -462,7 +494,7 @@
       <a href="https://www.taifex.com.tw/cht/3/futDailyMarketReport" target="_blank" rel="noopener">期貨每日行情</a>、
       <a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 三大法人買賣金額</a>
     </div>
-    <div class="foot-row"><span class="foot-k">更新時間</span>每個交易日約 15:30 自動更新（17:30 再檢查一次）</div>
+    <div class="foot-row"><span class="foot-k">更新時間</span><span id="updateNote"></span></div>
     <div class="foot-row" id="visitRow" style="display:none;"><span class="foot-k">瀏覽人次</span><span id="visitCount" class="foot-num"></span></div>
   </footer>
 
@@ -569,9 +601,9 @@ function buildSeries(allRows, institution, dates) {
   });
 }
 
-function lineChartSvg(series) {
-  const width = 400, height = 150;
-  const padL = 32, padR = 6, padT = 8, padB = 8;
+function lineChartSvg(series, labels) {
+  const width = 400, height = 166;
+  const padL = 32, padR = 8, padT = 8, padB = 22;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const n = series.length;
 
@@ -597,10 +629,15 @@ function lineChartSvg(series) {
     { key: "sp", color: "var(--short)", dash: "" },
   ];
   const lines = lineDefs.map(ld =>
-    `<path d="${pathFor(ld.key)}" fill="none" stroke="${ld.color}" stroke-width="2" stroke-dasharray="${ld.dash}"/>`
+    `<path d="${pathFor(ld.key)}" fill="none" stroke="${ld.color}" stroke-width="2.2" stroke-dasharray="${ld.dash}"/>`
   ).join("");
 
-  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:150px;">${gridLines}${lines}</svg>`;
+  const xl = (labels || []).map((l, i) => {
+    const anchor = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
+    return (i % 2 === 0 || i === n - 1) && !(i === n - 2)
+      ? `<text x="${x(i).toFixed(1)}" y="${height - 6}" font-size="9" fill="var(--text-muted)" text-anchor="${anchor}">${l.slice(5)}</text>` : "";
+  }).join("");
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${gridLines}${lines}${xl}</svg>`;
 }
 
 const CHART_LEGEND = `
@@ -638,13 +675,13 @@ function renderTrend(allRows) {
       <div class="trend-inst">
         <h3>外資</h3>
         ${CHART_LEGEND}
-        ${lineChartSvg(foreignSeries)}
+        ${lineChartSvg(foreignSeries, dates)}
         ${trendTableHtml(dates, foreignSeries)}
       </div>
       <div class="trend-inst">
         <h3>自營商</h3>
         ${CHART_LEGEND}
-        ${lineChartSvg(dealerSeries)}
+        ${lineChartSvg(dealerSeries, dates)}
         ${trendTableHtml(dates, dealerSeries)}
       </div>
     </div>
@@ -850,7 +887,7 @@ function barChartSvg(values, labels) {
     const h = Math.abs(v) * scale;
     const x = padL + i * bw + bw * 0.15;
     const yy = v >= 0 ? y0 - h : y0;
-    return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(h, 0.5).toFixed(1)}" fill="${v >= 0 ? "var(--long)" : "var(--short)"}" opacity="0.9"><title>${labels[i]}：${v.toFixed(2)}</title></rect>`;
+    return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(h, 0.5).toFixed(1)}" fill="${v >= 0 ? "var(--long)" : "var(--short)"}"><title>${labels[i]}：${v.toFixed(2)}</title></rect>`;
   }).join("");
   const step = Math.ceil(values.length / Math.max(3, Math.floor(width / 75)));
   const showLbl = (i, n) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75);
@@ -1015,6 +1052,8 @@ function renderSpot(rows) {
     ${barChartSvg(last20.map(r => r.foreign), last20.map(r => r.date))}
     <div class="chart-title">投信買賣超（億）</div>
     ${barChartSvg(last20.map(r => r.trust), last20.map(r => r.date))}
+    <div class="chart-title">自營商買賣超（億）</div>
+    ${barChartSvg(last20.map(r => r.dealer), last20.map(r => r.date))}
     <table class="trend-table">
       <thead><tr><th>日期</th><th>外資</th><th>投信</th><th>自營商</th><th>合計</th></tr></thead>
       <tbody>${tableRows}</tbody>
@@ -1091,7 +1130,13 @@ window.addEventListener("resize", () => {
 });
 
 // ================= 分頁切換 =================
+const UPDATE_NOTE = {
+  options: "交易日約 14:50（期交所公布後 1 分鐘內）",
+  futures: "交易日約 14:50（期交所公布後 1 分鐘內）",
+  spot: "交易日約 15:05（證交所公布後 1 分鐘內）",
+};
 function showTab(name) {
+  document.getElementById("updateNote").textContent = UPDATE_NOTE[name] || "";
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + name));
   try { localStorage.setItem("tab", name); } catch (e) {}
@@ -1100,10 +1145,17 @@ document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () =>
   showTab(b.dataset.tab);
   history.replaceState(null, "", "#" + b.dataset.tab);
 }));
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  document.querySelectorAll("[data-theme-btn]").forEach(b => b.classList.toggle("on", b.dataset.themeBtn === t));
+  try { localStorage.setItem("theme", t); } catch (e) {}
+}
+document.querySelectorAll("[data-theme-btn]").forEach(b => b.addEventListener("click", () => setTheme(b.dataset.themeBtn)));
+setTheme(document.documentElement.dataset.theme || "dark");
 (function initTab() {
   let t = location.hash.slice(1);
   if (!t) { try { t = localStorage.getItem("tab") || ""; } catch (e) {} }
-  if (["options", "futures", "spot"].includes(t)) showTab(t);
+  showTab(["options", "futures", "spot"].includes(t) ? t : "options");
 })();
 
 // ================= 瀏覽人次 =================
