@@ -498,6 +498,12 @@
   .oi-card{ border:none; }
   .oi-pill{ border:none; background:color-mix(in srgb, var(--surface) 70%, transparent); }
 
+  .anchor-row{ display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; font-size:13px; color:var(--text-muted); margin-bottom:12px; }
+  .anchor-row select{ background:var(--surface-2); color:var(--text); border:1px solid var(--divider); border-radius:6px; padding:4px 8px; font-family:inherit; font-size:13px; }
+  .anchor-info{ font-family:'Roboto Mono', monospace; font-size:12px; }
+  .sq{ display:inline-block; width:9px; height:9px; border-radius:2px; }
+  .warn-row td{ background:var(--gold-soft); }
+  .warn-tag{ font-size:10px; color:var(--gold); border:1px solid var(--gold); border-radius:4px; padding:0 4px; margin-left:4px; }
   /* ---------- Footer ---------- */
   footer{
     margin-top:40px;
@@ -531,6 +537,7 @@
     <button class="tab active" data-tab="options">選擇權</button>
     <button class="tab" data-tab="futures">期貨</button>
     <button class="tab" data-tab="spot">現貨</button>
+    <button class="tab" data-tab="margin">融資</button>
   </nav>
 
   <section class="tab-panel active" id="panel-options">
@@ -548,13 +555,18 @@
     <div id="spotBox"><div class="note">資料載入中…</div></div>
   </section>
 
+  <section class="tab-panel" id="panel-margin">
+    <div id="marginBox"><div class="note">資料載入中…</div></div>
+  </section>
+
   <footer>
     <div class="foot-row"><span class="foot-k">資料來源</span>
       <a href="https://www.taifex.com.tw/cht/3/callsAndPutsDate" target="_blank" rel="noopener">期交所 選擇權三大法人</a>、
       <a href="https://www.taifex.com.tw/cht/3/optDailyMarketReport" target="_blank" rel="noopener">選擇權每日行情</a>、
       <a href="https://www.taifex.com.tw/cht/3/futContractsDate" target="_blank" rel="noopener">期貨三大法人</a>、
       <a href="https://www.taifex.com.tw/cht/3/futDailyMarketReport" target="_blank" rel="noopener">期貨每日行情</a>、
-      <a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 三大法人買賣金額</a>
+      <a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 三大法人買賣金額</a>、
+      <a href="https://www.twse.com.tw/zh/trading/margin/mi-margn.html" target="_blank" rel="noopener">信用交易統計</a>
     </div>
     <div class="foot-row"><span class="foot-k">更新時間</span><span id="updateNote"></span></div>
     <div class="foot-row" id="visitRow" style="display:none;"><span class="foot-k">瀏覽人次</span><span id="visitCount" class="foot-num"></span></div>
@@ -1116,12 +1128,173 @@ function renderSpot(rows) {
   </div>`;
 }
 
+// ================= 融資 =================
+// 起算日：預設「近 60 個交易日加權收盤最高點」，可手動指定
+let MARGIN_ANCHOR = null;
+try { MARGIN_ANCHOR = localStorage.getItem("marginAnchor") || null; } catch (e) {}
+function setMarginAnchor(v) {
+  MARGIN_ANCHOR = v || null;
+  try { v ? localStorage.setItem("marginAnchor", v) : localStorage.removeItem("marginAnchor"); } catch (e) {}
+  renderMargin();
+}
+const pct = v => (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
+
+// 每日對照：兩組長條（指數漲跌%、融資金額增減%），警訊日（指數跌、融資增）加底色
+function pairBarSvg(idx, mg, labels, warn) {
+  const width = chartW(), height = 180, padL = 40, padR = 6, padT = 8, padB = 18;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const maxAbs = Math.max(...idx.map(Math.abs), ...mg.map(Math.abs), 0.001) * 1.15;
+  const y0 = padT + plotH / 2, sc = (plotH / 2) / maxAbs, bw = plotW / idx.length;
+  const bar = (v, x, w, fill) => {
+    const h = Math.abs(v) * sc;
+    return `<rect x="${x.toFixed(1)}" y="${(v >= 0 ? y0 - h : y0).toFixed(1)}" width="${w.toFixed(1)}" height="${Math.max(h, 0.5).toFixed(1)}" fill="${fill}"/>`;
+  };
+  const body = idx.map((v, i) => {
+    const x = padL + i * bw, w = bw * 0.34;
+    const bg = warn[i] ? `<rect x="${(x + bw * 0.06).toFixed(1)}" y="${padT}" width="${(bw * 0.88).toFixed(1)}" height="${plotH}" fill="var(--gold-soft)"/>` : "";
+    const mgFill = warn[i] ? "var(--gold)" : (mg[i] >= 0 ? "var(--long)" : "var(--short)");
+    return bg + bar(v, x + bw * 0.14, w, "var(--text-muted)") + bar(mg[i], x + bw * 0.52, w, mgFill)
+      + `<title>${labels[i]}　指數 ${pct(v)}　融資 ${pct(mg[i])}</title>`;
+  }).join("");
+  const step = Math.ceil(idx.length / Math.max(3, Math.floor(width / 75)));
+  const xl = labels.map((l, i) => (i === labels.length - 1 || (i % step === 0 && labels.length - 1 - i >= step * 0.75))
+    ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
+  const grid = [maxAbs, 0, -maxAbs].map(v => {
+    const yy = y0 - v * sc;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
+      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${body}${xl}</svg>`;
+}
+
+// 自起算日的累計變化（%），多條線
+function multiLineSvg(seriesList, labels) {
+  const width = chartW(), height = 190, padL = 46, padR = 8, padT = 10, padB = 18;
+  const plotW = width - padL - padR, plotH = height - padT - padB;
+  const all = seriesList.flatMap(s => s.values);
+  let lo = Math.min(...all, 0), hi = Math.max(...all, 0);
+  const pad = (hi - lo) * 0.08 || 0.01; lo -= pad; hi += pad;
+  const n = labels.length;
+  const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const y = v => padT + (hi - v) / (hi - lo) * plotH;
+  const grid = [hi, (hi + lo) / 2, lo].map(v =>
+    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)"/>
+     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`).join("");
+  const zero = `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-dasharray="3,3"/>`;
+  const lines = seriesList.map(s => `<path d="${s.values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2.2" ${s.dash ? 'stroke-dasharray="5,4"' : ""}/>`).join("");
+  const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
+  const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
+    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}${lines}${xl}</svg>`;
+}
+
+function renderMargin() {
+  const box = document.getElementById("marginBox");
+  const rows = (MARGIN_ROWS || []).map(r => ({
+    date: r.date, taiex: Number(r.taiex), lots: Number(r.margin_lots), amt: Number(r.margin_amount_k) / 100000,
+  })).filter(r => r.taiex > 0 && r.amt > 0).sort((a, b) => a.date < b.date ? -1 : 1);
+  if (rows.length < 2) { box.innerHTML = `<div class="note">融資資料累積中</div>`; return; }
+  const L = rows.length - 1, last = rows[L];
+
+  // 起算日
+  const win = rows.slice(-60);
+  let auto = win.reduce((m, r) => r.taiex > m.taiex ? r : m, win[0]);
+  let anchor = auto, manual = false;
+  if (MARGIN_ANCHOR) {
+    const m = rows.find(r => r.date === MARGIN_ANCHOR);
+    if (m && m.date < last.date) { anchor = m; manual = true; }
+  }
+  const ai = rows.indexOf(anchor);
+  const since = rows.slice(ai);
+  const idxChg = last.taiex / anchor.taiex - 1;
+  const amtChg = last.amt / anchor.amt - 1;
+  const lotChg = last.lots / anchor.lots - 1;
+  const ratio = idxChg < 0 ? amtChg / idxChg : null;
+
+  const verdict = ratio === null
+    ? `<div class="stat"><div class="stat-label">減幅 ÷ 跌幅</div><div class="stat-value">—</div><div class="stat-delta">指數在起算點之上</div></div>`
+    : `<div class="stat" style="background:${ratio >= 1 ? "var(--short-soft)" : "var(--long-soft)"}">
+         <div class="stat-label">融資減幅 ÷ 指數跌幅</div>
+         <div class="stat-value" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio.toFixed(2)} 倍</div>
+         <div class="stat-delta" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio >= 1 ? "融資退場 > 指數跌幅" : "融資退場不足"}</div></div>`;
+  const stats = `<div class="stat-grid">
+    ${statHtml("加權指數自起算點", idxChg, pct(idxChg), `${anchor.taiex.toLocaleString()} → ${last.taiex.toLocaleString()}`, false)}
+    ${statHtml("融資金額自起算點", amtChg, pct(amtChg), `${anchor.amt.toFixed(0)} → ${last.amt.toFixed(0)} 億`, false)}
+    ${statHtml("融資張數自起算點", lotChg, pct(lotChg), "扣掉股價影響的實際增減", false)}
+    ${verdict}
+  </div>`;
+
+  // 起算日選單（近 120 個交易日）
+  const opts = rows.slice(-120, -1).reverse().map(r =>
+    `<option value="${r.date}" ${manual && r.date === anchor.date ? "selected" : ""}>${r.date}（${r.taiex.toLocaleString()}）</option>`).join("");
+  const picker = `<div class="anchor-row">
+    <span>起算日</span>
+    <select onchange="setMarginAnchor(this.value)">
+      <option value="" ${manual ? "" : "selected"}>自動：近 60 日最高 ${auto.date.slice(5)}</option>${opts}
+    </select>
+    <span class="anchor-info">${anchor.date}　加權 ${anchor.taiex.toLocaleString()}　共 ${since.length - 1} 個交易日</span>
+  </div>`;
+
+  const lineChart = multiLineSvg([
+    { values: since.map(r => r.taiex / anchor.taiex - 1), color: "var(--text-muted)" },
+    { values: since.map(r => r.amt / anchor.amt - 1), color: "var(--gold)" },
+    { values: since.map(r => r.lots / anchor.lots - 1), color: "var(--gold)", dash: true },
+  ], since.map(r => r.date));
+
+  // 每日對照（近 20 日）
+  const daily = rows.slice(-21).map((r, i, a) => i === 0 ? null : {
+    date: r.date, idx: r.taiex / a[i - 1].taiex - 1, amt: r.amt / a[i - 1].amt - 1,
+    amtDiff: r.amt - a[i - 1].amt, lotDiff: r.lots - a[i - 1].lots,
+  }).filter(Boolean);
+  const warn = daily.map(d => d.idx < 0 && d.amt > 0);
+  const warnCount = warn.slice(-5).filter(Boolean).length;
+
+  const tableRows = rows.slice(-11).map((r, i, a) => {
+    if (i === 0) return "";
+    const p = a[i - 1];
+    const di = r.taiex / p.taiex - 1, da = r.amt - p.amt, dl = r.lots - p.lots;
+    const w = di < 0 && da > 0;
+    const fromIdx = r.date >= anchor.date ? pct(r.taiex / anchor.taiex - 1) : "—";
+    const fromAmt = r.date >= anchor.date ? pct(r.amt / anchor.amt - 1) : "—";
+    return `<tr${w ? ' class="warn-row"' : ""}><td>${r.date.slice(5)}${w ? ' <span class="warn-tag">接刀</span>' : ""}</td>
+      <td>${r.taiex.toLocaleString()}</td><td class="${signCls(di)}">${pct(di)}</td>
+      <td>${r.amt.toFixed(1)}</td><td class="${signCls(da)}">${(da > 0 ? "+" : "") + da.toFixed(1)}</td>
+      <td class="${signCls(dl)}">${fmtInt(dl)}</td><td>${fromIdx}</td><td>${fromAmt}</td></tr>`;
+  }).reverse().join("");
+
+  box.innerHTML = `<div class="card">
+    <h2>融資減幅 vs 大盤跌幅</h2>
+    <div class="sub">資料日期：${last.date}　｜　集中市場融資餘額　｜　倍數 ≥ 1 代表融資退場比指數跌得多</div>
+    ${picker}
+    ${stats}
+    <div class="chart-title">自起算日累計變化</div>
+    <div class="trend-legend">
+      <span class="legend-item"><span class="swatch" style="border-color:var(--text-muted)"></span>加權指數</span>
+      <span class="legend-item"><span class="swatch" style="border-color:var(--gold)"></span>融資金額</span>
+      <span class="legend-item"><span class="swatch dash" style="border-color:var(--gold)"></span>融資張數</span>
+    </div>
+    ${lineChart}
+    <div class="chart-title">每日對照（%），近 ${daily.length} 個交易日　｜　近 5 日「指數跌、融資增」<span style="color:${warnCount ? "var(--gold)" : "var(--text-muted)"}">${warnCount} 天</span></div>
+    <div class="trend-legend">
+      <span class="legend-item"><span class="sq" style="background:var(--text-muted)"></span>指數</span>
+      <span class="legend-item"><span class="sq" style="background:var(--short)"></span>融資減</span>
+      <span class="legend-item"><span class="sq" style="background:var(--long)"></span>融資增</span>
+      <span class="legend-item"><span class="sq" style="background:var(--gold)"></span>指數跌、融資增</span>
+    </div>
+    ${pairBarSvg(daily.map(d => d.idx), daily.map(d => d.amt), daily.map(d => d.date), warn)}
+    <div class="table-scroll"><table class="trend-table">
+      <thead><tr><th>日期</th><th>加權</th><th>漲跌</th><th>融資(億)</th><th>增減(億)</th><th>張數增減</th><th>指數自起算</th><th>融資自起算</th></tr></thead>
+      <tbody>${tableRows}</tbody>
+    </table></div>
+  </div>`;
+}
+
 // ================= 讀取資料（避開 GitHub 快取）＋盤後自動更新 =================
 // raw.githubusercontent.com 的 main 會被快取數分鐘；先問 GitHub 最新的 commit 編號，
 // 再用「該編號」讀檔，拿到的一定是最新版本。查不到編號（例如 API 次數用完）才退回 main。
 const REPO = "uptronyx-debug/taifex-oi-scraper";
 let CUR_REF = null, LAST_CHECK = 0;
-let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null;
+let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null;
 
 async function latestSha() {
   try {
@@ -1138,8 +1311,8 @@ async function getCsv(name, ref) {
   return parseCSV(await r.text());
 }
 async function loadAll(ref) {
-  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv"];
-  const [opt, strike, fut, txm, spot] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
+  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv"];
+  const [opt, strike, fut, txm, spot, mg] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
   if (opt.status === "fulfilled" && opt.value.length) { render(opt.value); renderTrend(opt.value); }
   else if (!CUR_REF) {
     const st = document.getElementById("status");
@@ -1152,13 +1325,15 @@ async function loadAll(ref) {
   else if (!FUT_ROWS) document.getElementById("futBox").innerHTML = `<div class="note">資料載入失敗（fut_oi.csv）</div>`;
   if (spot.status === "fulfilled") { SPOT_ROWS = spot.value; renderSpot(SPOT_ROWS); }
   else if (!SPOT_ROWS) document.getElementById("spotBox").innerHTML = `<div class="note">資料載入失敗（spot_net.csv）</div>`;
+  if (mg.status === "fulfilled") { MARGIN_ROWS = mg.value; renderMargin(); }
+  else if (!MARGIN_ROWS) document.getElementById("marginBox").innerHTML = `<div class="note">尚無融資資料</div>`;
   CUR_REF = ref;
 }
 function inAfterHoursWindow() {
   const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Taipei", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false })
     .formatToParts(new Date()).map(x => [x.type, x.value]));
   const hm = p.hour + ":" + p.minute;
-  return !["Sat", "Sun"].includes(p.weekday) && hm >= "14:20" && hm <= "15:50";
+  return !["Sat", "Sun"].includes(p.weekday) && ((hm >= "14:20" && hm <= "15:50") || (hm >= "21:20" && hm <= "23:00"));
 }
 async function checkUpdate(force) {
   if (!force && Date.now() - LAST_CHECK < 60000) return;
@@ -1181,6 +1356,7 @@ window.addEventListener("resize", () => {
     const w = chartW(); if (w === lastW) return; lastW = w;
     if (FUT_ROWS) renderFutures(FUT_ROWS);
     if (SPOT_ROWS) renderSpot(SPOT_ROWS);
+    if (MARGIN_ROWS) renderMargin();
   }, 200);
 });
 
@@ -1189,6 +1365,7 @@ const UPDATE_NOTE = {
   options: "交易日約 14:50（期交所公布後 1 分鐘內）",
   futures: "交易日約 14:50（期交所公布後 1 分鐘內）",
   spot: "交易日約 15:05（證交所公布後 1 分鐘內）",
+  margin: "交易日約 21:30（證交所公布融資後 1 分鐘內）",
 };
 function showTab(name) {
   document.getElementById("updateNote").textContent = UPDATE_NOTE[name] || "";
@@ -1213,7 +1390,7 @@ setTheme(document.documentElement.dataset.theme || "dark");
 (function initTab() {
   let t = location.hash.slice(1);
   if (!t) { try { t = localStorage.getItem("tab") || ""; } catch (e) {} }
-  showTab(["options", "futures", "spot"].includes(t) ? t : "options");
+  showTab(["options", "futures", "spot", "margin"].includes(t) ? t : "options");
 })();
 
 // ================= 瀏覽人次 =================
