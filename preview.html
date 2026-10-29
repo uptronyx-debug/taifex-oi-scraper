@@ -657,8 +657,6 @@ function render(rows) {
   const latestRows = rows.filter(r => r.date === latestDate);
 
   document.getElementById("dataDate").textContent = latestDate;
-  document.getElementById("lastChecked").textContent =
-    "頁面查詢時間：" + new Date().toLocaleString("zh-Hant-TW", { hour12: false });
 
   renderSummary(latestRows);
   document.getElementById("status").style.display = "none";
@@ -823,33 +821,6 @@ function renderStrikeSection(rows) {
   `;
   box.style.display = "block";
 }
-
-fetch(STRIKE_CSV_URL + "?t=" + Date.now(), { cache: "no-store" })
-  .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
-  .then(text => {
-    const rows = parseCSV(text);
-    renderStrikeSection(rows);
-  })
-  .catch(() => {
-    document.getElementById("strikeSection").style.display = "none";
-  });
-
-fetch(CSV_URL + "?t=" + Date.now(), { cache: "no-store" })
-  .then(res => {
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    return res.text();
-  })
-  .then(text => {
-    const rows = parseCSV(text);
-    if (rows.length === 0) throw new Error("CSV 是空的");
-    render(rows);
-    renderTrend(rows);
-  })
-  .catch(err => {
-    const status = document.getElementById("status");
-    status.textContent = "資料載入失敗：" + err.message + "（請確認 data/txo_oi.csv 是否已經有資料）";
-    status.classList.add("error");
-  });
 
 // ================= 共用小工具 =================
 const RAW = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/";
@@ -1051,21 +1022,64 @@ function renderSpot(rows) {
   </div>`;
 }
 
-function loadCsv(name, onRows, boxId) {
-  fetch(RAW + name + "?t=" + Date.now(), { cache: "no-store" })
-    .then(res => { if (!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
-    .then(text => onRows(parseCSV(text)))
-    .catch(err => {
-      document.getElementById(boxId).innerHTML = `<div class="note">資料載入失敗：${err.message}（${name}）</div>`;
-    });
-}
+// ================= 讀取資料（避開 GitHub 快取）＋盤後自動更新 =================
+// raw.githubusercontent.com 的 main 會被快取數分鐘；先問 GitHub 最新的 commit 編號，
+// 再用「該編號」讀檔，拿到的一定是最新版本。查不到編號（例如 API 次數用完）才退回 main。
+const REPO = "uptronyx-debug/taifex-oi-scraper";
+let CUR_REF = null, LAST_CHECK = 0;
 let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null;
-loadCsv("fut_oi.csv", rows => { FUT_ROWS = rows; renderFutures(rows); }, "futBox");
-fetch(RAW + "tx_month_oi.csv?t=" + Date.now(), { cache: "no-store" })
-  .then(res => { if (!res.ok) throw new Error(); return res.text(); })
-  .then(text => { TXM_ROWS = parseCSV(text); if (FUT_ROWS) renderFutures(FUT_ROWS); })
-  .catch(() => { TXM_ROWS = []; if (FUT_ROWS) renderFutures(FUT_ROWS); });
-loadCsv("spot_net.csv", rows => { SPOT_ROWS = rows; renderSpot(rows); }, "spotBox");
+
+async function latestSha() {
+  try {
+    const r = await fetch(`https://api.github.com/repos/${REPO}/commits/main`,
+      { cache: "no-store", headers: { Accept: "application/vnd.github.sha" } });
+    if (r.ok) { const t = (await r.text()).trim(); if (/^[0-9a-f]{40}$/.test(t)) return t; }
+  } catch (e) {}
+  return null;
+}
+async function getCsv(name, ref) {
+  const url = `https://raw.githubusercontent.com/${REPO}/${ref}/data/${name}` + (ref === "main" ? "?t=" + Date.now() : "");
+  const r = await fetch(url, { cache: ref === "main" ? "no-store" : "default" });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return parseCSV(await r.text());
+}
+async function loadAll(ref) {
+  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv"];
+  const [opt, strike, fut, txm, spot] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
+  if (opt.status === "fulfilled" && opt.value.length) { render(opt.value); renderTrend(opt.value); }
+  else if (!CUR_REF) {
+    const st = document.getElementById("status");
+    st.textContent = "資料載入失敗：" + (opt.reason ? opt.reason.message : "CSV 是空的");
+    st.classList.add("error");
+  }
+  if (strike.status === "fulfilled") renderStrikeSection(strike.value);
+  TXM_ROWS = txm.status === "fulfilled" ? txm.value : (TXM_ROWS || []);
+  if (fut.status === "fulfilled") { FUT_ROWS = fut.value; renderFutures(FUT_ROWS); }
+  else if (!FUT_ROWS) document.getElementById("futBox").innerHTML = `<div class="note">資料載入失敗（fut_oi.csv）</div>`;
+  if (spot.status === "fulfilled") { SPOT_ROWS = spot.value; renderSpot(SPOT_ROWS); }
+  else if (!SPOT_ROWS) document.getElementById("spotBox").innerHTML = `<div class="note">資料載入失敗（spot_net.csv）</div>`;
+  CUR_REF = ref;
+}
+function inAfterHoursWindow() {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Taipei", weekday: "short", hour: "2-digit", minute: "2-digit", hour12: false })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  const hm = p.hour + ":" + p.minute;
+  return !["Sat", "Sun"].includes(p.weekday) && hm >= "14:20" && hm <= "15:50";
+}
+async function checkUpdate(force) {
+  if (!force && Date.now() - LAST_CHECK < 60000) return;
+  LAST_CHECK = Date.now();
+  const sha = await latestSha();
+  const ref = sha || "main";
+  if (force || ref === "main" || ref !== CUR_REF) await loadAll(ref);
+  const el = document.getElementById("lastChecked");
+  const t = new Date().toLocaleTimeString("zh-Hant-TW", { hour12: false, timeZone: "Asia/Taipei" });
+  el.textContent = (inAfterHoursWindow() ? "盤後自動更新中・" : "") + "最後檢查 " + t;
+}
+checkUpdate(true);
+setInterval(() => { if (document.visibilityState === "visible" && inAfterHoursWindow()) checkUpdate(false); }, 90000);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkUpdate(false); });
+
 let resizeTimer = null, lastW = 0;
 window.addEventListener("resize", () => {
   clearTimeout(resizeTimer);
