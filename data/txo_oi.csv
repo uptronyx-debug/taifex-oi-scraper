@@ -115,7 +115,3 @@ date,option_type,investor_type,oi_buy_volume,oi_buy_value_k,oi_sell_volume,oi_se
 2026/10/28,call,foreign,13549,489477,12874,542619,675,-53142
 2026/10/28,put,dealer,20469,428756,18778,225986,1691,202770
 2026/10/28,put,foreign,9197,735241,8301,677556,896,57685
-2026/10/29,call,dealer,0,0,0,0,0,0
-2026/10/29,call,foreign,0,0,0,0,0,0
-2026/10/29,put,dealer,0,0,0,0,0,0
-2026/10/29,put,foreign,0,0,0,0,0,0

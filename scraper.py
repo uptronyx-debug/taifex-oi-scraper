@@ -195,6 +195,11 @@ def fetch_one_day(date_str, session=None):
                   f"（可能是非交易日，TAIFEX 自動回傳最近一個交易日的資料，將略過此日）")
             return []
 
+        if records and all(r["oi_buy_volume"] == 0 and r["oi_sell_volume"] == 0 for r in records):
+            # 期交所在資料正式公布前，頁面日期已是今天但數字全部是 0，這種不能寫入
+            print(f"  ⚠️  {date_str} 未平倉全部為 0（資料尚未公布），不寫入，之後的排程會再抓")
+            return []
+
         if records:
             print(f"  ✅ 成功抓到 {date_str} 的資料（{len(records)} 筆）")
             return records
