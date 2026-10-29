@@ -18,6 +18,9 @@ concurrency:
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    timeout-minutes: 100
+    env:
+      TZ: Asia/Taipei   # 讓爬蟲的「今天」以台北日期為準
     steps:
       - name: 取出 repo 程式碼
         uses: actions/checkout@v4
@@ -37,35 +40,10 @@ jobs:
         if: steps.check.outputs.skip != 'true'
         run: pip install -r requirements.txt
 
-      # 每支爬蟲都會自己略過已經有的日期；沒資料不會報錯，其中一支出問題也不影響其他支
-      - name: 執行爬蟲（選擇權三大法人未平倉）
+      # 盤後輪詢：每分鐘跑一次，資料一公布就立刻寫入並推送，直到五份到齊或 15:40
+      - name: 盤後輪詢抓取（資料一公布就更新）
         if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
-        run: python scraper.py
-
-      - name: 執行爬蟲（選擇權各履約價未平倉量）
-        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
-        run: python scraper_by_strike.py
-
-      - name: 執行爬蟲（期貨三大法人未平倉）
-        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
-        run: python scraper_futures.py
-
-      - name: 執行爬蟲（大台各月份未沖銷量）
-        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
-        run: python scraper_tx_months.py
-
-      - name: 執行爬蟲（現貨三大法人買賣超）
-        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
-        run: python scraper_spot.py
-
-      - name: 把新資料 commit 回 repo
-        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/*.csv
-          git diff --staged --quiet && echo "沒有新資料，不需要 commit" || git commit -m "auto: 更新 TAIFEX 資料 $(date +'%Y-%m-%d')"
-          git push
+        run: python tools/run_all.py
 
       # 17:00 後還有部分資料缺漏才報紅叉；全部都沒有（尚未公布／臨時休市）不算錯
       - name: 檢查今天資料是否齊全
