@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=2">
 <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
-<meta name="theme-color" content="#0F151C">
+<meta name="theme-color" content="#1C1A17">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@600;700&family=Noto+Sans+TC:wght@400;500;600&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
@@ -16,38 +16,38 @@
   try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
 </script>
 <style>
-  /* 黑（預設）：提高對比 */
+  /* 深（預設）：配合 LOGO 的暖黑 */
   :root, :root[data-theme="dark"]{
-    --bg:#090C10;
-    --surface:#131920;
-    --surface-2:#1A222C;
-    --divider:#2E3A48;
-    --text:#F5F2EB;
-    --text-muted:#AEBCCA;
-    --long:#F2604D;      /* 紅：買方 / 多方 / Call */
-    --long-soft:#4D2420;
-    --short:#2FC08A;     /* 綠：賣方 / 空方 / Put */
-    --short-soft:#163E30;
-    --gold:#F2C14E;
-    --gold-soft:#3D3112;
-    --accent-border:#4A5A6C;
+    --bg:#1C1A17;
+    --surface:#262420;
+    --surface-2:#2F2C27;
+    --divider:#433E35;
+    --text:#EFE8D6;
+    --text-muted:#BDB4A3;
+    --long:#F0614C;      /* 紅：買方 / 多方 / Call */
+    --long-soft:#4A2620;
+    --short:#3CBF86;     /* 綠：賣方 / 空方 / Put */
+    --short-soft:#1D3A2C;
+    --gold:#E6B93C;
+    --gold-soft:#3D3218;
+    --accent-border:#6A6253;
     color-scheme:dark;
   }
-  /* 淡藍 */
+  /* 淺：配合 LOGO 的米色 */
   :root[data-theme="light"]{
-    --bg:#E4EEF7;
-    --surface:#FFFFFF;
-    --surface-2:#F2F7FC;
-    --divider:#C5D4E3;
-    --text:#0E1B28;
-    --text-muted:#4B6075;
-    --long:#D2311E;
-    --long-soft:#FCE3DF;
-    --short:#0E8F5E;
-    --short-soft:#DDF4EA;
-    --gold:#B07A00;
-    --gold-soft:#FFF1CC;
-    --accent-border:#7F97AE;
+    --bg:#F3EEE3;
+    --surface:#FBF8F1;
+    --surface-2:#F0E9DA;
+    --divider:#DCD2BE;
+    --text:#1C1A17;
+    --text-muted:#6B6150;
+    --long:#C8341F;
+    --long-soft:#F7DDD5;
+    --short:#1A7F51;
+    --short-soft:#DBEEE2;
+    --gold:#A57810;
+    --gold-soft:#F5E8C6;
+    --accent-border:#A89C85;
     color-scheme:light;
   }
   *{box-sizing:border-box;}
@@ -434,10 +434,18 @@
   .note{ font-size:12px; color:var(--text-muted); padding:12px 0; }
 
 
+  /* ===== LOGO ===== */
+  h1.brand{ margin:0; line-height:0; }
+  .logo{ height:48px; width:auto; }
+  .logo-light{ display:none; }
+  :root[data-theme="light"] .logo-dark{ display:none; }
+  :root[data-theme="light"] .logo-light{ display:inline; }
+  @media (max-width:700px){ .logo{ height:40px; } }
+
   /* ===== 介面整理：減少框線、燈號精簡 ===== */
   header{ display:block; padding-bottom:16px; margin-bottom:20px; }
   .head-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .meta{ text-align:left; font-size:13px; margin-top:6px; }
+  .meta{ text-align:left; font-size:13px; margin-top:12px; }
   .meta-sep{ margin:0 8px; opacity:.5; }
   .theme-toggle{
     position:relative; display:inline-flex; padding:3px; gap:0; cursor:pointer;
@@ -509,7 +517,7 @@
 
   <header>
     <div class="head-top">
-      <h1>台指法人籌碼</h1>
+      <h1 class="brand"><img class="logo logo-dark" src="logo-dark.svg" alt="台指期權 TAIWAN OPTIONS"><img class="logo logo-light" src="logo-light.svg" alt="台指期權 TAIWAN OPTIONS"></h1>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="切換深色／淺色">
         <span class="tt-opt" data-v="dark">深</span><span class="tt-opt" data-v="light">淺</span>
       </button>
