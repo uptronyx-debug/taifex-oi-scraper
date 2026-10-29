@@ -31,6 +31,7 @@
     --gold:#E6B93C;
     --gold-soft:#3D3218;
     --accent-border:#6A6253;
+    --margin:#6E9BE0;
     color-scheme:dark;
   }
   /* 淺：配合 LOGO 的米色 */
@@ -48,6 +49,7 @@
     --gold:#A57810;
     --gold-soft:#F5E8C6;
     --accent-border:#A89C85;
+    --margin:#2F5A93;
     color-scheme:light;
   }
   *{box-sizing:border-box;}
@@ -1151,10 +1153,12 @@ function pairBarSvg(idx, mg, labels, warn) {
   };
   const body = idx.map((v, i) => {
     const x = padL + i * bw, w = bw * 0.34;
-    const bg = warn[i] ? `<rect x="${(x + bw * 0.06).toFixed(1)}" y="${padT}" width="${(bw * 0.88).toFixed(1)}" height="${plotH}" fill="var(--gold-soft)"/>` : "";
-    const mgFill = warn[i] ? "var(--gold)" : (mg[i] >= 0 ? "var(--long)" : "var(--short)");
-    return bg + bar(v, x + bw * 0.14, w, "var(--text-muted)") + bar(mg[i], x + bw * 0.52, w, mgFill)
-      + `<title>${labels[i]}　指數 ${pct(v)}　融資 ${pct(mg[i])}</title>`;
+    const bg = warn[i]
+      ? `<rect x="${(x + bw * 0.06).toFixed(1)}" y="${padT}" width="${(bw * 0.88).toFixed(1)}" height="${plotH}" fill="var(--gold)" opacity="0.16"/>
+         <text x="${(x + bw / 2).toFixed(1)}" y="${padT + 11}" font-size="11" fill="var(--gold)" text-anchor="middle">▲</text>` : "";
+    const hit = `<rect x="${x.toFixed(1)}" y="${padT}" width="${bw.toFixed(1)}" height="${plotH}" fill="transparent"/>`;
+    return `<g><title>${labels[i]}　指數 ${pct(v)}　融資 ${pct(mg[i])}${warn[i] ? "　（指數跌、融資增）" : ""}</title>${bg}${hit}`
+      + bar(v, x + bw * 0.14, w, "var(--text-muted)") + bar(mg[i], x + bw * 0.52, w, "var(--margin)") + `</g>`;
   }).join("");
   const step = Math.ceil(idx.length / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === labels.length - 1 || (i % step === 0 && labels.length - 1 - i >= step * 0.75))
@@ -1220,7 +1224,7 @@ function renderMargin() {
   const stats = `<div class="stat-grid">
     ${statHtml("加權指數自起算點", idxChg, pct(idxChg), `${anchor.taiex.toLocaleString()} → ${last.taiex.toLocaleString()}`, false)}
     ${statHtml("融資金額自起算點", amtChg, pct(amtChg), `${anchor.amt.toFixed(0)} → ${last.amt.toFixed(0)} 億`, false)}
-    ${statHtml("融資張數自起算點", lotChg, pct(lotChg), "扣掉股價影響的實際增減", false)}
+    ${statHtml("融資張數自起算點", lotChg, pct(lotChg), "全市場融資股數，不受股價影響", false)}
     ${verdict}
   </div>`;
 
@@ -1237,8 +1241,8 @@ function renderMargin() {
 
   const lineChart = multiLineSvg([
     { values: since.map(r => r.taiex / anchor.taiex - 1), color: "var(--text-muted)" },
-    { values: since.map(r => r.amt / anchor.amt - 1), color: "var(--gold)" },
-    { values: since.map(r => r.lots / anchor.lots - 1), color: "var(--gold)", dash: true },
+    { values: since.map(r => r.amt / anchor.amt - 1), color: "var(--margin)" },
+    { values: since.map(r => r.lots / anchor.lots - 1), color: "var(--margin)", dash: true },
   ], since.map(r => r.date));
 
   // 每日對照（近 20 日）
@@ -1270,16 +1274,15 @@ function renderMargin() {
     <div class="chart-title">自起算日累計變化</div>
     <div class="trend-legend">
       <span class="legend-item"><span class="swatch" style="border-color:var(--text-muted)"></span>加權指數</span>
-      <span class="legend-item"><span class="swatch" style="border-color:var(--gold)"></span>融資金額</span>
-      <span class="legend-item"><span class="swatch dash" style="border-color:var(--gold)"></span>融資張數</span>
+      <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>融資金額</span>
+      <span class="legend-item"><span class="swatch dash" style="border-color:var(--margin)"></span>融資張數（全市場融資股數）</span>
     </div>
     ${lineChart}
     <div class="chart-title">每日對照（%），近 ${daily.length} 個交易日　｜　近 5 日「指數跌、融資增」<span style="color:${warnCount ? "var(--gold)" : "var(--text-muted)"}">${warnCount} 天</span></div>
     <div class="trend-legend">
       <span class="legend-item"><span class="sq" style="background:var(--text-muted)"></span>指數</span>
-      <span class="legend-item"><span class="sq" style="background:var(--short)"></span>融資減</span>
-      <span class="legend-item"><span class="sq" style="background:var(--long)"></span>融資增</span>
-      <span class="legend-item"><span class="sq" style="background:var(--gold)"></span>指數跌、融資增</span>
+      <span class="legend-item"><span class="sq" style="background:var(--margin)"></span>融資金額</span>
+      <span class="legend-item"><span style="color:var(--gold)">▲</span>&nbsp;指數跌、融資增</span>
     </div>
     ${pairBarSvg(daily.map(d => d.idx), daily.map(d => d.amt), daily.map(d => d.date), warn)}
     <div class="table-scroll"><table class="trend-table">
