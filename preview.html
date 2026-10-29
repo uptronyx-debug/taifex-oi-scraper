@@ -525,6 +525,9 @@
   .swing-sum b{ font-size:16px; }
   .swing-sum span{ font-size:11px; color:var(--text-muted); }
 
+  .lbl-sub{ font-family:'Roboto Mono', monospace; color:var(--text-muted); margin-left:4px; }
+  .chart-title-row{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:2px 12px; }
+  .chart-title-row b{ font-family:'Roboto Mono', monospace; font-weight:600; }
   /* ===== 手機版 ===== */
   @media (max-width:700px){
     .wrap{ padding:18px 14px 48px; }
@@ -993,7 +996,7 @@ const chartW = () => Math.max(300, Math.min(900, document.querySelector(".wrap")
 
 // 正負值的長條圖（紅正綠負），labels 為日期
 function barChartSvg(values, labels) {
-  const width = chartW(), height = 170, padL = 44, padR = 6, padT = 8, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 44, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const maxAbs = Math.max(...values.map(v => Math.abs(v)), 1) * 1.1;
   const y0 = padT + plotH / 2;
@@ -1019,7 +1022,7 @@ function barChartSvg(values, labels) {
 
 // 淨部位折線（可為負值），含 0 軸
 function netLineSvg(values, labels) {
-  const width = chartW(), height = 170, padL = 52, padR = 6, padT = 8, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 52, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   let lo = Math.min(...values), hi = Math.max(...values);
   const pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad;
@@ -1080,7 +1083,7 @@ function renderFutures(rows) {
     if (!m) return statHtml(label, 0, "—", TXM_ROWS ? "尚無資料" : "載入中…", false);
     const prev = p ? monthOi(p, m.contract) : null;
     const delta = prev === null ? "" : `較前日 ${fmtInt(m.oi - prev)}`;
-    return `<div class="stat"><div class="stat-label">${label}　${fmtMonth(m.contract)}</div>
+    return `<div class="stat"><div class="stat-label">${label} <span class="lbl-sub">${fmtMonth(m.contract)}</span></div>
       <div class="stat-value">${m.oi.toLocaleString()}</div><div class="stat-delta">${delta}</div></div>`;
   };
 
@@ -1093,10 +1096,10 @@ function renderFutures(rows) {
       <div class="stat-delta">${delta}</div></div>`;
 
   const stats = `<div class="stat-grid">
-    ${clickStat("vol", "外資大台淨未平倉（口）", vol(d, "foreign"), fmtInt(vol(d, "foreign")), vDelta)}
-    ${clickStat("val", "外資大台淨未平倉金額（億）", val(d, "foreign"), fmtYi2(val(d, "foreign")), aDelta)}
-    ${monthStat(0, "大台近月未沖銷（口）")}
-    ${monthStat(1, "大台次月未沖銷（口）")}
+    ${clickStat("vol", "外資淨未平倉（口）", vol(d, "foreign"), fmtInt(vol(d, "foreign")), vDelta)}
+    ${clickStat("val", "外資淨未平倉（億）", val(d, "foreign"), fmtYi2(val(d, "foreign")), aDelta)}
+    ${monthStat(0, "近月未沖銷")}
+    ${monthStat(1, "次月未沖銷")}
   </div>`;
 
   const series = FUT_MODE === "vol" ? (x => vol(x, "foreign")) : (x => val(x, "foreign"));
@@ -1112,19 +1115,19 @@ function renderFutures(rows) {
     const ms = (pairs[x] || []).slice(0, 2);
     const td = v => `<td class="${signCls(v)}">${fmtInt(v)}</td>`;
     const mtd = m => `<td>${m ? m.oi.toLocaleString() : "—"}</td>`;
-    return `<tr><td>${x.slice(5)}</td>${td(vol(x, "foreign"))}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td><td class="${signCls(val(x, "foreign"))}">${fmtYi2(val(x, "foreign"))}</td>${mtd(ms[0])}${mtd(ms[1])}</tr>`;
+    return `<tr><td>${x.slice(5)}</td>${td(vol(x, "foreign"))}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td><td class="hide-m ${signCls(val(x, "foreign"))}">${fmtYi2(val(x, "foreign"))}</td>${mtd(ms[0])}${mtd(ms[1])}</tr>`;
   }).join("");
 
   box.innerHTML = `<div class="card">
-    <h2>外資臺股期貨（大台）未平倉</h2>
-    <div class="sub">資料日期：${d}　｜　紅淨多・綠淨空　｜　點前兩格切換口數／金額</div>
+    <h2>外資大台未平倉</h2>
+    <div class="sub">資料日期 ${d}・紅淨多 綠淨空・點上方兩格切換圖表</div>
     ${stats}
-    <div class="chart-title">外資大台淨未平倉${FUT_MODE === "vol" ? "（口）" : "金額（億）"}，近 ${last20.length} 個交易日</div>
+    <div class="chart-title">外資淨未平倉${FUT_MODE === "vol" ? "（口）" : "（億）"}・近 ${last20.length} 日</div>
     ${netLineSvg(netSeries, last20)}
     <div class="chart-title">每日增減（${unit}）</div>
     ${barChartSvg(changes, last20)}
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>日期</th><th>外資淨OI(口)</th><th>增減(口)</th><th>淨金額(億)</th><th>近月未沖銷(口)</th><th>次月未沖銷(口)</th></tr></thead>
+      <thead><tr><th>日期</th><th>外資淨OI(口)</th><th>增減(口)</th><th class="hide-m">淨金額(億)</th><th>近月(口)</th><th>次月(口)</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table></div>
   </div>`;
@@ -1147,10 +1150,10 @@ function renderSpot(rows) {
   const t = data[data.length - 1];
 
   const stats = `<div class="stat-grid">
-    ${statHtml("三大法人合計（億）", t.total, fmtYi2(t.total), "", true)}
-    ${statHtml("外資（億）", t.foreign, fmtYi2(t.foreign), "", false)}
-    ${statHtml("投信（億）", t.trust, fmtYi2(t.trust), "", false)}
-    ${statHtml("自營商（億）", t.dealer, fmtYi2(t.dealer), "", false)}
+    ${statHtml("三大法人合計", t.total, fmtYi2(t.total), "", true)}
+    ${statHtml("外資", t.foreign, fmtYi2(t.foreign), "", false)}
+    ${statHtml("投信", t.trust, fmtYi2(t.trust), "", false)}
+    ${statHtml("自營商", t.dealer, fmtYi2(t.dealer), "", false)}
   </div>`;
 
   const last20 = data.slice(-20);
@@ -1161,14 +1164,14 @@ function renderSpot(rows) {
   const sum20 = last20.reduce((a, r) => a + r.foreign, 0);
 
   box.innerHTML = `<div class="card">
-    <h2>三大法人現貨買賣超（集中市場）</h2>
-    <div class="sub">資料日期：${t.date}　｜　單位：億元　｜　外資含外資自營商，自營商含自行買賣與避險</div>
+    <h2>三大法人現貨買賣超</h2>
+    <div class="sub">資料日期 ${t.date}・集中市場・億元・外資含外資自營商</div>
     ${stats}
-    <div class="chart-title">外資買賣超（億），近 ${last20.length} 個交易日　｜　近 5 日累計 <span class="${signCls(sum5)}">${fmtYi2(sum5)}</span>　近 ${last20.length} 日累計 <span class="${signCls(sum20)}">${fmtYi2(sum20)}</span></div>
+    <div class="chart-title chart-title-row"><span>外資（億）・近 ${last20.length} 日</span><span>5 日 <b class="${signCls(sum5)}">${fmtYi2(sum5)}</b>　${last20.length} 日 <b class="${signCls(sum20)}">${fmtYi2(sum20)}</b></span></div>
     ${barChartSvg(last20.map(r => r.foreign), last20.map(r => r.date))}
-    <div class="chart-title">投信買賣超（億）</div>
+    <div class="chart-title">投信（億）</div>
     ${barChartSvg(last20.map(r => r.trust), last20.map(r => r.date))}
-    <div class="chart-title">自營商買賣超（億）</div>
+    <div class="chart-title">自營商（億）</div>
     ${barChartSvg(last20.map(r => r.dealer), last20.map(r => r.date))}
     <table class="trend-table">
       <thead><tr><th>日期</th><th>外資</th><th>投信</th><th>自營商</th><th>合計</th></tr></thead>
@@ -1217,7 +1220,7 @@ const pct = v => (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 
 // 每日對照：兩組長條（指數漲跌%、融資金額增減%），警訊日（指數跌、融資增）加底色
 function pairBarSvg(idx, mg, labels, warn) {
-  const width = chartW(), height = 180, padL = 40, padR = 6, padT = 8, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 40, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const maxAbs = Math.max(...idx.map(Math.abs), ...mg.map(Math.abs), 0.001) * 1.15;
   const y0 = padT + plotH / 2, sc = (plotH / 2) / maxAbs, bw = plotW / idx.length;
@@ -1247,7 +1250,7 @@ function pairBarSvg(idx, mg, labels, warn) {
 
 // 自起算日的累計變化（%），多條線
 function multiLineSvg(seriesList, labels) {
-  const width = chartW(), height = 190, padL = 46, padR = 8, padT = 10, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = 46, padR = 8, padT = 10, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const all = seriesList.flatMap(s => s.values);
   let lo = Math.min(...all, 0), hi = Math.max(...all, 0);
@@ -1274,7 +1277,7 @@ function swingPanel(rows) {
   const med = rs.length ? (rs.length % 2 ? rs[(rs.length - 1) / 2] : (rs[rs.length / 2 - 1] + rs[rs.length / 2]) / 2) : null;
   const over1 = rs.filter(r => r >= 1).length;
   const tr = sw.slice().reverse().map(x => `<tr${x.done ? "" : ' class="live-row"'}>
-      <td>${x.H.date.startsWith(latestYear) ? "" : x.H.date.slice(2, 4) + "/"}${x.H.date.slice(5)}→${x.L.date.slice(5)}${x.done ? "" : ' <span class="live-tag">中</span>'}</td>
+      <td>${x.H.date.startsWith(latestYear) ? "" : x.H.date.slice(2, 4) + "/"}${x.H.date.slice(5)}→${x.L.date.slice(5)}${x.done ? "" : ' <span class="live-tag">進行中</span>'}</td>
       <td class="hide-m">${x.days}</td><td class="${signCls(x.di)}">${pct(x.di)}</td><td class="${signCls(x.da)}">${pct(x.da)}</td>
       <td class="${signCls(x.dl)}">${pct(x.dl)}</td>
       <td style="font-weight:700;color:${x.ratio === null ? "inherit" : x.ratio >= 1 ? "var(--short)" : "var(--text)"}">${x.ratio === null ? "—" : x.ratio.toFixed(2)}</td></tr>`).join("");
@@ -1290,7 +1293,7 @@ function swingPanel(rows) {
       <thead><tr><th>高點→低點</th><th class="hide-m">天數</th><th>指數</th><th>金額</th><th>張數</th><th>倍數</th></tr></thead>
       <tbody>${tr}</tbody>
     </table></div>
-    <div class="swing-note">即時計算。「中」＝進行中，算到最新一天；要漲回 5% 才確認反轉。</div>
+    <div class="swing-note">即時計算。進行中的那波算到最新一天；要從低點漲回 5% 才確認反轉。</div>
   </div>`;
 }
 
@@ -1398,7 +1401,7 @@ function renderMargin() {
       <span class="legend-item"><span class="swatch dash" style="border-color:var(--margin)"></span>融資張數</span>
     </div>
     ${lineChart}
-    <div class="chart-title">每日對照（%），近 ${daily.length} 個交易日　｜　近 5 日「指數跌、融資增」<span style="color:${warnCount ? "var(--gold)" : "var(--text-muted)"}">${warnCount} 天</span></div>
+    <div class="chart-title chart-title-row"><span>每日對照（%）・近 ${daily.length} 日</span><span>近 5 日指數跌融資增 <b style="color:${warnCount ? "var(--gold)" : "var(--text-muted)"}">${warnCount} 天</b></span></div>
     <div class="trend-legend">
       <span class="legend-item"><span class="sq" style="background:var(--text-muted)"></span>指數</span>
       <span class="legend-item"><span class="sq" style="background:var(--margin)"></span>融資金額</span>
