@@ -22,7 +22,7 @@ concurrency:
 jobs:
   backfill:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,16 +46,22 @@ jobs:
           START: ${{ github.event.inputs.start_date }}
           END: ${{ github.event.inputs.end_date }}
         run: python scraper_spot.py --backfill "$START" "$END"
+      - name: 補抓融資與加權指數
+        if: ${{ !cancelled() }}
+        env:
+          START: ${{ github.event.inputs.start_date }}
+          END: ${{ github.event.inputs.end_date }}
+        run: python scraper_margin.py --backfill "$START" "$END"
       - name: 依日期排序並 commit
         if: ${{ !cancelled() }}
         run: |
-          for f in data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv; do
+          for f in data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv data/margin.csv; do
             [ -f "$f" ] || continue
             { head -1 "$f"; tail -n +2 "$f" | sort -t, -k1,1 -s; } > tmp.csv && mv tmp.csv "$f"
           done
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv
+          git add data/fut_oi.csv data/spot_net.csv data/tx_month_oi.csv data/margin.csv
           git diff --staged --quiet && echo "沒有新資料" || git commit -m "auto: 補抓期貨與現貨歷史資料"
           git pull --rebase -q origin main
           git push

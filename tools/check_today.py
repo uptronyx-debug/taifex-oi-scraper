@@ -14,6 +14,9 @@
             17:00 前 → 綠勾並提示（之後的排程會再補抓）
             17:00 後 → 紅叉（代表真的有爬蟲壞掉，需要處理）
 
+環境變數 JOB=margin 時改檢查晚上的融資資料（data/margin.csv）：
+  當天有交易（現貨資料已寫入）但 23:00 後融資仍沒有 → 紅叉；其餘情況綠勾。
+
 測試用：環境變數 FAKE_NOW="2026/10/26 15:30" 可以假裝成某個時間。
 """
 
@@ -25,9 +28,14 @@ from datetime import datetime, timedelta, timezone
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
-FILES = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv"]
+JOBS = {
+    "daily": {"files": ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv"], "late": 17},
+    "margin": {"files": ["margin.csv"], "late": 23, "evidence": "spot_net.csv"},
+}
+JOB = JOBS[os.environ.get("JOB", "daily")]
+FILES = JOB["files"]
 TAIPEI = timezone(timedelta(hours=8))
-LATE_HOUR = 17
+LATE_HOUR = JOB["late"]
 
 
 def now_taipei():
@@ -66,9 +74,17 @@ def holiday_name(day):
     return None
 
 
-def have_today(day_str):
+def has_date(name, day_str):
+    path = os.path.join(DATA_DIR, name)
+    if not os.path.exists(path):
+        return False
+    with open(path, encoding="utf-8") as f:
+        return any(line.startswith(day_str + ",") for line in f)
+
+
+def have_today(day_str, files=None):
     present = {}
-    for name in FILES:
+    for name in files or FILES:
         path = os.path.join(DATA_DIR, name)
         found = False
         if os.path.exists(path):
@@ -103,7 +119,14 @@ def post():
     present = have_today(day_str)
     missing = [k for k, v in present.items() if not v]
     if not missing:
-        print(f"✅ {day_str} 五份資料都已更新")
+        print(f"✅ {day_str} 資料都已更新")
+        return
+    if "evidence" in JOB:
+        traded = has_date(JOB["evidence"], day_str)
+        if traded and now.hour >= LATE_HOUR:
+            print(f"❌ {day_str} 有交易，但 {LATE_HOUR}:00 後仍缺：{'、'.join(missing)}。請檢查爬蟲")
+            sys.exit(1)
+        print(f"ℹ️ {day_str} 尚缺：{'、'.join(missing)}（{'尚未公布，之後會再補抓' if traded else '今天沒有交易資料，視為休市或尚未公布'}）")
         return
     if len(missing) == len(FILES):
         print(f"ℹ️ {day_str} 所有來源都還沒有資料（盤後資料尚未公布，或臨時休市），不視為錯誤")

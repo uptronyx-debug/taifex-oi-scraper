@@ -1,0 +1,47 @@
+name: 晚間抓取融資餘額
+
+on:
+  schedule:
+    # 主要靠 Google Apps Script 在 21:20～22:40 觸發；這裡只是備援（台灣時間 21:40、23:00）
+    - cron: "40 13 * * 1-5"
+    - cron: "0 15 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scrape
+  cancel-in-progress: false
+
+jobs:
+  margin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 160
+    env:
+      TZ: Asia/Taipei
+      JOB: margin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 檢查今天要不要抓
+        id: check
+        run: python3 tools/check_today.py pre
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.skip != 'true'
+        with:
+          python-version: "3.11"
+
+      - name: 安裝套件
+        if: steps.check.outputs.skip != 'true'
+        run: pip install -r requirements.txt
+
+      # 21:00～23:30 每分鐘檢查，證交所公布融資後立刻寫入
+      - name: 晚間輪詢抓取融資
+        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
+        run: python tools/run_all.py
+
+      - name: 檢查今天融資資料
+        if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
+        run: python3 tools/check_today.py post

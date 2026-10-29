@@ -7,16 +7,21 @@ jobs:
   t:
     runs-on: ubuntu-latest
     steps:
-      - run: |
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - env:
+          DATA_DIR: out
+          TZ: Asia/Taipei
+        run: |
+          mkdir -p out
           {
-          for u in "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=20261028&selectType=MS&response=json" \
-                   "https://www.twse.com.tw/rwd/zh/afterTrading/FMTQIK?date=20261001&response=json" \
-                   "https://www.twse.com.tw/rwd/zh/marginTrading/MI_MARGN?date=20261029&selectType=MS&response=json"; do
-            echo "##### $u"
-            curl -sS -m 30 "$u" | python3 -c "import sys,json; j=json.load(sys.stdin); print(json.dumps({k:v for k,v in j.items() if k not in ('data','tables')}, ensure_ascii=False)[:600]); [print('TABLE', t.get('title'), t.get('fields'), t.get('data',[])[:6]) for t in j.get('tables',[])]; print('FIELDS', j.get('fields')); [print(r) for r in j.get('data',[])[:4]]"
-            sleep 4
-          done
-          } > probe_output.txt 2>&1
-          git init -q . && git config user.name bot && git config user.email bot@x
-          git checkout -q --orphan probe-output && git add probe_output.txt && git commit -qm out
-          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" probe-output
+          for d in 2026/10/28 2026/10/29 2026/10/23; do echo "##### $d"; python scraper_margin.py --date $d; done
+          echo "##### backfill 09/24-10/02"; python scraper_margin.py --backfill 2026/09/24 2026/10/02
+          echo "##### csv"; cat out/margin.csv
+          } > probe_output.txt 2>&1 || true
+          git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
+          git push -f origin probe-output

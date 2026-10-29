@@ -21,13 +21,19 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from check_today import FILES, have_today, now_taipei  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRAPERS = [
-    ("選擇權三大法人", ["scraper.py"]),
-    ("選擇權各履約價", ["scraper_by_strike.py"]),
-    ("期貨三大法人", ["scraper_futures.py"]),
-    ("大台各月份", ["scraper_tx_months.py"]),
-    ("現貨買賣超", ["scraper_spot.py"]),
-]
+JOB_SCRAPERS = {
+    "daily": [
+        ("選擇權三大法人", ["scraper.py"]),
+        ("選擇權各履約價", ["scraper_by_strike.py"]),
+        ("期貨三大法人", ["scraper_futures.py"]),
+        ("大台各月份", ["scraper_tx_months.py"]),
+        ("現貨買賣超", ["scraper_spot.py"]),
+    ],
+    "margin": [("融資餘額", ["scraper_margin.py"])],
+}
+JOB_WINDOW = {"daily": ("14:00", "15:40"), "margin": ("21:00", "23:30")}
+JOB_NAME = os.environ.get("JOB", "daily")
+SCRAPERS = JOB_SCRAPERS[JOB_NAME]
 
 
 def sh(*args, check=True):
@@ -52,8 +58,8 @@ def commit_and_push(day_str):
 
 
 def main():
-    start = os.environ.get("POLL_FROM", "14:00")
-    until = os.environ.get("POLL_UNTIL", "15:40")
+    start = os.environ.get("POLL_FROM", JOB_WINDOW[JOB_NAME][0])
+    until = os.environ.get("POLL_UNTIL", JOB_WINDOW[JOB_NAME][1])
     every = int(os.environ.get("POLL_EVERY", "60"))
     sh("git", "config", "user.name", "github-actions[bot]")
     sh("git", "config", "user.email", "github-actions[bot]@users.noreply.github.com")
@@ -67,7 +73,7 @@ def main():
         missing = [k for k, v in present.items() if not v]
         print(f"\n===== 第 {rnd} 輪 {now:%H:%M:%S}，尚缺：{'、'.join(missing) or '無'}")
         if not missing:
-            print("✅ 今天五份資料都到齊了")
+            print("✅ 今天的資料都到齊了")
             break
         for label, cmd in SCRAPERS:
             r = subprocess.run([sys.executable, *cmd], cwd=ROOT, text=True, capture_output=True)
@@ -80,7 +86,7 @@ def main():
         if commit_and_push(day_str):
             print(f"  ⬆ 已推送新資料（{now_taipei():%H:%M:%S}）")
         if all(have_today(day_str).values()):
-            print("✅ 今天五份資料都到齊了")
+            print("✅ 今天的資料都到齊了")
             break
         hm = now_taipei().strftime("%H:%M")
         if not (start <= hm < until):
