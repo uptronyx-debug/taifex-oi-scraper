@@ -515,6 +515,44 @@
   .swing-note{ font-size:11px; color:var(--text-muted); margin-top:8px; }
   .live-row td{ background:color-mix(in srgb, var(--gold) 12%, transparent); }
   .live-tag{ font-size:10px; color:var(--gold); border:1px solid var(--gold); border-radius:4px; padding:0 4px; margin-left:4px; }
+  .fld{ display:flex; align-items:center; gap:8px; }
+  .range-info{ font-family:'Roboto Mono', monospace; font-size:12px; color:var(--text-muted); margin:-2px 0 12px; }
+  .tap-hint{ margin-left:6px; }
+  .h2-unit{ font-family:'Noto Sans TC', sans-serif; font-size:12px; font-weight:400; color:var(--text-muted); margin-left:8px; }
+  .swing-title{ font-size:12px; color:var(--text-muted); margin-bottom:8px; }
+  .swing-sum{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-bottom:8px; }
+  .swing-sum > div{ display:flex; flex-direction:column; }
+  .swing-sum b{ font-size:16px; }
+  .swing-sum span{ font-size:11px; color:var(--text-muted); }
+
+  /* ===== 手機版 ===== */
+  @media (max-width:700px){
+    .wrap{ padding:18px 14px 48px; }
+    header{ padding-bottom:12px; margin-bottom:12px; }
+    .meta{ font-size:12px; margin-top:8px; }
+    .tabs{ margin-bottom:14px; }
+    .tab{ padding:8px 12px; font-size:15px; }
+    #trend, #strikeSection, .card{ padding:16px 14px; margin-bottom:14px; }
+    #summary{ padding:10px 14px; margin-bottom:14px; }
+    .card h2, #trend h2, #strikeSection h2{ font-size:16px; }
+    .card .sub, .strike-sub{ font-size:11px; margin-bottom:10px; }
+    .stat{ padding:9px 10px; }
+    .stat-label{ font-size:11px; }
+    .stat-value{ font-size:18px; }
+    .stat-delta{ font-size:10.5px; }
+    .anchor-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .fld{ flex-direction:column; align-items:stretch; gap:3px; font-size:11px; }
+    .fld select{ width:100%; font-size:13px; padding:6px 6px; }
+    .anchor-reset{ grid-column:1 / -1; justify-self:start; }
+    .hide-m{ display:none; }
+    .trend-table{ font-size:11px; }
+    .trend-table th, .trend-table td{ padding:6px 3px; }
+    .swing-panel{ padding:10px 10px; }
+    .swing-sum b{ font-size:13px; white-space:nowrap; }
+    .chart-title{ font-size:11px; margin-top:14px; }
+    .trend-legend{ font-size:10.5px; gap:10px; }
+    footer{ font-size:12px; }
+  }
   /* ---------- Footer ---------- */
   footer{
     margin-top:40px;
@@ -748,7 +786,7 @@ function renderTrend(allRows) {
   const dealerSeries  = buildSeries(allRows, "dealer", dates);
 
   box.innerHTML = `
-    <h2>近 10 個交易日部位變化（未平倉契約金額，億元）</h2>
+    <h2>近 10 日部位變化<span class="h2-unit">未平倉金額・億元</span></h2>
     <div class="trend-grid">
       <div class="trend-inst">
         <h3>外資</h3>
@@ -1229,28 +1267,30 @@ function multiLineSvg(seriesList, labels) {
 }
 
 function swingPanel(rows) {
+  const latestYear = rows[rows.length - 1].date.slice(0, 4);
   const sw = findSwings(rows, 0.05);
   const done = sw.filter(x => x.done && x.ratio !== null);
   const rs = done.map(x => x.ratio).sort((a, b) => a - b);
   const med = rs.length ? (rs.length % 2 ? rs[(rs.length - 1) / 2] : (rs[rs.length / 2 - 1] + rs[rs.length / 2]) / 2) : null;
   const over1 = rs.filter(r => r >= 1).length;
   const tr = sw.slice().reverse().map(x => `<tr${x.done ? "" : ' class="live-row"'}>
-      <td>${x.H.date.slice(2)} → ${x.L.date.slice(5)}${x.done ? "" : ' <span class="live-tag">進行中</span>'}</td>
-      <td>${x.days}</td><td class="${signCls(x.di)}">${pct(x.di)}</td><td class="${signCls(x.da)}">${pct(x.da)}</td>
+      <td>${x.H.date.startsWith(latestYear) ? "" : x.H.date.slice(2, 4) + "/"}${x.H.date.slice(5)}→${x.L.date.slice(5)}${x.done ? "" : ' <span class="live-tag">中</span>'}</td>
+      <td class="hide-m">${x.days}</td><td class="${signCls(x.di)}">${pct(x.di)}</td><td class="${signCls(x.da)}">${pct(x.da)}</td>
       <td class="${signCls(x.dl)}">${pct(x.dl)}</td>
       <td style="font-weight:700;color:${x.ratio === null ? "inherit" : x.ratio >= 1 ? "var(--short)" : "var(--text)"}">${x.ratio === null ? "—" : x.ratio.toFixed(2)}</td></tr>`).join("");
   return `<div class="swing-panel">
+    <div class="swing-title">歷次回檔（跌 ≥5% 後反彈 ≥5%）</div>
     <div class="swing-sum">
-      <span>歷次回檔（高點跌 ≥5% 後反彈 ≥5%）共 <b>${done.length}</b> 次</span>
-      <span>低點倍數中位數 <b>${med === null ? "—" : med.toFixed(2)}</b></span>
-      <span>範圍 <b>${rs.length ? rs[0].toFixed(2) + "～" + rs[rs.length - 1].toFixed(2) : "—"}</b></span>
-      <span>≥1 倍 <b>${over1}</b> 次</span>
+      <div><b>${done.length}</b><span>次數</span></div>
+      <div><b>${med === null ? "—" : med.toFixed(2)}</b><span>低點中位數</span></div>
+      <div><b>${rs.length ? rs[0].toFixed(2) + "–" + rs[rs.length - 1].toFixed(2) : "—"}</b><span>範圍</span></div>
+      <div><b>${over1}</b><span>≥1 倍</span></div>
     </div>
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>高點 → 低點</th><th>天數</th><th>指數</th><th>融資金額</th><th>融資張數</th><th>倍數</th></tr></thead>
+      <thead><tr><th>高點→低點</th><th class="hide-m">天數</th><th>指數</th><th>金額</th><th>張數</th><th>倍數</th></tr></thead>
       <tbody>${tr}</tbody>
     </table></div>
-    <div class="swing-note">依資料庫全部歷史即時計算，新資料進來會自動更新。「進行中」那列算到最新一天；反轉要事後漲回 5% 才會確認。</div>
+    <div class="swing-note">即時計算。「中」＝進行中，算到最新一天；要漲回 5% 才確認反轉。</div>
   </div>`;
 }
 
@@ -1288,15 +1328,15 @@ function renderMargin() {
   const ratio = idxChg < 0 ? amtChg / idxChg : null;
 
   const verdict = ratio === null
-    ? `<div class="stat clickable ${SHOW_SWINGS ? "selected" : ""}" onclick="toggleSwings()"><div class="stat-label">減幅 ÷ 跌幅 <span class="tap-hint">歷次參考 ▾</span></div><div class="stat-value">—</div><div class="stat-delta">區間內指數上漲，不適用</div></div>`
+    ? `<div class="stat clickable ${SHOW_SWINGS ? "selected" : ""}" onclick="toggleSwings()"><div class="stat-label">減幅 ÷ 跌幅<span class="tap-hint">歷次 ${SHOW_SWINGS ? "▴" : "▾"}</span></div><div class="stat-value">—</div><div class="stat-delta">區間內指數上漲，不適用</div></div>`
     : `<div class="stat clickable ${SHOW_SWINGS ? "selected" : ""}" onclick="toggleSwings()" style="background:${ratio >= 1 ? "var(--short-soft)" : "var(--long-soft)"}">
-         <div class="stat-label">融資減幅 ÷ 指數跌幅 <span class="tap-hint">歷次參考 ${SHOW_SWINGS ? "▴" : "▾"}</span></div>
+         <div class="stat-label">減幅 ÷ 跌幅<span class="tap-hint">歷次 ${SHOW_SWINGS ? "▴" : "▾"}</span></div>
          <div class="stat-value" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio.toFixed(2)} 倍</div>
-         <div class="stat-delta" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio >= 1 ? "融資退場 > 指數跌幅" : ratio < 0 ? "指數跌，融資不減反增" : "融資退場不足"}</div></div>`;
+         <div class="stat-delta" style="color:${ratio >= 1 ? "var(--short)" : "var(--long)"}">${ratio >= 1 ? "融資退場充分" : ratio < 0 ? "融資不減反增" : "融資退場不足"}</div></div>`;
   const stats = `<div class="stat-grid">
-    ${statHtml("加權指數 區間變化", idxChg, pct(idxChg), `${anchor.taiex.toLocaleString()} → ${last.taiex.toLocaleString()}`, false)}
-    ${statHtml("融資金額 區間變化", amtChg, pct(amtChg), `${anchor.amt.toFixed(0)} → ${last.amt.toFixed(0)} 億`, false)}
-    ${statHtml("融資張數 區間變化", lotChg, pct(lotChg), "全市場融資股數，不受股價影響", false)}
+    ${statHtml("加權指數", idxChg, pct(idxChg), `${Math.round(anchor.taiex).toLocaleString()} → ${Math.round(last.taiex).toLocaleString()}`, false)}
+    ${statHtml("融資金額", amtChg, pct(amtChg), `${anchor.amt.toFixed(0)} → ${last.amt.toFixed(0)} 億`, false)}
+    ${statHtml("融資張數", lotChg, pct(lotChg), "不受股價影響", false)}
     ${verdict}
   </div>`;
 
@@ -1306,17 +1346,17 @@ function renderMargin() {
   const endOpts = rows.slice(1, -1).reverse().map(r =>
     `<option value="${r.date}" ${endManual && r.date === last.date ? "selected" : ""}>${r.date}（${r.taiex.toLocaleString()}）</option>`).join("");
   const picker = `<div class="anchor-row">
-    <span>起算日</span>
-    <select onchange="setMarginAnchor(this.value)">
-      <option value="" ${manual ? "" : "selected"}>自動：近 60 日最高 ${auto.date.slice(5)}</option>${opts}
-    </select>
-    <span>結算日</span>
-    <select onchange="setMarginEnd(this.value)">
-      <option value="" ${endManual ? "" : "selected"}>最新 ${latest.date.slice(5)}</option>${endOpts}
-    </select>
+    <label class="fld"><span>起算日</span>
+      <select onchange="setMarginAnchor(this.value)">
+        <option value="" ${manual ? "" : "selected"}>自動 ${auto.date.slice(5)}</option>${opts}
+      </select></label>
+    <label class="fld"><span>結算日</span>
+      <select onchange="setMarginEnd(this.value)">
+        <option value="" ${endManual ? "" : "selected"}>最新 ${latest.date.slice(5)}</option>${endOpts}
+      </select></label>
     ${manual || endManual ? `<button class="anchor-reset" onclick="MARGIN_END=null; setMarginAnchor('')">重設</button>` : ""}
   </div>
-  <div class="anchor-info range-info">${anchor.date}（${anchor.taiex.toLocaleString()}）→ ${last.date}（${last.taiex.toLocaleString()}）　共 ${since.length - 1} 個交易日</div>`;
+  <div class="range-info">${anchor.date.slice(5)} ${Math.round(anchor.taiex).toLocaleString()} → ${last.date.slice(5)} ${Math.round(last.taiex).toLocaleString()}・${since.length - 1} 個交易日</div>`;
 
   const lineChart = multiLineSvg([
     { values: since.map(r => r.taiex / anchor.taiex - 1), color: "var(--text-muted)" },
@@ -1340,14 +1380,14 @@ function renderMargin() {
     const fromIdx = r.date >= anchor.date ? pct(r.taiex / anchor.taiex - 1) : "—";
     const fromAmt = r.date >= anchor.date ? pct(r.amt / anchor.amt - 1) : "—";
     return `<tr${w ? ' class="warn-row"' : ""}><td>${r.date.slice(5)}${w ? ' <span class="warn-tag">接刀</span>' : ""}</td>
-      <td>${r.taiex.toLocaleString()}</td><td class="${signCls(di)}">${pct(di)}</td>
-      <td>${r.amt.toFixed(1)}</td><td class="${signCls(da)}">${(da > 0 ? "+" : "") + da.toFixed(1)}</td>
-      <td class="${signCls(dl)}">${fmtInt(dl)}</td><td>${fromIdx}</td><td>${fromAmt}</td></tr>`;
+      <td class="hide-m">${r.taiex.toLocaleString()}</td><td class="${signCls(di)}">${pct(di)}</td>
+      <td class="hide-m">${r.amt.toFixed(1)}</td><td class="${signCls(da)}">${(da > 0 ? "+" : "") + da.toFixed(1)}</td>
+      <td class="${signCls(dl)}">${fmtInt(dl)}</td><td class="hide-m">${fromIdx}</td><td class="hide-m">${fromAmt}</td></tr>`;
   }).reverse().join("");
 
   box.innerHTML = `<div class="card">
-    <h2>融資減幅 vs 大盤跌幅</h2>
-    <div class="sub">資料日期：${latest.date}　｜　集中市場融資餘額　｜　倍數 ≥ 1 代表融資退場比指數跌得多</div>
+    <h2>融資 vs 大盤</h2>
+    <div class="sub">資料日期 ${latest.date}・集中市場・倍數 ≥ 1 代表融資退得比指數多</div>
     ${picker}
     ${stats}
     ${SHOW_SWINGS ? swingPanel(rows) : ""}
@@ -1355,7 +1395,7 @@ function renderMargin() {
     <div class="trend-legend">
       <span class="legend-item"><span class="swatch" style="border-color:var(--text-muted)"></span>加權指數</span>
       <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>融資金額</span>
-      <span class="legend-item"><span class="swatch dash" style="border-color:var(--margin)"></span>融資張數（全市場融資股數）</span>
+      <span class="legend-item"><span class="swatch dash" style="border-color:var(--margin)"></span>融資張數</span>
     </div>
     ${lineChart}
     <div class="chart-title">每日對照（%），近 ${daily.length} 個交易日　｜　近 5 日「指數跌、融資增」<span style="color:${warnCount ? "var(--gold)" : "var(--text-muted)"}">${warnCount} 天</span></div>
@@ -1366,7 +1406,7 @@ function renderMargin() {
     </div>
     ${pairBarSvg(daily.map(d => d.idx), daily.map(d => d.amt), daily.map(d => d.date), warn)}
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>日期</th><th>加權</th><th>漲跌</th><th>融資(億)</th><th>增減(億)</th><th>張數增減</th><th>指數自起算</th><th>融資自起算</th></tr></thead>
+      <thead><tr><th>日期</th><th class="hide-m">加權</th><th>漲跌</th><th class="hide-m">融資(億)</th><th>增減(億)</th><th>張數增減</th><th class="hide-m">指數自起算</th><th class="hide-m">融資自起算</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table></div>
   </div>`;
