@@ -519,6 +519,7 @@
   .range-info{ font-family:'Roboto Mono', monospace; font-size:12px; color:var(--text-muted); margin:-2px 0 12px; }
   .tap-hint{ margin-left:6px; }
   .h2-unit{ font-family:'Noto Sans TC', sans-serif; font-size:12px; font-weight:400; color:var(--text-muted); margin-left:8px; }
+  .hedge-head{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; }
   .swing-title{ font-size:12px; color:var(--text-muted); margin-bottom:8px; }
   .swing-sum{ display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-bottom:8px; }
   .swing-sum > div{ display:flex; flex-direction:column; }
@@ -536,9 +537,19 @@
   .cd{ font-family:'Roboto Mono', monospace; font-size:10px; color:var(--text-muted); margin-left:4px; }
   .top-ctrl{ display:flex; align-items:center; gap:10px; }
   .fld span{ white-space:nowrap; }
+  .day-total{ font-size:13px; color:var(--text-muted); margin-bottom:10px; }
+  .day-total b{ font-family:'Roboto Mono', monospace; font-size:15px; }
   .seg{ display:inline-flex; border:1px solid var(--divider); border-radius:999px; padding:2px; }
   .seg button{ background:none; border:none; color:var(--text-muted); padding:4px 12px; border-radius:999px; font-size:12px; cursor:pointer; font-family:inherit; }
   .seg button.on{ background:var(--text); color:var(--bg); font-weight:600; }
+  .chartbox{ position:relative; touch-action:pan-y; cursor:crosshair; }
+  .chartbox .tip{ display:none; position:absolute; top:-4px; z-index:5; pointer-events:none; white-space:nowrap;
+    background:var(--surface-2); border:1px solid var(--accent-border); border-radius:6px; padding:5px 8px;
+    font-size:11px; line-height:1.45; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+  .chartbox .tip .td{ color:var(--text-muted); font-family:'Roboto Mono', monospace; font-size:10px; }
+  .chartbox .tip b{ font-family:'Roboto Mono', monospace; font-weight:700; }
+  .chartbox .tip .tr{ display:flex; justify-content:space-between; gap:10px; }
+  .chartbox .tip .tw{ color:var(--gold); }
   /* ===== 手機版 ===== */
   @media (max-width:700px){
     .wrap{ padding:18px 14px 48px; }
@@ -567,6 +578,7 @@
     .trend-table th, .trend-table td{ padding:6px 3px; }
     .swing-panel{ padding:10px 10px; }
     .swing-sum b{ font-size:13px; white-space:nowrap; }
+    .swing-sum{ grid-template-columns:1fr 1fr; row-gap:10px; }
     .chart-title{ font-size:11px; margin-top:14px; }
     .trend-legend{ font-size:10.5px; gap:10px; }
     footer{ font-size:12px; }
@@ -738,9 +750,48 @@ function buildSeries(allRows, institution, dates) {
   });
 }
 
+// ================= 圖表查價（滑過／點擊顯示數值） =================
+// pts: [{ x, html, marks: [{ y, color }] }]，x / y 為 SVG viewBox 座標
+function tipWrap(svg, W, H, pts) {
+  const data = encodeURIComponent(JSON.stringify({ W, H, pts }));
+  return `<div class="chartbox" data-tip="${data}">${svg}<div class="tip"></div></div>`;
+}
+function tipShow(box, clientX) {
+  const d = box._tip || (box._tip = JSON.parse(decodeURIComponent(box.dataset.tip)));
+  const svg = box.querySelector("svg"), tip = box.querySelector(".tip");
+  const rect = svg.getBoundingClientRect();
+  const vx = (clientX - rect.left) * d.W / rect.width;
+  let k = 0, best = Infinity;
+  d.pts.forEach((p, i) => { const dd = Math.abs(p.x - vx); if (dd < best) { best = dd; k = i; } });
+  const p = d.pts[k];
+  let layer = svg.querySelector(".tip-layer");
+  if (!layer) { layer = document.createElementNS("http://www.w3.org/2000/svg", "g"); layer.setAttribute("class", "tip-layer"); svg.appendChild(layer); }
+  layer.innerHTML = `<line x1="${p.x}" y1="0" x2="${p.x}" y2="${d.H - 16}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="2,3"/>`
+    + (p.marks || []).map(m => `<circle cx="${p.x}" cy="${m.y}" r="4" fill="${m.color}" stroke="var(--surface)" stroke-width="1.5"/>`).join("");
+  tip.innerHTML = p.html;
+  tip.style.display = "block";
+  const px = p.x * rect.width / d.W;
+  const tw = tip.offsetWidth, bw = box.clientWidth;
+  tip.style.left = Math.max(0, Math.min(bw - tw, px - tw / 2)) + "px";
+  box.classList.add("tipping");
+}
+function tipHide(box) {
+  const tip = box.querySelector(".tip"); if (tip) tip.style.display = "none";
+  const layer = box.querySelector(".tip-layer"); if (layer) layer.innerHTML = "";
+  box.classList.remove("tipping");
+}
+document.addEventListener("pointermove", e => { const b = e.target.closest && e.target.closest(".chartbox"); if (b && e.pointerType === "mouse") tipShow(b, e.clientX); });
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest && e.target.closest(".chartbox");
+  document.querySelectorAll(".chartbox.tipping").forEach(x => { if (x !== b) tipHide(x); });
+  if (b) tipShow(b, e.clientX);
+});
+document.addEventListener("pointerout", e => { const b = e.target.closest && e.target.closest(".chartbox"); if (b && e.pointerType === "mouse" && !b.contains(e.relatedTarget)) tipHide(b); });
+const tipRow = (label, val, color) => `<div class="tr"><span class="tk"${color ? ` style="color:${color}"` : ""}>${label}</span><b>${val}</b></div>`;
+
 function lineChartSvg(series, labels) {
   const width = 400, height = 166;
-  const padL = 32, padR = 8, padT = 8, padB = 22;
+  const padL = 10, padR = 10, padT = 8, padB = 22;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const n = series.length;
 
@@ -755,8 +806,7 @@ function lineChartSvg(series, labels) {
 
   const gridLines = [0, 0.5, 1].map(f => {
     const yy = padT + plotH * (1 - f);
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>
-            <text x="${padL - 5}" y="${yy + 3}" font-size="8" fill="var(--text-muted)" text-anchor="end">${(maxV * f).toFixed(0)}</text>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>`;
   }).join("");
 
   const lineDefs = [
@@ -774,7 +824,12 @@ function lineChartSvg(series, labels) {
     return (i % 2 === 0 || i === n - 1) && !(i === n - 2)
       ? `<text x="${x(i).toFixed(1)}" y="${height - 6}" font-size="9" fill="var(--text-muted)" text-anchor="${anchor}">${l.slice(5)}</text>` : "";
   }).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${gridLines}${lines}${xl}</svg>`;
+  const pts = series.map((s, i) => ({
+    x: +x(i).toFixed(1),
+    html: `<div class="td">${labels[i]}</div>` + lineDefs.map(ld => tipRow(ld.key.toUpperCase(), s[ld.key].toFixed(1), ld.color)).join(""),
+    marks: lineDefs.map(ld => ({ y: +y(s[ld.key]).toFixed(1), color: ld.color })),
+  }));
+  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${gridLines}${lines}${xl}</svg>`, width, height, pts);
 }
 
 const CHART_LEGEND = `
@@ -1013,8 +1068,9 @@ function statHtml(label, value, valueText, deltaText, main) {
 const chartW = () => Math.max(300, Math.min(900, document.querySelector(".wrap").clientWidth - 60));
 
 // 正負值的長條圖（紅正綠負），labels 為日期
-function barChartSvg(values, labels) {
-  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 44, padR = 6, padT = 8, padB = 18;
+function barChartSvg(values, labels, fmt) {
+  fmt = fmt || (v => fmtYi2(v));
+  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 6, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const maxAbs = Math.max(...values.map(v => Math.abs(v)), 1) * 1.1;
   const y0 = padT + plotH / 2;
@@ -1024,7 +1080,7 @@ function barChartSvg(values, labels) {
     const h = Math.abs(v) * scale;
     const x = padL + i * bw + bw * 0.15;
     const yy = v >= 0 ? y0 - h : y0;
-    return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(h, 0.5).toFixed(1)}" fill="${v >= 0 ? "var(--long)" : "var(--short)"}"><title>${labels[i]}：${v.toFixed(2)}</title></rect>`;
+    return `<rect x="${x.toFixed(1)}" y="${yy.toFixed(1)}" width="${(bw * 0.7).toFixed(1)}" height="${Math.max(h, 0.5).toFixed(1)}" fill="${v >= 0 ? "var(--long)" : "var(--short)"}"/>`;
   }).join("");
   const step = Math.ceil(values.length / Math.max(3, Math.floor(width / 75)));
   const showLbl = (i, n) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75);
@@ -1032,16 +1088,20 @@ function barChartSvg(values, labels) {
     ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
   const grid = [maxAbs, 0, -maxAbs].map(v => {
     const yy = y0 - v * scale;
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
-      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${Math.round(v).toLocaleString()}</text>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>`;
   }).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${bars}${xl}</svg>`;
+  const pts = values.map((v, i) => ({
+    x: +(padL + i * bw + bw / 2).toFixed(1),
+    html: `<div class="td">${labels[i]}</div><b class="${signCls(v)}">${fmt(v)}</b>`,
+    marks: [],
+  }));
+  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${bars}${xl}</svg>`, width, height, pts);
 }
 
 // 淨部位折線（可為負值），含 0 軸
 function netLineSvg(values, labels, fmt, fixedColor) {
   fmt = fmt || (v => Math.round(v).toLocaleString());
-  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 52, padR = 6, padT = 8, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 10, padR = 10, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   let lo = Math.min(...values), hi = Math.max(...values);
   const pad = (hi - lo) * 0.1 || Math.abs(hi) * 0.05 || 1; lo -= pad; hi += pad;
@@ -1052,14 +1112,14 @@ function netLineSvg(values, labels, fmt, fixedColor) {
   const last = values[n - 1];
   const color = fixedColor || (last >= 0 ? "var(--long)" : "var(--short)");
   const grid = [hi, (hi + lo) / 2, lo].map(v =>
-    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)" stroke-width="1"/>
-     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${fmt(v)}</text>`).join("");
+    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)" stroke-width="1"/>`).join("");
   const zero = (lo < 0 && hi > 0) ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3"/>` : "";
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75)
     ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
-  const dots = values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${color}"><title>${labels[i]}：${fmt(v)}</title></circle>`).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xl}</svg>`;
+  const dots = values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${color}"/>`).join("");
+  const pts = values.map((v, i) => ({ x: +x(i).toFixed(1), html: `<div class="td">${labels[i]}</div><b>${fmt(v)}</b>`, marks: [{ y: +y(v).toFixed(1), color }] }));
+  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xl}</svg>`, width, height, pts);
 }
 
 // ================= 期貨 =================
@@ -1142,9 +1202,9 @@ function renderFutures(rows) {
     <div class="sub">資料日期 ${d}・紅淨多 綠淨空・點上方兩格切換圖表</div>
     ${stats}
     <div class="chart-title">外資淨未平倉${FUT_MODE === "vol" ? "（口）" : "（億）"}・近 ${last20.length} 日</div>
-    ${netLineSvg(netSeries, last20)}
+    ${netLineSvg(netSeries, last20, FUT_MODE === "vol" ? (v => fmtInt(v) + " 口") : (v => fmtYi2(v) + " 億"))}
     <div class="chart-title">每日增減（${unit}）</div>
-    ${barChartSvg(changes, last20)}
+    ${barChartSvg(changes, last20, FUT_MODE === "vol" ? (v => fmtInt(v) + " 口") : (v => fmtYi2(v) + " 億"))}
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>日期</th><th>外資淨OI(口)</th><th>增減(口)</th><th class="hide-m">淨金額(億)</th><th>近月(口)</th><th>次月(口)</th></tr></thead>
       <tbody>${tableRows}</tbody>
@@ -1169,10 +1229,10 @@ function renderSpot(rows) {
   const t = data[data.length - 1];
 
   const stats = `<div class="stat-grid">
-    ${statHtml("三大法人合計", t.total, fmtYi2(t.total), "", true)}
-    ${statHtml("外資", t.foreign, fmtYi2(t.foreign), "", false)}
-    ${statHtml("投信", t.trust, fmtYi2(t.trust), "", false)}
-    ${statHtml("自營商", t.dealer, fmtYi2(t.dealer), "", false)}
+    ${statHtml("三大法人合計（億）", t.total, fmtYi2(t.total), "", true)}
+    ${statHtml("外資（億）", t.foreign, fmtYi2(t.foreign), "", false)}
+    ${statHtml("投信（億）", t.trust, fmtYi2(t.trust), "", false)}
+    ${statHtml("自營商（億）", t.dealer, fmtYi2(t.dealer), "", false)}
   </div>`;
 
   const last20 = data.slice(-30);
@@ -1187,11 +1247,11 @@ function renderSpot(rows) {
     <div class="sub">資料日期 ${t.date}・集中市場・億元・外資含外資自營商</div>
     ${stats}
     <div class="chart-title chart-title-row"><span>外資（億）・近 ${last20.length} 日</span><span>5 日 <b class="${signCls(sum5)}">${fmtYi2(sum5)}</b>　${last20.length} 日 <b class="${signCls(sum20)}">${fmtYi2(sum20)}</b></span></div>
-    ${barChartSvg(last20.map(r => r.foreign), last20.map(r => r.date))}
+    ${barChartSvg(last20.map(r => r.foreign), last20.map(r => r.date), v => fmtYi2(v) + " 億")}
     <div class="chart-title">投信（億）</div>
-    ${barChartSvg(last20.map(r => r.trust), last20.map(r => r.date))}
+    ${barChartSvg(last20.map(r => r.trust), last20.map(r => r.date), v => fmtYi2(v) + " 億")}
     <div class="chart-title">自營商（億）</div>
-    ${barChartSvg(last20.map(r => r.dealer), last20.map(r => r.date))}
+    ${barChartSvg(last20.map(r => r.dealer), last20.map(r => r.date), v => fmtYi2(v) + " 億")}
     <table class="trend-table">
       <thead><tr><th>日期</th><th>外資</th><th>投信</th><th>自營商</th><th>合計</th></tr></thead>
       <tbody>${tableRows}</tbody>
@@ -1239,7 +1299,7 @@ const pct = v => (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 
 // 每日對照：兩組長條（指數漲跌%、融資金額增減%），警訊日（指數跌、融資增）加底色
 function pairBarSvg(idx, mg, labels, warn) {
-  const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 40, padR = 6, padT = 8, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 6, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const maxAbs = Math.max(...idx.map(Math.abs), ...mg.map(Math.abs), 0.001) * 1.15;
   const y0 = padT + plotH / 2, sc = (plotH / 2) / maxAbs, bw = plotW / idx.length;
@@ -1253,7 +1313,7 @@ function pairBarSvg(idx, mg, labels, warn) {
       ? `<rect x="${(x + bw * 0.06).toFixed(1)}" y="${padT}" width="${(bw * 0.88).toFixed(1)}" height="${plotH}" fill="var(--gold)" opacity="0.16"/>
          <text x="${(x + bw / 2).toFixed(1)}" y="${padT + 11}" font-size="11" fill="var(--gold)" text-anchor="middle">▲</text>` : "";
     const hit = `<rect x="${x.toFixed(1)}" y="${padT}" width="${bw.toFixed(1)}" height="${plotH}" fill="transparent"/>`;
-    return `<g><title>${labels[i]}　指數 ${pct(v)}　融資 ${pct(mg[i])}${warn[i] ? "　（指數跌、融資增）" : ""}</title>${bg}${hit}`
+    return `<g>${bg}${hit}`
       + bar(v, x + bw * 0.14, w, "var(--text-muted)") + bar(mg[i], x + bw * 0.52, w, "var(--margin)") + `</g>`;
   }).join("");
   const step = Math.ceil(idx.length / Math.max(3, Math.floor(width / 75)));
@@ -1261,15 +1321,19 @@ function pairBarSvg(idx, mg, labels, warn) {
     ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
   const grid = [maxAbs, 0, -maxAbs].map(v => {
     const yy = y0 - v * sc;
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
-      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>`;
   }).join("");
-  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${body}${xl}</svg>`;
+  const pts = idx.map((v, i) => ({
+    x: +(padL + i * bw + bw / 2).toFixed(1),
+    html: `<div class="td">${labels[i]}</div>` + tipRow("指數", pct(v)) + tipRow("融資", pct(mg[i]), "var(--margin)") + (warn[i] ? `<div class="tw">指數跌、融資增</div>` : ""),
+    marks: [],
+  }));
+  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${body}${xl}</svg>`, width, height, pts);
 }
 
 // 自起算日的累計變化（%），多條線
 function multiLineSvg(seriesList, labels) {
-  const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = 46, padR = 8, padT = 10, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = 10, padR = 10, padT = 10, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const all = seriesList.flatMap(s => s.values);
   let lo = Math.min(...all, 0), hi = Math.max(...all, 0);
@@ -1278,14 +1342,18 @@ function multiLineSvg(seriesList, labels) {
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const y = v => padT + (hi - v) / (hi - lo) * plotH;
   const grid = [hi, (hi + lo) / 2, lo].map(v =>
-    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)"/>
-     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`).join("");
+    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)"/>`).join("");
   const zero = `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-dasharray="3,3"/>`;
   const lines = seriesList.map(s => `<path d="${s.values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2.2" ${s.dash ? 'stroke-dasharray="5,4"' : ""}/>`).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
     ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
-  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}${lines}${xl}</svg>`;
+  const pts = labels.map((l, i) => ({
+    x: +x(i).toFixed(1),
+    html: `<div class="td">${l}</div>` + seriesList.map(s => tipRow(s.name || "", pct(s.values[i]), s.color)).join(""),
+    marks: seriesList.map(s => ({ y: +y(s.values[i]).toFixed(1), color: s.color })),
+  }));
+  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}${lines}${xl}</svg>`, width, height, pts);
 }
 
 function swingPanel(rows) {
@@ -1381,9 +1449,9 @@ function renderMargin() {
   <div class="range-info">${anchor.date.slice(5)} ${Math.round(anchor.taiex).toLocaleString()} → ${last.date.slice(5)} ${Math.round(last.taiex).toLocaleString()}・${since.length - 1} 個交易日</div>`;
 
   const lineChart = multiLineSvg([
-    { values: since.map(r => r.taiex / anchor.taiex - 1), color: "var(--text-muted)" },
-    { values: since.map(r => r.amt / anchor.amt - 1), color: "var(--margin)" },
-    { values: since.map(r => r.lots / anchor.lots - 1), color: "var(--margin)", dash: true },
+    { name: "指數", values: since.map(r => r.taiex / anchor.taiex - 1), color: "var(--text-muted)" },
+    { name: "融資金額", values: since.map(r => r.amt / anchor.amt - 1), color: "var(--margin)" },
+    { name: "融資張數", values: since.map(r => r.lots / anchor.lots - 1), color: "var(--margin)", dash: true },
   ], since.map(r => r.date));
 
   // 每日對照（近 30 日）
@@ -1435,24 +1503,33 @@ function renderMargin() {
 }
 
 // ================= 個股融資排行 =================
-let MTOP_DATE = null, MTOP_VIEW = "day";
+let MTOP_DATE = null, MTOP_VIEW = "day", MTOP_SCOPE = "all";
+try { MTOP_SCOPE = localStorage.getItem("mtopScope") || "all"; } catch (e) {}
 function setMtopDate(v) { MTOP_DATE = v || null; renderMarginTop(); }
 function setMtopView(v) { MTOP_VIEW = v; renderMarginTop(); }
+function setMtopScope(v) { MTOP_SCOPE = v; try { localStorage.setItem("mtopScope", v); } catch (e) {} renderMarginTop(); }
 function renderMarginTop() {
   const box = document.getElementById("marginTopBox");
-  const rows = MTOP_ROWS || [];
-  if (!rows.length) { box.innerHTML = ""; return; }
+  const rowsAll = (MTOP_ROWS || []).filter(r => r.change_amount !== undefined && r.scope);
+  if (!rowsAll.length) { box.innerHTML = ""; return; }
+  const rows = rowsAll.filter(r => r.scope === MTOP_SCOPE);
   const dates = [...new Set(rows.map(r => r.date))].sort();
   const d = MTOP_DATE && dates.includes(MTOP_DATE) ? MTOP_DATE : dates[dates.length - 1];
+  const yiS = v => (v > 0 ? "+" : "") + (Number(v) / 1e8).toFixed(2);
   const lots = v => (v > 0 ? "+" : "") + Number(v).toLocaleString();
+  // 當日全市場融資金額增減
+  const mrows = (MARGIN_ROWS || []).slice().sort((x, y) => x.date < y.date ? -1 : 1);
+  const mi = mrows.findIndex(r => r.date === d);
+  const dayTotal = mi > 0 ? (Number(mrows[mi].margin_amount_k) - Number(mrows[mi - 1].margin_amount_k)) / 1e5 : null;
   let body;
   if (MTOP_VIEW === "day") {
     const list = side => rows.filter(r => r.date === d && r.side === side).sort((a, b) => a.rank - b.rank).map(r =>
       `<tr><td class="rk">${r.rank}</td><td class="nm">${r.name}<span class="cd">${r.code}</span></td>
-        <td class="${side === "inc" ? "pos" : "neg"}">${lots(r.change_lots)}</td><td class="hide-m">${Number(r.balance_lots).toLocaleString()}</td></tr>`).join("");
+        <td class="${side === "inc" ? "pos" : "neg"}">${yiS(r.change_amount)}</td><td class="hide-m">${lots(r.change_lots)}</td></tr>`).join("");
     const tbl = (title, side) => `<div class="top-col"><div class="top-title ${side === "inc" ? "pos" : "neg"}">${title}</div>
-      <table class="trend-table top-table"><thead><tr><th></th><th>個股</th><th>增減(張)</th><th class="hide-m">餘額(張)</th></tr></thead><tbody>${list(side)}</tbody></table></div>`;
-    body = `<div class="top-grid">${tbl("資增前 5", "inc")}${tbl("資減前 5", "dec")}</div>`;
+      <table class="trend-table top-table"><thead><tr><th></th><th>個股</th><th>金額(億)</th><th class="hide-m">張數</th></tr></thead><tbody>${list(side)}</tbody></table></div>`;
+    body = `${dayTotal === null ? "" : `<div class="day-total">當日全市場融資 <b class="${signCls(dayTotal)}">${(dayTotal > 0 ? "+" : "") + dayTotal.toFixed(1)} 億</b></div>`}
+      <div class="top-grid">${tbl("資增前 5", "inc")}${tbl("資減前 5", "dec")}</div>`;
   } else {
     const win = dates.filter(x => x <= d).slice(-30);
     const agg = side => {
@@ -1460,29 +1537,117 @@ function renderMarginTop() {
       rows.filter(r => r.side === side && win.includes(r.date)).forEach(r => {
         const k = r.code;
         m[k] = m[k] || { code: r.code, name: r.name, n: 0, sum: 0, last: r.date };
-        m[k].n += 1; m[k].sum += Number(r.change_lots); if (r.date > m[k].last) m[k].last = r.date;
+        m[k].n += 1; m[k].sum += Number(r.change_amount); if (r.date > m[k].last) m[k].last = r.date;
       });
       return Object.values(m).sort((a, b) => b.n - a.n || Math.abs(b.sum) - Math.abs(a.sum)).slice(0, 10);
     };
     const tbl = (title, side) => `<div class="top-col"><div class="top-title ${side === "inc" ? "pos" : "neg"}">${title}</div>
-      <table class="trend-table top-table"><thead><tr><th>個股</th><th>次數</th><th>累計(張)</th><th class="hide-m">最近</th></tr></thead><tbody>
+      <table class="trend-table top-table"><thead><tr><th>個股</th><th>次數</th><th>累計(億)</th><th class="hide-m">最近</th></tr></thead><tbody>
       ${agg(side).map(x => `<tr><td class="nm">${x.name}<span class="cd">${x.code}</span></td><td>${x.n}</td>
-        <td class="${side === "inc" ? "pos" : "neg"}">${lots(x.sum)}</td><td class="hide-m">${x.last.slice(5)}</td></tr>`).join("")}</tbody></table></div>`;
-    body = `<div class="sub" style="margin:0 0 8px">${win[0]} ～ ${win[win.length - 1]}，共 ${win.length} 個交易日的上榜次數</div>
+        <td class="${side === "inc" ? "pos" : "neg"}">${yiS(x.sum)}</td><td class="hide-m">${x.last.slice(5)}</td></tr>`).join("")}</tbody></table></div>`;
+    body = `<div class="sub" style="margin:0 0 8px">${win[0]} ～ ${win[win.length - 1]}，${win.length} 個交易日的上榜次數與累計金額</div>
       <div class="top-grid">${tbl("資增上榜", "inc")}${tbl("資減上榜", "dec")}</div>`;
   }
   const opts = dates.slice().reverse().map(x => `<option value="${x}" ${x === d ? "selected" : ""}>${x}</option>`).join("");
   box.innerHTML = `<div class="card">
     <h2>個股融資排行</h2>
-    <div class="sub">集中市場、排除 ETF・依融資張數增減排序</div>
+    <div class="sub">集中市場・依融資增減金額排序（張數增減 × 收盤價）</div>
     <div class="anchor-row top-ctrl">
       <label class="fld"><span>日期</span><select onchange="setMtopDate(this.value)">${opts}</select></label>
       <div class="seg">
         <button class="${MTOP_VIEW === "day" ? "on" : ""}" onclick="setMtopView('day')">當日</button>
-        <button class="${MTOP_VIEW === "freq" ? "on" : ""}" onclick="setMtopView('freq')">近 30 日上榜</button>
+        <button class="${MTOP_VIEW === "freq" ? "on" : ""}" onclick="setMtopView('freq')">近 30 日</button>
+      </div>
+      <div class="seg">
+        <button class="${MTOP_SCOPE === "all" ? "on" : ""}" onclick="setMtopScope('all')">含 ETF</button>
+        <button class="${MTOP_SCOPE === "stock" ? "on" : ""}" onclick="setMtopScope('stock')">只看個股</button>
       </div>
     </div>
     ${body}
+  </div>`;
+}
+
+let SHOW_HEDGE = false, HEDGE_PERIOD = 126;
+function toggleHedge() { SHOW_HEDGE = !SHOW_HEDGE; renderHedge(); }
+function setHedgePeriod(n) { HEDGE_PERIOD = n; renderHedge(); }
+
+// 兩條線各用自己的比例尺（無 Y 軸），用提示框看數值
+function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB) {
+  const width = chartW(), height = chartW() < 500 ? 170 : 210, padL = 10, padR = 10, padT = 10, padB = 18;
+  const plotW = width - padL - padR, plotH = height - padT - padB, n = labels.length;
+  const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+  const sc = vals => { let lo = Math.min(...vals), hi = Math.max(...vals); const pd = (hi - lo) * 0.08 || 1; lo -= pd; hi += pd; return v => padT + (hi - v) / (hi - lo) * plotH; };
+  const ya = sc(a), yb = sc(b);
+  const path = (vals, y) => vals.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
+  const grid = [0, 0.5, 1].map(f => `<line x1="${padL}" y1="${padT + plotH * f}" x2="${width - padR}" y2="${padT + plotH * f}" stroke="var(--divider)"/>`).join("");
+  const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
+  const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
+    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(2, 4) !== labels[n - 1].slice(2, 4) ? l.slice(2, 7) : l.slice(5)}</text>` : "").join("");
+  const pts = labels.map((l, i) => ({ x: +x(i).toFixed(1),
+    html: `<div class="td">${l}</div>` + tipRow(nameA, fmtA(a[i]), colorA) + tipRow(nameB, fmtB(b[i]), colorB),
+    marks: [{ y: +ya(a[i]).toFixed(1), color: colorA }, { y: +yb(b[i]).toFixed(1), color: colorB }] }));
+  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}
+    <path d="${path(b, yb)}" fill="none" stroke="${colorB}" stroke-width="1.8"/>
+    <path d="${path(a, ya)}" fill="none" stroke="${colorA}" stroke-width="2.2"/>${xl}</svg>`, width, height, pts);
+}
+
+function hedgePanel(data) {
+  const tx = {};
+  (MARGIN_ROWS || []).forEach(r => { tx[r.date] = Number(r.taiex); });
+  const all = data.filter(r => tx[r.date]);
+  if (all.length < 30) return `<div class="swing-panel"><div class="swing-note">資料不足</div></div>`;
+  const per = all.slice(-HEDGE_PERIOD);
+  const hs = per.map(r => r.hedge), sorted = hs.slice().sort((x, y) => x - y);
+  const q = f => sorted[Math.min(sorted.length - 1, Math.floor(f * (sorted.length - 1)))];
+  const cur = hs[hs.length - 1];
+  const rank = sorted.filter(v => v <= cur).length / sorted.length;
+  const pp = v => (v * 100).toFixed(2) + "%";
+
+  // 相關係數：避險比例 vs 指數
+  const corr = (A, B) => { const n = A.length, ma = A.reduce((s, v) => s + v, 0) / n, mb = B.reduce((s, v) => s + v, 0) / n;
+    let sab = 0, saa = 0, sbb = 0; for (let i = 0; i < n; i++) { sab += (A[i] - ma) * (B[i] - mb); saa += (A[i] - ma) ** 2; sbb += (B[i] - mb) ** 2; }
+    return sab / Math.sqrt(saa * sbb); };
+  const idxArr = per.map(r => tx[r.date]);
+  const c = corr(hs, idxArr);
+
+  // 依避險比例分五組，看之後 5 日、20 日指數報酬
+  const pos = {}; all.forEach((r, i) => { pos[r.date] = i; });
+  const fwd = (r, k) => { const i = pos[r.date]; return i + k < all.length ? tx[all[i + k].date] / tx[r.date] - 1 : null; };
+  const cuts = [q(0.2), q(0.4), q(0.6), q(0.8)];
+  const groups = [[], [], [], [], []];
+  per.forEach(r => { let g = cuts.findIndex(cv => r.hedge <= cv); if (g < 0) g = 4; groups[g].push(r); });
+  const avg = arr => { const v = arr.filter(x => x !== null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+  const names = ["最低 20%", "偏低", "中間", "偏高", "最高 20%"];
+  const curG = (() => { let g = cuts.findIndex(cv => cur <= cv); return g < 0 ? 4 : g; })();
+  const gtr = groups.map((g, i) => {
+    const f5 = avg(g.map(r => fwd(r, 5))), f20 = avg(g.map(r => fwd(r, 20)));
+    const lo = g.length ? Math.min(...g.map(r => r.hedge)) : 0, hi = g.length ? Math.max(...g.map(r => r.hedge)) : 0;
+    const cell = v => v === null ? "—" : `<span class="${signCls(v)}">${pct(v)}</span>`;
+    return `<tr${i === curG ? ' class="live-row"' : ""}><td>${names[i]}${i === curG ? ' <span class="live-tag">目前</span>' : ""}</td>
+      <td>${pp(lo)}–${pp(hi)}</td><td class="hide-m">${g.length}</td><td>${cell(f5)}</td><td>${cell(f20)}</td></tr>`;
+  }).join("");
+
+  return `<div class="swing-panel">
+    <div class="hedge-head">
+      <div class="swing-title" style="margin:0">避險比例歷史統計</div>
+      <div class="seg"><button class="${HEDGE_PERIOD === 126 ? "on" : ""}" onclick="setHedgePeriod(126)">近半年</button><button class="${HEDGE_PERIOD === 252 ? "on" : ""}" onclick="setHedgePeriod(252)">近一年</button></div>
+    </div>
+    <div class="swing-sum">
+      <div><b>${pp(cur)}</b><span>目前（第 ${Math.round(rank * 100)} 百分位）</span></div>
+      <div><b>${pp(q(0.5))}</b><span>中位數</span></div>
+      <div><b>${pp(sorted[0])}–${pp(sorted[sorted.length - 1])}</b><span>範圍</span></div>
+      <div><b class="${c >= 0 ? "pos" : "neg"}">${c.toFixed(2)}</b><span>與指數相關係數</span></div>
+    </div>
+    <div class="trend-legend">
+      <span class="legend-item"><span class="swatch" style="border-color:var(--gold)"></span>避險比例</span>
+      <span class="legend-item"><span class="swatch" style="border-color:var(--text-muted)"></span>加權指數</span>
+    </div>
+    ${dualLineSvg(hs.map(v => v * 100), idxArr, per.map(r => r.date), v => v.toFixed(2) + "%", v => Math.round(v).toLocaleString(), "var(--gold)", "var(--text-muted)", "避險比例", "加權指數")}
+    <div class="chart-title">依避險比例高低分五組：之後的加權指數平均報酬</div>
+    <div class="table-scroll"><table class="trend-table">
+      <thead><tr><th>避險比例</th><th>區間</th><th class="hide-m">天數</th><th>之後 5 日</th><th>之後 20 日</th></tr></thead>
+      <tbody>${gtr}</tbody></table></div>
+    <div class="swing-note">共 ${per.length} 個交易日。相關係數接近 −1 代表指數越低、避險比例越高；分組報酬只是過去統計，最近的日子還沒有「之後 20 日」資料。</div>
   </div>`;
 }
 
@@ -1492,7 +1657,7 @@ function renderHedge() {
   if (!HOLD_ROWS || !HOLD_ROWS.length || !FUT_ROWS) { box.innerHTML = ""; return; }
   const futNet = {};
   FUT_ROWS.forEach(r => {
-    if (r.investor_type !== "foreign" || !["TX", "MTX", "TMF"].includes(r.product)) return;
+    if (r.investor_type !== "foreign" || r.product !== "TX") return;
     futNet[r.date] = (futNet[r.date] || 0) + Number(r.oi_net_value_k) * 1000;
   });
   const data = HOLD_ROWS.filter(r => futNet[r.date] !== undefined).map(r => {
@@ -1506,25 +1671,26 @@ function renderHedge() {
   const pp = v => (v * 100).toFixed(2) + "%";
   const dpp = (a, b) => b ? `較前日 ${((a - b) * 100 >= 0 ? "+" : "")}${((a - b) * 100).toFixed(2)} 個百分點` : "";
   const stats = `<div class="stat-grid">
-    ${statHtml("外資持股市值（兆）", 0, zhao(t.fv), p ? `較前日 ${((t.fv / p.fv - 1) * 100).toFixed(2)}%` : "", false)}
+    ${statHtml("外資持股市值（兆）", 0, zhao(t.fv), p ? `較前日 ${t.fv >= p.fv ? "+" : ""}${((t.fv / p.fv - 1) * 100).toFixed(2)}%` : "", false)}
     ${statHtml("外資持股比率", 0, pp(t.own), dpp(t.own, p && p.own), false)}
-    ${statHtml("外資期貨淨部位（億）", t.fn, (t.fn > 0 ? "+" : "") + yi(t.fn), "大台＋小台＋微台", false)}
-    <div class="stat" style="background:var(--surface-2)"><div class="stat-label">避險比例</div>
+    ${statHtml("外資大台淨部位（億）", t.fn, (t.fn > 0 ? "+" : "") + yi(t.fn), "", false)}
+    <div class="stat clickable ${SHOW_HEDGE ? "selected" : ""}" onclick="toggleHedge()"><div class="stat-label">避險比例<span class="tap-hint">歷史 ${SHOW_HEDGE ? "▴" : "▾"}</span></div>
       <div class="stat-value">${pp(t.hedge)}</div><div class="stat-delta">${dpp(t.hedge, p && p.hedge)}</div></div>
-  </div>`;
+  </div>
+  ${SHOW_HEDGE ? hedgePanel(data) : ""}`;
   const last = data.slice(-30);
   const tr = last.slice(-10).reverse().map(r => `<tr><td>${r.date.slice(5)}</td><td>${zhao(r.fv)}</td><td class="hide-m">${pp(r.own)}</td>
     <td class="${signCls(r.fn)}">${(r.fn > 0 ? "+" : "") + yi(r.fn)}</td><td>${pp(r.hedge)}</td></tr>`).join("");
   box.innerHTML = `<div class="card">
     <h2>外資持股與期貨避險</h2>
-    <div class="sub">資料日期 ${t.date}・避險比例＝期貨淨空單現值 ÷ 外資持股市值（集中市場普通股）</div>
+    <div class="sub">資料日期 ${t.date}・避險比例＝大台淨空單現值 ÷ 外資持股市值（集中市場普通股）</div>
     ${stats}
     <div class="chart-title">避險比例（%）・近 ${last.length} 日</div>
     ${netLineSvg(last.map(r => r.hedge * 100), last.map(r => r.date), v => v.toFixed(2) + "%", "var(--gold)")}
     <div class="chart-title">外資持股市值（兆）・近 ${last.length} 日</div>
     ${netLineSvg(last.map(r => r.fv / 1e12), last.map(r => r.date), v => v.toFixed(1), "var(--margin)")}
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>日期</th><th>持股市值(兆)</th><th class="hide-m">持股比率</th><th>期貨淨部位(億)</th><th>避險比例</th></tr></thead>
+      <thead><tr><th>日期</th><th>持股市值(兆)</th><th class="hide-m">持股比率</th><th>大台淨部位(億)</th><th>避險比例</th></tr></thead>
       <tbody>${tr}</tbody></table></div>
   </div>`;
 }
