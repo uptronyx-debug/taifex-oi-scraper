@@ -1,0 +1,62 @@
+name: 補資料：避險比例長期歷史（期貨三大法人、外資持股、加權指數）
+on:
+  workflow_dispatch:
+    inputs:
+      start_date: {description: "起日 YYYY/MM/DD", required: true, default: "2021/11/01"}
+      end_date: {description: "迄日 YYYY/MM/DD（不含已有的資料）", required: true, default: "2025/09/30"}
+      test_only: {description: "只測試不寫入（yes/no）", required: true, default: "yes"}
+permissions:
+  contents: write
+# 獨立群組：不卡盤後與晚間排程；抓到暫存資料夾，最後才把「舊日期」併進正式檔
+concurrency: {group: backfill-hedge, cancel-in-progress: false}
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env: {TZ: Asia/Taipei}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - name: 測試模式
+        if: inputs.test_only == 'yes'
+        run: |
+          python tools/probe_history.py > probe_output.txt 2>&1 || true
+          git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
+          git push -f origin probe-output
+      - name: 抓歷史（寫到 newdata）
+        if: inputs.test_only != 'yes'
+        env: {DATA_DIR: newdata, START: "${{ inputs.start_date }}", END: "${{ inputs.end_date }}"}
+        run: |
+          mkdir -p newdata
+          python scraper_taiex.py --backfill "$START" "$(date +%Y/%m/%d)"
+          python scraper_futures.py --backfill "$START" "$END"
+          python scraper_foreign_hold.py --backfill "$START" "$END"
+      - name: 併入正式資料（只加正式檔沒有的日期）
+        if: ${{ inputs.test_only != 'yes' && !cancelled() }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull -q --rebase origin main
+          cp newdata/taiex.csv data/taiex.csv
+          for f in fut_oi.csv foreign_hold.csv; do
+            [ -f newdata/$f ] || continue
+            python - "$f" <<'PY'
+          import sys, csv
+          f = sys.argv[1]
+          old = list(csv.reader(open("data/" + f, encoding="utf-8")))
+          new = list(csv.reader(open("newdata/" + f, encoding="utf-8")))
+          have = {r[0] for r in old[1:]}
+          rows = old[1:] + [r for r in new[1:] if r and r[0] not in have]
+          rows.sort(key=lambda r: r[0])
+          w = csv.writer(open("data/" + f, "w", encoding="utf-8", newline=""))
+          w.writerow(old[0]); w.writerows(rows)
+          print(f, "新增", len(rows) - len(old) + 1, "筆")
+          PY
+          done
+          git add data/taiex.csv data/fut_oi.csv data/foreign_hold.csv
+          git diff --cached --quiet && exit 0
+          git commit -qm "auto: 補避險比例長期歷史"
+          for i in 1 2 3; do git push -q origin HEAD:main && break; git pull -q --rebase origin main; done
