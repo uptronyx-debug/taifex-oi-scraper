@@ -629,6 +629,7 @@
 
   <section class="tab-panel" id="panel-futures">
     <div id="futBox"><div class="note">資料載入中…</div></div>
+    <div id="etfFutBox"></div>
   </section>
 
   <section class="tab-panel" id="panel-spot">
@@ -1133,6 +1134,7 @@ function setFutMode(m) {
   FUT_MODE = m;
   try { localStorage.setItem("futMode", m); } catch (e) {}
   if (FUT_ROWS) renderFutures(FUT_ROWS);
+  if (ETF_ROWS) renderEtfFut();
 }
 try { FUT_MODE = localStorage.getItem("futMode") || "vol"; } catch (e) {}
 
@@ -1214,6 +1216,63 @@ function renderFutures(rows) {
       <thead><tr><th>日期</th><th>外資淨OI(口)</th><th>增減(口)</th><th class="hide-m">淨金額(億)</th><th>近月(口)</th><th>次月(口)</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table></div>
+  </div>`;
+}
+
+// ================= 正2 ETF 期貨多單 =================
+const ETF_LIST = [
+  { code: "00631L", name: "元大台灣50正2", color: "var(--gold)" },
+  { code: "00685L", name: "群益臺灣加權正2", color: "var(--margin)" },
+  { code: "00675L", name: "富邦臺灣加權正2", color: "#B07CD8" },
+];
+function renderEtfFut() {
+  const box = document.getElementById("etfFutBox");
+  if (!ETF_ROWS || !ETF_ROWS.length) { box.innerHTML = ""; return; }
+  const by = {};
+  ETF_ROWS.forEach(r => { (by[r.date] = by[r.date] || {})[r.etf] = Number(r.lots); });
+  const dates = Object.keys(by).sort();
+  const full = dates.filter(d => ETF_LIST.every(e => by[d][e.code] !== undefined));
+  const total = d => ETF_LIST.reduce((a, e) => a + by[d][e.code], 0);
+  const d = dates[dates.length - 1], p = dates[dates.length - 2];
+  const tile = (label, cur, prev, main) => {
+    if (cur === undefined) return statHtml(label, 0, "—", "尚未公布", main);
+    const delta = prev === undefined ? "" : `較前日 ${fmtInt(cur - prev)}`;
+    return `<div class="stat ${main ? "main" : ""}"><div class="stat-label">${label}</div>
+      <div class="stat-value">${cur.toLocaleString()}</div><div class="stat-delta">${delta}</div></div>`;
+  };
+  const dFull = full.includes(d);
+  const pFull = p && full.includes(p);
+  const stats = `<div class="stat-grid">
+    ${tile("三檔合計（口）", dFull ? total(d) : undefined, pFull ? total(p) : undefined, true)}
+    ${ETF_LIST.map(e => tile(`<span style="color:${e.color}">●</span> ${e.code}`, by[d][e.code], p ? by[p][e.code] : undefined)).join("")}
+  </div>`;
+
+  const lastFull = full.slice(-30);
+  const totalChart = lastFull.length >= 2
+    ? `<div class="chart-title">三檔合計（口）・近 ${lastFull.length} 日</div>
+       ${netLineSvg(lastFull.map(total), lastFull, v => fmtInt(v).replace("+", "") + " 口", "var(--long)", v => Math.round(v).toLocaleString())}`
+    : `<div class="note" style="margin:10px 0">合計從 ${(full[0] || d).slice(5)} 起每天累積（元大、富邦官網只公布最新一天，群益已補歷史）</div>`;
+  const last = dates.slice(-30);
+  const perChart = `<div class="chart-title">各檔口數・近 ${last.length} 日</div>
+    ${multiLineSvg(ETF_LIST.map(e => ({ name: e.code, color: e.color, values: last.map(x => by[x][e.code] ?? null) })), last, v => Math.round(v).toLocaleString() + " 口")}`;
+
+  const cell = v => `<td>${v === undefined ? "—" : v.toLocaleString()}</td>`;
+  const tr = dates.slice(-10).reverse().map(x => {
+    const i = dates.indexOf(x), px = dates[i - 1];
+    const t = full.includes(x) ? total(x) : undefined;
+    const chg = t !== undefined && px && full.includes(px) ? t - total(px) : null;
+    return `<tr><td>${x.slice(5)}</td>${cell(t)}<td class="${signCls(chg)}">${chg === null ? "—" : fmtInt(chg)}</td>${ETF_LIST.map(e => cell(by[x][e.code])).join("")}</tr>`;
+  }).join("");
+
+  box.innerHTML = `<div class="card">
+    <h2>正2 ETF 大台多單</h2>
+    <div class="sub">資料日期 ${d}・00631L＋00685L＋00675L 持有臺股期貨口數（不含股票期貨）</div>
+    ${stats}
+    ${totalChart}
+    ${perChart}
+    <div class="table-scroll"><table class="trend-table">
+      <thead><tr><th>日期</th><th>合計(口)</th><th>增減</th>${ETF_LIST.map(e => `<th>${e.code.slice(2)}</th>`).join("")}</tr></thead>
+      <tbody>${tr}</tbody></table></div>
   </div>`;
 }
 
@@ -1338,27 +1397,34 @@ function pairBarSvg(idx, mg, labels, warn) {
 }
 
 // 自起算日的累計變化（%），多條線
-function multiLineSvg(seriesList, labels) {
-  const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = 46, padR = 10, padT = 10, padB = 18;
+function multiLineSvg(seriesList, labels, fmt) {
+  // fmt 未給：數值為比例，軸與提示顯示 %，並含 0 軸；給了 fmt：一般數值，不強制含 0，null 值斷開
+  const isPct = !fmt;
+  fmt = fmt || pct;
+  const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = isPct ? 46 : 54, padR = 10, padT = 10, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
-  const all = seriesList.flatMap(s => s.values);
-  let lo = Math.min(...all, 0), hi = Math.max(...all, 0);
-  const pad = (hi - lo) * 0.08 || 0.01; lo -= pad; hi += pad;
+  const all = seriesList.flatMap(s => s.values).filter(v => v !== null && v !== undefined);
+  let lo = isPct ? Math.min(...all, 0) : Math.min(...all), hi = isPct ? Math.max(...all, 0) : Math.max(...all);
+  const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.05 || 0.01; lo -= pad; hi += pad;
   const n = labels.length;
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const y = v => padT + (hi - v) / (hi - lo) * plotH;
+  const axis = v => isPct ? (v * 100).toFixed(1) + "%" : Math.round(v).toLocaleString();
   const grid = [hi, (hi + lo) / 2, lo].map(v =>
     `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)"/>
-     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`).join("");
-  const zero = `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-dasharray="3,3"/>`;
-  const lines = seriesList.map(s => `<path d="${s.values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2.2" ${s.dash ? 'stroke-dasharray="5,4"' : ""}/>`).join("");
+     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${axis(v)}</text>`).join("");
+  const zero = isPct ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-dasharray="3,3"/>` : "";
+  const ok = v => v !== null && v !== undefined;
+  const pathOf = vals => { let d = "", pen = false; vals.forEach((v, i) => { if (!ok(v)) { pen = false; return; } d += (pen ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1) + " "; pen = true; }); return d; };
+  const dots = s => s.values.map((v, i) => ok(v) && !ok(s.values[i - 1]) && !ok(s.values[i + 1]) ? `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5" fill="${s.color}"/>` : "").join("");
+  const lines = seriesList.map(s => `<path d="${pathOf(s.values)}" fill="none" stroke="${s.color}" stroke-width="2.2" ${s.dash ? 'stroke-dasharray="5,4"' : ""}/>${dots(s)}`).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
     ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
   const pts = labels.map((l, i) => ({
     x: +x(i).toFixed(1),
-    html: `<div class="td">${l}</div>` + seriesList.map(s => tipRow(s.name || "", pct(s.values[i]), s.color)).join(""),
-    marks: seriesList.map(s => ({ y: +y(s.values[i]).toFixed(1), color: s.color })),
+    html: `<div class="td">${l}</div>` + seriesList.map(s => tipRow(s.name || "", ok(s.values[i]) ? fmt(s.values[i]) : "—", s.color)).join(""),
+    marks: seriesList.filter(s => ok(s.values[i])).map(s => ({ y: +y(s.values[i]).toFixed(1), color: s.color })),
   }));
   return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}${lines}${xl}</svg>`, width, height, pts);
 }
@@ -1714,7 +1780,7 @@ function renderHedge() {
 // 再用「該編號」讀檔，拿到的一定是最新版本。查不到編號（例如 API 次數用完）才退回 main。
 const REPO = "uptronyx-debug/taifex-oi-scraper";
 let CUR_REF = null, LAST_CHECK = 0;
-let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null, MTOP_ROWS = null, HOLD_ROWS = null;
+let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null, MTOP_ROWS = null, HOLD_ROWS = null, ETF_ROWS = null;
 
 async function latestSha() {
   try {
@@ -1731,8 +1797,8 @@ async function getCsv(name, ref) {
   return parseCSV(await r.text());
 }
 async function loadAll(ref) {
-  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv"];
-  const [opt, strike, fut, txm, spot, mg, mtop, hold] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
+  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv"];
+  const [opt, strike, fut, txm, spot, mg, mtop, hold, etf] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
   if (opt.status === "fulfilled" && opt.value.length) { render(opt.value); renderTrend(opt.value); }
   else if (!CUR_REF) {
     const st = document.getElementById("status");
@@ -1750,6 +1816,7 @@ async function loadAll(ref) {
   if (mtop.status === "fulfilled") { MTOP_ROWS = mtop.value; renderMarginTop(); }
   if (hold.status === "fulfilled") HOLD_ROWS = hold.value;
   renderHedge();
+  if (etf.status === "fulfilled") { ETF_ROWS = etf.value; renderEtfFut(); }
   CUR_REF = ref;
 }
 function inAfterHoursWindow() {
@@ -1778,6 +1845,7 @@ window.addEventListener("resize", () => {
   resizeTimer = setTimeout(() => {
     const w = chartW(); if (w === lastW) return; lastW = w;
     if (FUT_ROWS) renderFutures(FUT_ROWS);
+    if (ETF_ROWS) renderEtfFut();
     if (SPOT_ROWS) renderSpot(SPOT_ROWS);
     if (MARGIN_ROWS) renderMargin();
     renderHedge();
