@@ -1,12 +1,15 @@
-import sys, os
+import sys, os, requests
 sys.path.insert(0, os.getcwd())
-import scraper_futures as F, scraper_foreign_hold as H
-from scraper_margin import index_month
-for d in ["2021/11/10", "2022/06/15", "2023/11/10", "2024/06/14"]:
-    try:
-        r = F.fetch(d); fx = [x for x in r if x["product"] == "TX" and x["investor_type"] == "foreign"]
-        print("FUT", d, len(r), fx[:1])
+import scraper_futures as F
+H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
+for d in ["2023/10/02", "2023/11/01", "2023/11/09"]:
+    try: print("FUT", d, len(F.fetch(d)))
     except Exception as e: print("FUT", d, "ERR", e)
-    try: print("HOLD", d, H.fetch(d))
-    except Exception as e: print("HOLD", d, "ERR", e)
-    y, m = int(d[:4]), int(d[5:7]); print("IDX", d, index_month(y, m).get(d))
+for s, e in [("2021/11/01", "2021/11/05"), ("2019/01/02", "2019/01/04"), ("2023/11/06", "2023/11/08")]:
+    for cid in ["TXF", ""]:
+        try:
+            r = requests.post("https://www.taifex.com.tw/cht/3/futContractsDateDown", data={"queryStartDate": s, "queryEndDate": e, "commodityId": cid}, headers=H, timeout=60)
+            t = r.content.decode("big5", "replace") if b"<html" not in r.content[:200].lower() else r.text
+            print("DOWN", s, e, repr(cid), r.status_code, r.headers.get("content-type"), len(r.content))
+            print(t[:900])
+        except Exception as ex: print("DOWN ERR", ex)
