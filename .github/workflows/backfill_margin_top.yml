@@ -1,0 +1,72 @@
+name: 重補個股融資排行（金額排序）
+
+on:
+  workflow_dispatch:
+    inputs:
+      start_date:
+        description: "開始日期 (YYYY/MM/DD)"
+        required: true
+        default: "2025/10/01"
+      end_date:
+        description: "結束日期 (YYYY/MM/DD)"
+        required: true
+        default: "2026/11/09"
+      test_only:
+        description: "只測試不寫入（yes/no）"
+        required: true
+        default: "no"
+
+permissions:
+  contents: write
+
+# 獨立的併發群組：不會卡住盤後輪詢；只改 data/margin_top.csv
+concurrency:
+  group: backfill-mtop
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      TZ: Asia/Taipei
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: 測試模式
+        if: github.event.inputs.test_only == 'yes'
+        env:
+          DATA_DIR: out
+          START: ${{ github.event.inputs.start_date }}
+          END: ${{ github.event.inputs.end_date }}
+        run: |
+          mkdir -p out
+          python scraper_margin_top.py --backfill "$START" "$END" > probe_output.txt 2>&1 || true
+          cat out/margin_top.csv >> probe_output.txt || true
+          git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
+          git push -f origin probe-output
+      - name: 重新抓取（新格式寫到暫存，完成後整檔取代）
+        if: github.event.inputs.test_only != 'yes'
+        env:
+          DATA_DIR: newdata
+          START: ${{ github.event.inputs.start_date }}
+          END: ${{ github.event.inputs.end_date }}
+        run: |
+          mkdir -p newdata
+          python scraper_margin_top.py --backfill "$START" "$END"
+          { head -1 newdata/margin_top.csv; tail -n +2 newdata/margin_top.csv | sort -t, -k1,1 -s; } > tmp.csv
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull -q --rebase origin main
+          # 保留排程在重補期間可能新寫入、但不在範圍內的新日期（新格式才保留）
+          if head -1 data/margin_top.csv | grep -q change_amount; then
+            tail -n +2 data/margin_top.csv | awk -F, -v e="$END" '$1 > e' >> tmp.csv
+          fi
+          mv tmp.csv data/margin_top.csv
+          git add data/margin_top.csv
+          git commit -m "auto: 個股融資排行改為金額排序（含／不含 ETF）"
+          git push origin HEAD:main
