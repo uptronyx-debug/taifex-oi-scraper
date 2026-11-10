@@ -30,7 +30,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 JOBS = {
     "daily": {"files": ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv"], "late": 17},
-    "margin": {"files": ["margin.csv"], "late": 23, "evidence": "spot_net.csv"},
+    "margin": {"files": ["margin.csv", "margin_top.csv", "foreign_hold.csv"], "late": 23, "evidence": "spot_net.csv"},
 }
 JOB = JOBS[os.environ.get("JOB", "daily")]
 FILES = JOB["files"]

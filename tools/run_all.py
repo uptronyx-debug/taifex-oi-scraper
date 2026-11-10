@@ -29,7 +29,11 @@ JOB_SCRAPERS = {
         ("大台各月份", ["scraper_tx_months.py"]),
         ("現貨買賣超", ["scraper_spot.py"]),
     ],
-    "margin": [("融資餘額", ["scraper_margin.py"])],
+    "margin": [
+        ("融資餘額", ["scraper_margin.py"]),
+        ("個股融資排行", ["scraper_margin_top.py"]),
+        ("外資持股市值", ["scraper_foreign_hold.py"]),
+    ],
 }
 JOB_WINDOW = {"daily": ("14:00", "15:40"), "margin": ("21:00", "23:30")}
 JOB_NAME = os.environ.get("JOB", "daily")
