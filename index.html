@@ -1068,6 +1068,8 @@ function statHtml(label, value, valueText, deltaText, main) {
   </div>`;
 }
 
+// 跨年度時 X 軸顯示「年/月」，否則「月/日」
+const xLab = (l, labels) => labels[0].slice(0, 4) !== labels[labels.length - 1].slice(0, 4) ? l.slice(2, 7) : l.slice(5);
 const chartW = () => Math.max(300, Math.min(900, document.querySelector(".wrap").clientWidth - 60));
 
 // 正負值的長條圖（紅正綠負），labels 為日期
@@ -1088,7 +1090,7 @@ function barChartSvg(values, labels, fmt) {
   const step = Math.ceil(values.length / Math.max(3, Math.floor(width / 75)));
   const showLbl = (i, n) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75);
   const xl = labels.map((l, i) => showLbl(i, labels.length)
-    ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
+    ? `<text x="${(i === labels.length - 1 ? width - padR : padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === labels.length - 1 ? "end" : "middle"}">${xLab(l, labels)}</text>` : "").join("");
   const grid = [maxAbs, 0, -maxAbs].map(v => {
     const yy = y0 - v * scale;
     return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
@@ -1122,10 +1124,38 @@ function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
   const zero = (lo < 0 && hi > 0) ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3"/>` : "";
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75)
-    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
+    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${xLab(l, labels)}</text>` : "").join("");
   const dots = values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${color}"/>`).join("");
   const pts = values.map((v, i) => ({ x: +x(i).toFixed(1), html: `<div class="td">${labels[i]}</div><b>${fmt(v)}</b>`, marks: [{ y: +y(v).toFixed(1), color }] }));
   return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xl}</svg>`, width, height, pts);
+}
+
+// ================= 時段按鈕（各區塊獨立，預設 1 個月，不記憶） =================
+// 以「月」為單位，從最新一天往回推（5年＝最新日往前 60 個月）
+const PERIODS = [[1, "1個月"], [6, "半年"], [12, "1年"], [60, "5年"]];
+const PERIOD = { fut: 1, etf: 1, hedge: 1, hold: 1 };
+const cutoffOf = (last, m) => { const d = new Date(last.replace(/\//g, "-") + "T00:00:00Z"); d.setUTCMonth(d.getUTCMonth() - m); return d.toISOString().slice(0, 10).replace(/-/g, "/"); };
+const inPeriod = (arr, k, key = x => x) => { if (!arr.length) return arr; const c = cutoffOf(key(arr[arr.length - 1]), PERIOD[k]); return arr.filter(x => key(x) > c); };
+// 資料起點比所選時段晚 10 天以上＝歷史不足
+const isShort = (labels, k) => labels.length > 0 && (new Date(labels[0].replace(/\//g, "-")) - new Date(cutoffOf(labels[labels.length - 1], PERIOD[k]).replace(/\//g, "-"))) / 864e5 > 10;
+function setPeriod(k, n) {
+  PERIOD[k] = n;
+  if (k === "fut" && FUT_ROWS) renderFutures(FUT_ROWS);
+  else if (k === "etf" && ETF_ROWS) renderEtfFut();
+  else if (k === "hedge" || k === "hold") renderHedge();
+}
+const periodSeg = k => `<div class="seg">${PERIODS.map(([n, l]) => `<button class="${PERIOD[k] === n ? "on" : ""}" onclick="setPeriod('${k}',${n})">${l}</button>`).join("")}</div>`;
+// 圖表標題＋時段按鈕；資料不足所選時段時註明起始日
+const periodHead = (title, k, labels) => {
+  const short = isShort(labels, k);
+  return `<div class="hedge-head" style="margin:16px 0 4px"><div class="chart-title" style="margin:0">${title}・${short ? `${labels[0]} 起（資料只到這裡）` : `近 ${labels.length} 日`}</div>${periodSeg(k)}</div>`;
+};
+// 加權指數收盤：taiex.csv（長期歷史）＋ margin.csv（每日更新）
+function taiexMap() {
+  const tx = {};
+  (TAIEX_ROWS || []).forEach(r => { tx[r.date] = Number(r.taiex); });
+  (MARGIN_ROWS || []).forEach(r => { if (Number(r.taiex)) tx[r.date] = Number(r.taiex); });
+  return tx;
 }
 
 // ================= 期貨 =================
@@ -1190,11 +1220,15 @@ function renderFutures(rows) {
 
   const series = FUT_MODE === "vol" ? (x => vol(x, "foreign")) : (x => val(x, "foreign"));
   const unit = FUT_MODE === "vol" ? "口" : "億";
-  const last20 = dates.slice(-30);
-  const netSeries = last20.map(series);
-  const changes = last20.map(x => { const i = dates.indexOf(x); return i > 0 ? series(x) - series(dates[i - 1]) : 0; });
+  const per = inPeriod(dates, "fut");
+  const changes = per.map(x => { const i = dates.indexOf(x); return i > 0 ? series(x) - series(dates[i - 1]) : 0; });
+  const tai = taiexMap();
+  const overlay = dualLineSvg(per.map(x => vol(x, "foreign")), per.map(x => val(x, "foreign")), per,
+    v => fmtInt(v), v => fmtYi2(v), "var(--margin)", "var(--gold)", "口", "億",
+    i => tipRow("加權指數", tai[per[i]] ? tai[per[i]].toLocaleString(undefined, { maximumFractionDigits: 2 }) : "—", "var(--text-muted)"),
+    v => Math.round(v).toLocaleString(), v => Math.round(v).toLocaleString());
 
-  const last10 = dates.slice(-10).reverse();
+  const last10 = dates.slice(-20).reverse();
   const tableRows = last10.map(x => {
     const i = dates.indexOf(x);
     const chg = i > 0 ? vol(x, "foreign") - vol(dates[i - 1], "foreign") : null;
@@ -1206,12 +1240,16 @@ function renderFutures(rows) {
 
   box.innerHTML = `<div class="card">
     <h2>外資大台未平倉</h2>
-    <div class="sub">資料日期 ${d}・紅淨多 綠淨空・點上方兩格切換圖表</div>
+    <div class="sub">資料日期 ${d}・紅淨多 綠淨空・點上方兩格切換每日增減</div>
     ${stats}
-    <div class="chart-title">外資淨未平倉${FUT_MODE === "vol" ? "（口）" : "（億）"}・近 ${last20.length} 日</div>
-    ${netLineSvg(netSeries, last20, FUT_MODE === "vol" ? (v => fmtInt(v) + " 口") : (v => fmtYi2(v) + " 億"))}
+    ${periodHead("外資淨未平倉", "fut", per)}
+    <div class="trend-legend">
+      <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>口（左軸）</span>
+      <span class="legend-item"><span class="swatch" style="border-color:var(--gold)"></span>億（右軸）</span>
+    </div>
+    ${overlay}
     <div class="chart-title">每日增減（${unit}）</div>
-    ${barChartSvg(changes, last20, FUT_MODE === "vol" ? (v => fmtInt(v) + " 口") : (v => fmtYi2(v) + " 億"))}
+    ${barChartSvg(changes, per, FUT_MODE === "vol" ? (v => fmtInt(v) + " 口") : (v => fmtYi2(v) + " 億"))}
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>日期</th><th>外資淨OI(口)</th><th>增減(口)</th><th class="hide-m">淨金額(億)</th><th>近月(口)</th><th>次月(口)</th></tr></thead>
       <tbody>${tableRows}</tbody>
@@ -1244,21 +1282,21 @@ function renderEtfFut() {
   const dFull = full.includes(d);
   const pFull = p && full.includes(p);
   const stats = `<div class="stat-grid">
-    ${tile("三檔合計（口）", dFull ? total(d) : undefined, pFull ? total(p) : undefined, true)}
+    ${tile("四檔合計（口）", dFull ? total(d) : undefined, pFull ? total(p) : undefined, true)}
     ${ETF_LIST.map(e => tile(`<span style="color:${e.color}">●</span> ${e.code}`, by[d][e.code], p ? by[p][e.code] : undefined)).join("")}
   </div>`;
 
-  const lastFull = full.slice(-30);
+  const lastFull = inPeriod(full, "etf");
   const totalChart = lastFull.length >= 2
-    ? `<div class="chart-title">三檔合計（口）・近 ${lastFull.length} 日</div>
+    ? `<div class="chart-title">四檔合計（口）</div>
        ${netLineSvg(lastFull.map(total), lastFull, v => fmtInt(v).replace("+", "") + " 口", "var(--long)", v => Math.round(v).toLocaleString())}`
     : `<div class="note" style="margin:10px 0">合計從 ${(full[0] || d).slice(5)} 起每天累積（元大、富邦、國泰只公布最新一天，群益已補歷史）</div>`;
-  const last = dates.slice(-30);
-  const perChart = `<div class="chart-title">各檔口數・近 ${last.length} 日</div>
+  const last = inPeriod(dates, "etf");
+  const perChart = `${periodHead("各檔口數", "etf", last)}
     ${multiLineSvg(ETF_LIST.map(e => ({ name: e.code, color: e.color, values: last.map(x => by[x][e.code] ?? null) })), last, v => Math.round(v).toLocaleString() + " 口")}`;
 
   const cell = v => `<td>${v === undefined ? "—" : v.toLocaleString()}</td>`;
-  const tr = dates.slice(-10).reverse().map(x => {
+  const tr = dates.slice(-20).reverse().map(x => {
     const i = dates.indexOf(x), px = dates[i - 1];
     const t = full.includes(x) ? total(x) : undefined;
     const chg = t !== undefined && px && full.includes(px) ? t - total(px) : null;
@@ -1269,8 +1307,8 @@ function renderEtfFut() {
     <h2>正2 ETF 大台多單</h2>
     <div class="sub">資料日期 ${d}・00631L＋00685L＋00675L＋00663L 持有臺股期貨口數（不含股票期貨）</div>
     ${stats}
-    ${totalChart}
     ${perChart}
+    ${totalChart}
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>日期</th><th>合計(口)</th><th>增減</th>${ETF_LIST.map(e => `<th>${e.code.slice(2)}</th>`).join("")}</tr></thead>
       <tbody>${tr}</tbody></table></div>
@@ -1421,7 +1459,7 @@ function multiLineSvg(seriesList, labels, fmt) {
   const lines = seriesList.map(s => `<path d="${pathOf(s.values)}" fill="none" stroke="${s.color}" stroke-width="2.2" ${s.dash ? 'stroke-dasharray="5,4"' : ""}/>${dots(s)}`).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
-    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(5)}</text>` : "").join("");
+    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 && n > 1 ? "end" : i === 0 ? "start" : "middle"}">${xLab(l, labels)}</text>` : "").join("");
   const pts = labels.map((l, i) => ({
     x: +x(i).toFixed(1),
     html: `<div class="td">${l}</div>` + seriesList.map(s => tipRow(s.name || "", ok(s.values[i]) ? fmt(s.values[i]) : "—", s.color)).join(""),
@@ -1645,27 +1683,27 @@ function renderMarginTop() {
   </div>`;
 }
 
-let SHOW_HEDGE = false, HEDGE_PERIOD = 126;
-function toggleHedge() { SHOW_HEDGE = !SHOW_HEDGE; renderHedge(); }
-function setHedgePeriod(n) { HEDGE_PERIOD = n; renderHedge(); }
 
 // 兩條線各用自己的比例尺（無 Y 軸），用提示框看數值
-function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB) {
-  const width = chartW(), height = chartW() < 500 ? 170 : 210, padL = 42, padR = 46, padT = 10, padB = 18;
-  const plotW = width - padL - padR, plotH = height - padT - padB, n = labels.length;
-  const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB, extra, axisA, axisB) {
+  axisA = axisA || fmtA; axisB = axisB || fmtB;
   const rng = vals => { let lo = Math.min(...vals), hi = Math.max(...vals); const pd = (hi - lo) * 0.08 || 1; return [lo - pd, hi + pd]; };
   const [aLo, aHi] = rng(a), [bLo, bHi] = rng(b);
+  const tw = (f, lo, hi) => Math.max(...[lo, hi, (lo + hi) / 2].map(v => String(f(v)).length)) * 6.2 + 8;
+  const width = chartW(), height = chartW() < 500 ? 170 : 210, padT = 10, padB = 18;
+  const padL = Math.max(42, tw(axisA, aLo, aHi)), padR = Math.max(46, tw(axisB, bLo, bHi));
+  const plotW = width - padL - padR, plotH = height - padT - padB, n = labels.length;
+  const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const ya = v => padT + (aHi - v) / (aHi - aLo) * plotH, yb = v => padT + (bHi - v) / (bHi - bLo) * plotH;
   const path = (vals, y) => vals.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
   const grid = [0, 0.5, 1].map(f => `<line x1="${padL}" y1="${padT + plotH * f}" x2="${width - padR}" y2="${padT + plotH * f}" stroke="var(--divider)"/>
-    <text x="${padL - 5}" y="${padT + plotH * f + 3}" font-size="10" fill="${colorA}" text-anchor="end">${fmtA(aHi - (aHi - aLo) * f)}</text>
-    <text x="${width - padR + 5}" y="${padT + plotH * f + 3}" font-size="10" fill="var(--text-muted)" text-anchor="start">${fmtB(bHi - (bHi - bLo) * f)}</text>`).join("");
+    <text x="${padL - 5}" y="${padT + plotH * f + 3}" font-size="10" fill="${colorA}" text-anchor="end">${axisA(aHi - (aHi - aLo) * f)}</text>
+    <text x="${width - padR + 5}" y="${padT + plotH * f + 3}" font-size="10" fill="${colorB}" text-anchor="start">${axisB(bHi - (bHi - bLo) * f)}</text>`).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
-    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(2, 4) !== labels[n - 1].slice(2, 4) ? l.slice(2, 7) : l.slice(5)}</text>` : "").join("");
+    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 ? "end" : i === 0 ? "start" : "middle"}">${xLab(l, labels)}</text>` : "").join("");
   const pts = labels.map((l, i) => ({ x: +x(i).toFixed(1),
-    html: `<div class="td">${l}</div>` + tipRow(nameA, fmtA(a[i]), colorA) + tipRow(nameB, fmtB(b[i]), colorB),
+    html: `<div class="td">${l}</div>` + tipRow(nameA, fmtA(a[i]), colorA) + tipRow(nameB, fmtB(b[i]), colorB) + (extra ? extra(i) : ""),
     marks: [{ y: +ya(a[i]).toFixed(1), color: colorA }, { y: +yb(b[i]).toFixed(1), color: colorB }] }));
   return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}
     <path d="${path(b, yb)}" fill="none" stroke="${colorB}" stroke-width="1.8"/>
@@ -1673,11 +1711,10 @@ function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB) {
 }
 
 function hedgePanel(data) {
-  const tx = {};
-  (MARGIN_ROWS || []).forEach(r => { tx[r.date] = Number(r.taiex); });
+  const tx = taiexMap();
   const all = data.filter(r => tx[r.date]);
   if (all.length < 30) return `<div class="swing-panel"><div class="swing-note">資料不足</div></div>`;
-  const per = all.slice(-HEDGE_PERIOD);
+  const per = inPeriod(all, "hedge", r => r.date);
   const hs = per.map(r => r.hedge), sorted = hs.slice().sort((x, y) => x - y);
   const q = f => sorted[Math.min(sorted.length - 1, Math.floor(f * (sorted.length - 1)))];
   const cur = hs[hs.length - 1];
@@ -1711,7 +1748,7 @@ function hedgePanel(data) {
   return `<div class="swing-panel">
     <div class="hedge-head">
       <div class="swing-title" style="margin:0">避險比例歷史統計</div>
-      <div class="seg"><button class="${HEDGE_PERIOD === 126 ? "on" : ""}" onclick="setHedgePeriod(126)">近半年</button><button class="${HEDGE_PERIOD === 252 ? "on" : ""}" onclick="setHedgePeriod(252)">近一年</button></div>
+      ${periodSeg("hedge")}
     </div>
     <div class="swing-sum">
       <div><b>${pp(cur)}</b><span>目前（第 ${Math.round(rank * 100)} 百分位）</span></div>
@@ -1728,7 +1765,7 @@ function hedgePanel(data) {
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>避險比例</th><th>區間</th><th class="hide-m">天數</th><th>之後 5 日</th><th>之後 20 日</th></tr></thead>
       <tbody>${gtr}</tbody></table></div>
-    <div class="swing-note">共 ${per.length} 個交易日。相關係數接近 −1 代表指數越低、避險比例越高；分組報酬只是過去統計，最近的日子還沒有「之後 20 日」資料。</div>
+    <div class="swing-note">${per[0].date} 起共 ${per.length} 個交易日${isShort(per.map(r => r.date), "hedge") ? "（歷史資料只到這裡）" : ""}。相關係數接近 −1 代表指數越低、避險比例越高；分組報酬只是過去統計，最近的日子還沒有「之後 20 日」資料。</div>
   </div>`;
 }
 
@@ -1755,21 +1792,25 @@ function renderHedge() {
     ${statHtml("外資持股市值（兆）", 0, zhao(t.fv), p ? `較前日 ${t.fv >= p.fv ? "+" : ""}${((t.fv / p.fv - 1) * 100).toFixed(2)}%` : "", false)}
     ${statHtml("外資持股比率", 0, pp(t.own), dpp(t.own, p && p.own), false)}
     ${statHtml("外資大台淨部位（億）", t.fn, (t.fn > 0 ? "+" : "") + yi(t.fn), "", false)}
-    <div class="stat clickable ${SHOW_HEDGE ? "selected" : ""}" onclick="toggleHedge()"><div class="stat-label">避險比例<span class="tap-hint">歷史 ${SHOW_HEDGE ? "▴" : "▾"}</span></div>
-      <div class="stat-value">${pp(t.hedge)}</div><div class="stat-delta">${dpp(t.hedge, p && p.hedge)}</div></div>
+    ${statHtml("避險比例", 0, pp(t.hedge), dpp(t.hedge, p && p.hedge), true)}
   </div>
-  ${SHOW_HEDGE ? hedgePanel(data) : ""}`;
-  const last = data.slice(-30);
-  const tr = last.slice(-10).reverse().map(r => `<tr><td>${r.date.slice(5)}</td><td>${zhao(r.fv)}</td><td class="hide-m">${pp(r.own)}</td>
+  ${hedgePanel(data)}`;
+  const hold = HOLD_ROWS.map(r => ({ date: r.date, fv: Number(r.foreign_value), own: Number(r.foreign_value) / Number(r.market_value) }))
+    .filter(r => r.fv > 0 && r.own > 0).sort((a, b) => a.date < b.date ? -1 : 1);
+  const holdP = inPeriod(hold, "hold", r => r.date);
+  const holdChart = holdP.length >= 2 ? `${periodHead("外資持股市值與持股比率", "hold", holdP.map(r => r.date))}
+    <div class="trend-legend">
+      <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>持股市值（兆，左軸）</span>
+      <span class="legend-item"><span class="swatch" style="border-color:#B07CD8"></span>持股比率（右軸）</span>
+    </div>
+    ${dualLineSvg(holdP.map(r => r.fv / 1e12), holdP.map(r => r.own * 100), holdP.map(r => r.date), v => v.toFixed(2) + " 兆", v => v.toFixed(2) + "%", "var(--margin)", "#B07CD8", "持股市值", "持股比率", null, v => v.toFixed(1), v => v.toFixed(1) + "%")}` : "";
+  const tr = data.slice(-20).reverse().map(r => `<tr><td>${r.date.slice(5)}</td><td>${zhao(r.fv)}</td><td class="hide-m">${pp(r.own)}</td>
     <td class="${signCls(r.fn)}">${(r.fn > 0 ? "+" : "") + yi(r.fn)}</td><td>${pp(r.hedge)}</td></tr>`).join("");
   box.innerHTML = `<div class="card">
     <h2>外資持股與期貨避險</h2>
     <div class="sub">資料日期 ${t.date}・避險比例＝大台淨空單現值 ÷ 外資持股市值（集中市場普通股）</div>
     ${stats}
-    <div class="chart-title">避險比例（%）・近 ${last.length} 日</div>
-    ${netLineSvg(last.map(r => r.hedge * 100), last.map(r => r.date), v => v.toFixed(2) + "%", "var(--gold)", v => v.toFixed(2) + "%")}
-    <div class="chart-title">外資持股市值（兆）・近 ${last.length} 日</div>
-    ${netLineSvg(last.map(r => r.fv / 1e12), last.map(r => r.date), v => v.toFixed(1), "var(--margin)")}
+    ${holdChart}
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>日期</th><th>持股市值(兆)</th><th class="hide-m">持股比率</th><th>大台淨部位(億)</th><th>避險比例</th></tr></thead>
       <tbody>${tr}</tbody></table></div>
@@ -1781,7 +1822,7 @@ function renderHedge() {
 // 再用「該編號」讀檔，拿到的一定是最新版本。查不到編號（例如 API 次數用完）才退回 main。
 const REPO = "uptronyx-debug/taifex-oi-scraper";
 let CUR_REF = null, LAST_CHECK = 0;
-let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null, MTOP_ROWS = null, HOLD_ROWS = null, ETF_ROWS = null;
+let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null, MTOP_ROWS = null, HOLD_ROWS = null, ETF_ROWS = null, TAIEX_ROWS = null;
 
 async function latestSha() {
   try {
@@ -1798,8 +1839,8 @@ async function getCsv(name, ref) {
   return parseCSV(await r.text());
 }
 async function loadAll(ref) {
-  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv"];
-  const [opt, strike, fut, txm, spot, mg, mtop, hold, etf] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
+  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv", "taiex.csv"];
+  const [opt, strike, fut, txm, spot, mg, mtop, hold, etf, tai] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
   if (opt.status === "fulfilled" && opt.value.length) { render(opt.value); renderTrend(opt.value); }
   else if (!CUR_REF) {
     const st = document.getElementById("status");
@@ -1808,6 +1849,8 @@ async function loadAll(ref) {
   }
   if (strike.status === "fulfilled") renderStrikeSection(strike.value);
   TXM_ROWS = txm.status === "fulfilled" ? txm.value : (TXM_ROWS || []);
+  if (tai.status === "fulfilled") TAIEX_ROWS = tai.value;
+  if (mg.status === "fulfilled") MARGIN_ROWS = mg.value;
   if (fut.status === "fulfilled") { FUT_ROWS = fut.value; renderFutures(FUT_ROWS); }
   else if (!FUT_ROWS) document.getElementById("futBox").innerHTML = `<div class="note">資料載入失敗（fut_oi.csv）</div>`;
   if (spot.status === "fulfilled") { SPOT_ROWS = spot.value; renderSpot(SPOT_ROWS); }

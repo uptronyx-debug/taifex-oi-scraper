@@ -1131,8 +1131,13 @@ function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
 }
 
 // ================= 時段按鈕（各區塊獨立，預設 1 個月，不記憶） =================
-const PERIODS = [[21, "1個月"], [126, "半年"], [252, "1年"], [1260, "5年"]];
-const PERIOD = { fut: 21, etf: 21, hedge: 21, hold: 21 };
+// 以「月」為單位，從最新一天往回推（5年＝最新日往前 60 個月）
+const PERIODS = [[1, "1個月"], [6, "半年"], [12, "1年"], [60, "5年"]];
+const PERIOD = { fut: 1, etf: 1, hedge: 1, hold: 1 };
+const cutoffOf = (last, m) => { const d = new Date(last.replace(/\//g, "-") + "T00:00:00Z"); d.setUTCMonth(d.getUTCMonth() - m); return d.toISOString().slice(0, 10).replace(/-/g, "/"); };
+const inPeriod = (arr, k, key = x => x) => { if (!arr.length) return arr; const c = cutoffOf(key(arr[arr.length - 1]), PERIOD[k]); return arr.filter(x => key(x) > c); };
+// 資料起點比所選時段晚 10 天以上＝歷史不足
+const isShort = (labels, k) => labels.length > 0 && (new Date(labels[0].replace(/\//g, "-")) - new Date(cutoffOf(labels[labels.length - 1], PERIOD[k]).replace(/\//g, "-"))) / 864e5 > 10;
 function setPeriod(k, n) {
   PERIOD[k] = n;
   if (k === "fut" && FUT_ROWS) renderFutures(FUT_ROWS);
@@ -1142,7 +1147,7 @@ function setPeriod(k, n) {
 const periodSeg = k => `<div class="seg">${PERIODS.map(([n, l]) => `<button class="${PERIOD[k] === n ? "on" : ""}" onclick="setPeriod('${k}',${n})">${l}</button>`).join("")}</div>`;
 // 圖表標題＋時段按鈕；資料不足所選時段時註明起始日
 const periodHead = (title, k, labels) => {
-  const short = labels.length && labels.length < PERIOD[k] - 5;
+  const short = isShort(labels, k);
   return `<div class="hedge-head" style="margin:16px 0 4px"><div class="chart-title" style="margin:0">${title}・${short ? `${labels[0]} 起（資料只到這裡）` : `近 ${labels.length} 日`}</div>${periodSeg(k)}</div>`;
 };
 // 加權指數收盤：taiex.csv（長期歷史）＋ margin.csv（每日更新）
@@ -1215,7 +1220,7 @@ function renderFutures(rows) {
 
   const series = FUT_MODE === "vol" ? (x => vol(x, "foreign")) : (x => val(x, "foreign"));
   const unit = FUT_MODE === "vol" ? "口" : "億";
-  const per = dates.slice(-PERIOD.fut);
+  const per = inPeriod(dates, "fut");
   const changes = per.map(x => { const i = dates.indexOf(x); return i > 0 ? series(x) - series(dates[i - 1]) : 0; });
   const tai = taiexMap();
   const overlay = dualLineSvg(per.map(x => vol(x, "foreign")), per.map(x => val(x, "foreign")), per,
@@ -1281,12 +1286,12 @@ function renderEtfFut() {
     ${ETF_LIST.map(e => tile(`<span style="color:${e.color}">●</span> ${e.code}`, by[d][e.code], p ? by[p][e.code] : undefined)).join("")}
   </div>`;
 
-  const lastFull = full.slice(-PERIOD.etf);
+  const lastFull = inPeriod(full, "etf");
   const totalChart = lastFull.length >= 2
     ? `<div class="chart-title">四檔合計（口）</div>
        ${netLineSvg(lastFull.map(total), lastFull, v => fmtInt(v).replace("+", "") + " 口", "var(--long)", v => Math.round(v).toLocaleString())}`
     : `<div class="note" style="margin:10px 0">合計從 ${(full[0] || d).slice(5)} 起每天累積（元大、富邦、國泰只公布最新一天，群益已補歷史）</div>`;
-  const last = dates.slice(-PERIOD.etf);
+  const last = inPeriod(dates, "etf");
   const perChart = `${periodHead("各檔口數", "etf", last)}
     ${multiLineSvg(ETF_LIST.map(e => ({ name: e.code, color: e.color, values: last.map(x => by[x][e.code] ?? null) })), last, v => Math.round(v).toLocaleString() + " 口")}`;
 
@@ -1696,7 +1701,7 @@ function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB, ext
     <text x="${width - padR + 5}" y="${padT + plotH * f + 3}" font-size="10" fill="${colorB}" text-anchor="start">${axisB(bHi - (bHi - bLo) * f)}</text>`).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
-    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(2, 4) !== labels[n - 1].slice(2, 4) ? l.slice(2, 7) : l.slice(5)}</text>` : "").join("");
+    ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 ? "end" : i === 0 ? "start" : "middle"}">${xLab(l, labels)}</text>` : "").join("");
   const pts = labels.map((l, i) => ({ x: +x(i).toFixed(1),
     html: `<div class="td">${l}</div>` + tipRow(nameA, fmtA(a[i]), colorA) + tipRow(nameB, fmtB(b[i]), colorB) + (extra ? extra(i) : ""),
     marks: [{ y: +ya(a[i]).toFixed(1), color: colorA }, { y: +yb(b[i]).toFixed(1), color: colorB }] }));
@@ -1709,7 +1714,7 @@ function hedgePanel(data) {
   const tx = taiexMap();
   const all = data.filter(r => tx[r.date]);
   if (all.length < 30) return `<div class="swing-panel"><div class="swing-note">資料不足</div></div>`;
-  const per = all.slice(-PERIOD.hedge);
+  const per = inPeriod(all, "hedge", r => r.date);
   const hs = per.map(r => r.hedge), sorted = hs.slice().sort((x, y) => x - y);
   const q = f => sorted[Math.min(sorted.length - 1, Math.floor(f * (sorted.length - 1)))];
   const cur = hs[hs.length - 1];
@@ -1760,7 +1765,7 @@ function hedgePanel(data) {
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>避險比例</th><th>區間</th><th class="hide-m">天數</th><th>之後 5 日</th><th>之後 20 日</th></tr></thead>
       <tbody>${gtr}</tbody></table></div>
-    <div class="swing-note">${per[0].date} 起共 ${per.length} 個交易日${per.length < PERIOD.hedge - 5 ? "（歷史資料只到這裡）" : ""}。相關係數接近 −1 代表指數越低、避險比例越高；分組報酬只是過去統計，最近的日子還沒有「之後 20 日」資料。</div>
+    <div class="swing-note">${per[0].date} 起共 ${per.length} 個交易日${isShort(per.map(r => r.date), "hedge") ? "（歷史資料只到這裡）" : ""}。相關係數接近 −1 代表指數越低、避險比例越高；分組報酬只是過去統計，最近的日子還沒有「之後 20 日」資料。</div>
   </div>`;
 }
 
@@ -1791,13 +1796,14 @@ function renderHedge() {
   </div>
   ${hedgePanel(data)}`;
   const hold = HOLD_ROWS.map(r => ({ date: r.date, fv: Number(r.foreign_value), own: Number(r.foreign_value) / Number(r.market_value) }))
-    .filter(r => r.fv > 0 && r.own > 0).sort((a, b) => a.date < b.date ? -1 : 1).slice(-PERIOD.hold);
-  const holdChart = hold.length >= 2 ? `${periodHead("外資持股市值與持股比率", "hold", hold.map(r => r.date))}
+    .filter(r => r.fv > 0 && r.own > 0).sort((a, b) => a.date < b.date ? -1 : 1);
+  const holdP = inPeriod(hold, "hold", r => r.date);
+  const holdChart = holdP.length >= 2 ? `${periodHead("外資持股市值與持股比率", "hold", holdP.map(r => r.date))}
     <div class="trend-legend">
       <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>持股市值（兆，左軸）</span>
       <span class="legend-item"><span class="swatch" style="border-color:#B07CD8"></span>持股比率（右軸）</span>
     </div>
-    ${dualLineSvg(hold.map(r => r.fv / 1e12), hold.map(r => r.own * 100), hold.map(r => r.date), v => v.toFixed(2) + " 兆", v => v.toFixed(2) + "%", "var(--margin)", "#B07CD8", "持股市值", "持股比率", null, v => v.toFixed(1), v => v.toFixed(1) + "%")}` : "";
+    ${dualLineSvg(holdP.map(r => r.fv / 1e12), holdP.map(r => r.own * 100), holdP.map(r => r.date), v => v.toFixed(2) + " 兆", v => v.toFixed(2) + "%", "var(--margin)", "#B07CD8", "持股市值", "持股比率", null, v => v.toFixed(1), v => v.toFixed(1) + "%")}` : "";
   const tr = data.slice(-20).reverse().map(r => `<tr><td>${r.date.slice(5)}</td><td>${zhao(r.fv)}</td><td class="hide-m">${pp(r.own)}</td>
     <td class="${signCls(r.fn)}">${(r.fn > 0 ? "+" : "") + yi(r.fn)}</td><td>${pp(r.hedge)}</td></tr>`).join("");
   box.innerHTML = `<div class="card">
