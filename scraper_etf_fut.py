@@ -3,6 +3,7 @@
   00631L 元大台灣50正2   https://www.yuantaetfs.com/product/detail/00631L/ratio （頁面內嵌資料，只有最新一天）
   00685L 群益臺灣加權正2 https://www.capitalfund.com.tw/CFWeb/api/etf/buyback （可查歷史）
   00675L 富邦臺灣加權正2 https://websys.fsit.com.tw/FubonETF/Trade/ConstituentStock.aspx （只有最新一天）
+  00663L 國泰臺灣加權正2 國泰官網擋海外主機，改抓 MoneyDJ 全部持股頁（只有最新一天）
 只計大台（元大另有台灣50ETF股票期貨，不算）；跨月轉倉期間同時持有兩個月份時會加總。
 資料日期＝持倉所屬交易日（收盤後的部位）。
 輸出：data/etf_fut.csv  date, etf, lots
@@ -90,8 +91,10 @@ def capital(query_date=None):
     else:
         raise err
     pcf = js["data"]["pcf"]
+    # 新格式 txEname="TX…"；舊資料 txEname 只有月份、txDesc="台指期202411"
     lots = sum(int(round(f.get("lot") or 0)) for f in js["data"].get("futures") or []
-               if str(f.get("txEname", "")).startswith("TX"))
+               if str(f.get("txEname", "")).startswith("TX")
+               or re.match(r"(台|臺)(指期|股期貨)", str(f.get("txDesc", ""))))
     return norm_date(pcf.get("date2") or ""), lots
 
 
@@ -109,7 +112,22 @@ def fubon():
     return d, lots
 
 
-SOURCES = [("00631L", yuanta), ("00685L", capital), ("00675L", fubon)]
+def cathay():
+    r = get("https://www.moneydj.com/ETF/X/Basic/Basic0007B.xdjhtm?etfid=00663L.TW")
+    r.encoding = r.apparent_encoding or "utf-8"
+    txt = re.sub(r"\s+", " ", htmlmod.unescape(re.sub(r"<[^>]+>", " ", r.text)))
+    m = re.search(r"資料日期[:：]\s*(\d{4}/\d{1,2}/\d{1,2})", txt)
+    d = norm_date(m.group(1)) if m else None
+    # 「台股期貨 2026/11(FITXN*1.TF) 199.33 3,565」
+    by_ym = {ym: int(n.replace(",", "")) for ym, n in
+             re.findall(r"台股期貨\s*(\d{4}/\d{1,2})\s*\([^)]*\)\s+[\d.]+\s+([\d,]+)", txt)}
+    lots = sum(by_ym.values())
+    if not lots:
+        raise RuntimeError("國泰（MoneyDJ）找不到台股期貨口數")
+    return d, lots
+
+
+SOURCES = [("00631L", yuanta), ("00685L", capital), ("00675L", fubon), ("00663L", cathay)]
 
 
 def load():

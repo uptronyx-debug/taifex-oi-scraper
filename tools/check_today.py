@@ -34,7 +34,7 @@ JOBS = {
 }
 JOB = JOBS[os.environ.get("JOB", "daily")]
 FILES = JOB["files"]
-MIN_ROWS = {"etf_fut.csv": 3}  # 三檔 ETF 都到才算齊
+MIN_ROWS = {"etf_fut.csv": 4}  # 四檔 ETF 都到才算齊
 TAIPEI = timezone(timedelta(hours=8))
 LATE_HOUR = JOB["late"]
 

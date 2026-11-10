@@ -1224,6 +1224,7 @@ const ETF_LIST = [
   { code: "00631L", name: "元大台灣50正2", color: "var(--gold)" },
   { code: "00685L", name: "群益臺灣加權正2", color: "var(--margin)" },
   { code: "00675L", name: "富邦臺灣加權正2", color: "#B07CD8" },
+  { code: "00663L", name: "國泰臺灣加權正2", color: "#4FB3A9" },
 ];
 function renderEtfFut() {
   const box = document.getElementById("etfFutBox");
@@ -1251,7 +1252,7 @@ function renderEtfFut() {
   const totalChart = lastFull.length >= 2
     ? `<div class="chart-title">三檔合計（口）・近 ${lastFull.length} 日</div>
        ${netLineSvg(lastFull.map(total), lastFull, v => fmtInt(v).replace("+", "") + " 口", "var(--long)", v => Math.round(v).toLocaleString())}`
-    : `<div class="note" style="margin:10px 0">合計從 ${(full[0] || d).slice(5)} 起每天累積（元大、富邦官網只公布最新一天，群益已補歷史）</div>`;
+    : `<div class="note" style="margin:10px 0">合計從 ${(full[0] || d).slice(5)} 起每天累積（元大、富邦、國泰只公布最新一天，群益已補歷史）</div>`;
   const last = dates.slice(-30);
   const perChart = `<div class="chart-title">各檔口數・近 ${last.length} 日</div>
     ${multiLineSvg(ETF_LIST.map(e => ({ name: e.code, color: e.color, values: last.map(x => by[x][e.code] ?? null) })), last, v => Math.round(v).toLocaleString() + " 口")}`;
@@ -1266,7 +1267,7 @@ function renderEtfFut() {
 
   box.innerHTML = `<div class="card">
     <h2>正2 ETF 大台多單</h2>
-    <div class="sub">資料日期 ${d}・00631L＋00685L＋00675L 持有臺股期貨口數（不含股票期貨）</div>
+    <div class="sub">資料日期 ${d}・00631L＋00685L＋00675L＋00663L 持有臺股期貨口數（不含股票期貨）</div>
     ${stats}
     ${totalChart}
     ${perChart}
