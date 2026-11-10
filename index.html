@@ -791,7 +791,7 @@ const tipRow = (label, val, color) => `<div class="tr"><span class="tk"${color ?
 
 function lineChartSvg(series, labels) {
   const width = 400, height = 166;
-  const padL = 10, padR = 10, padT = 8, padB = 22;
+  const padL = 26, padR = 10, padT = 8, padB = 22;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const n = series.length;
 
@@ -806,7 +806,8 @@ function lineChartSvg(series, labels) {
 
   const gridLines = [0, 0.5, 1].map(f => {
     const yy = padT + plotH * (1 - f);
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>
+            <text x="${padL - 4}" y="${yy + 3}" font-size="9" fill="var(--text-muted)" text-anchor="end">${(maxV * f).toFixed(0)}</text>`;
   }).join("");
 
   const lineDefs = [
@@ -1070,7 +1071,7 @@ const chartW = () => Math.max(300, Math.min(900, document.querySelector(".wrap")
 // 正負值的長條圖（紅正綠負），labels 為日期
 function barChartSvg(values, labels, fmt) {
   fmt = fmt || (v => fmtYi2(v));
-  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 6, padR = 6, padT = 8, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 46, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const maxAbs = Math.max(...values.map(v => Math.abs(v)), 1) * 1.1;
   const y0 = padT + plotH / 2;
@@ -1088,7 +1089,8 @@ function barChartSvg(values, labels, fmt) {
     ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
   const grid = [maxAbs, 0, -maxAbs].map(v => {
     const yy = y0 - v * scale;
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
+      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${Math.round(v).toLocaleString()}</text>`;
   }).join("");
   const pts = values.map((v, i) => ({
     x: +(padL + i * bw + bw / 2).toFixed(1),
@@ -1099,9 +1101,10 @@ function barChartSvg(values, labels, fmt) {
 }
 
 // 淨部位折線（可為負值），含 0 軸
-function netLineSvg(values, labels, fmt, fixedColor) {
+function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
   fmt = fmt || (v => Math.round(v).toLocaleString());
-  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 10, padR = 10, padT = 8, padB = 18;
+  fmtAxis = fmtAxis || (v => Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : v.toFixed(Math.abs(v) >= 10 ? 1 : 2));
+  const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 54, padR = 10, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   let lo = Math.min(...values), hi = Math.max(...values);
   const pad = (hi - lo) * 0.1 || Math.abs(hi) * 0.05 || 1; lo -= pad; hi += pad;
@@ -1112,7 +1115,8 @@ function netLineSvg(values, labels, fmt, fixedColor) {
   const last = values[n - 1];
   const color = fixedColor || (last >= 0 ? "var(--long)" : "var(--short)");
   const grid = [hi, (hi + lo) / 2, lo].map(v =>
-    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)" stroke-width="1"/>`).join("");
+    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)" stroke-width="1"/>
+     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${fmtAxis(v)}</text>`).join("");
   const zero = (lo < 0 && hi > 0) ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3"/>` : "";
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75)
@@ -1299,7 +1303,7 @@ const pct = v => (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 
 // 每日對照：兩組長條（指數漲跌%、融資金額增減%），警訊日（指數跌、融資增）加底色
 function pairBarSvg(idx, mg, labels, warn) {
-  const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 6, padR = 6, padT = 8, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 42, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const maxAbs = Math.max(...idx.map(Math.abs), ...mg.map(Math.abs), 0.001) * 1.15;
   const y0 = padT + plotH / 2, sc = (plotH / 2) / maxAbs, bw = plotW / idx.length;
@@ -1321,7 +1325,8 @@ function pairBarSvg(idx, mg, labels, warn) {
     ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
   const grid = [maxAbs, 0, -maxAbs].map(v => {
     const yy = y0 - v * sc;
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
+      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`;
   }).join("");
   const pts = idx.map((v, i) => ({
     x: +(padL + i * bw + bw / 2).toFixed(1),
@@ -1333,7 +1338,7 @@ function pairBarSvg(idx, mg, labels, warn) {
 
 // 自起算日的累計變化（%），多條線
 function multiLineSvg(seriesList, labels) {
-  const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = 10, padR = 10, padT = 10, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = 46, padR = 10, padT = 10, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const all = seriesList.flatMap(s => s.values);
   let lo = Math.min(...all, 0), hi = Math.max(...all, 0);
@@ -1342,7 +1347,8 @@ function multiLineSvg(seriesList, labels) {
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const y = v => padT + (hi - v) / (hi - lo) * plotH;
   const grid = [hi, (hi + lo) / 2, lo].map(v =>
-    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)"/>`).join("");
+    `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)"/>
+     <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`).join("");
   const zero = `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-dasharray="3,3"/>`;
   const lines = seriesList.map(s => `<path d="${s.values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ")}" fill="none" stroke="${s.color}" stroke-width="2.2" ${s.dash ? 'stroke-dasharray="5,4"' : ""}/>`).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
@@ -1573,13 +1579,16 @@ function setHedgePeriod(n) { HEDGE_PERIOD = n; renderHedge(); }
 
 // 兩條線各用自己的比例尺（無 Y 軸），用提示框看數值
 function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB) {
-  const width = chartW(), height = chartW() < 500 ? 170 : 210, padL = 10, padR = 10, padT = 10, padB = 18;
+  const width = chartW(), height = chartW() < 500 ? 170 : 210, padL = 42, padR = 46, padT = 10, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB, n = labels.length;
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
-  const sc = vals => { let lo = Math.min(...vals), hi = Math.max(...vals); const pd = (hi - lo) * 0.08 || 1; lo -= pd; hi += pd; return v => padT + (hi - v) / (hi - lo) * plotH; };
-  const ya = sc(a), yb = sc(b);
+  const rng = vals => { let lo = Math.min(...vals), hi = Math.max(...vals); const pd = (hi - lo) * 0.08 || 1; return [lo - pd, hi + pd]; };
+  const [aLo, aHi] = rng(a), [bLo, bHi] = rng(b);
+  const ya = v => padT + (aHi - v) / (aHi - aLo) * plotH, yb = v => padT + (bHi - v) / (bHi - bLo) * plotH;
   const path = (vals, y) => vals.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
-  const grid = [0, 0.5, 1].map(f => `<line x1="${padL}" y1="${padT + plotH * f}" x2="${width - padR}" y2="${padT + plotH * f}" stroke="var(--divider)"/>`).join("");
+  const grid = [0, 0.5, 1].map(f => `<line x1="${padL}" y1="${padT + plotH * f}" x2="${width - padR}" y2="${padT + plotH * f}" stroke="var(--divider)"/>
+    <text x="${padL - 5}" y="${padT + plotH * f + 3}" font-size="10" fill="${colorA}" text-anchor="end">${fmtA(aHi - (aHi - aLo) * f)}</text>
+    <text x="${width - padR + 5}" y="${padT + plotH * f + 3}" font-size="10" fill="var(--text-muted)" text-anchor="start">${fmtB(bHi - (bHi - bLo) * f)}</text>`).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
     ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 ? "end" : i === 0 ? "start" : "middle"}">${l.slice(2, 4) !== labels[n - 1].slice(2, 4) ? l.slice(2, 7) : l.slice(5)}</text>` : "").join("");
@@ -1686,7 +1695,7 @@ function renderHedge() {
     <div class="sub">資料日期 ${t.date}・避險比例＝大台淨空單現值 ÷ 外資持股市值（集中市場普通股）</div>
     ${stats}
     <div class="chart-title">避險比例（%）・近 ${last.length} 日</div>
-    ${netLineSvg(last.map(r => r.hedge * 100), last.map(r => r.date), v => v.toFixed(2) + "%", "var(--gold)")}
+    ${netLineSvg(last.map(r => r.hedge * 100), last.map(r => r.date), v => v.toFixed(2) + "%", "var(--gold)", v => v.toFixed(2) + "%")}
     <div class="chart-title">外資持股市值（兆）・近 ${last.length} 日</div>
     ${netLineSvg(last.map(r => r.fv / 1e12), last.map(r => r.date), v => v.toFixed(1), "var(--margin)")}
     <div class="table-scroll"><table class="trend-table">
