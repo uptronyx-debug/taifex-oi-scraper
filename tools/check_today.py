@@ -30,10 +30,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 JOBS = {
     "daily": {"files": ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv"], "late": 17},
-    "margin": {"files": ["margin.csv", "margin_top.csv", "foreign_hold.csv"], "late": 23, "evidence": "spot_net.csv"},
+    "margin": {"files": ["margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv"], "late": 23, "evidence": "spot_net.csv"},
 }
 JOB = JOBS[os.environ.get("JOB", "daily")]
 FILES = JOB["files"]
+MIN_ROWS = {"etf_fut.csv": 3}  # 三檔 ETF 都到才算齊
 TAIPEI = timezone(timedelta(hours=8))
 LATE_HOUR = JOB["late"]
 
@@ -89,7 +90,8 @@ def have_today(day_str, files=None):
         found = False
         if os.path.exists(path):
             with open(path, encoding="utf-8") as f:
-                found = any(line.startswith(day_str + ",") for line in f)
+                n = sum(1 for line in f if line.startswith(day_str + ","))
+                found = n >= MIN_ROWS.get(name, 1)
         present[name] = found
     return present
 

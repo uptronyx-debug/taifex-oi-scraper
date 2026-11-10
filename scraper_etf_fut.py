@@ -52,18 +52,25 @@ def norm_date(s):
 def yuanta():
     """00631L：頁面 HTML 內嵌 FutureWeights；日期取頁面上的「交易日期」。"""
     t = get("https://www.yuantaetfs.com/product/detail/00631L/ratio").text
-    i = t.find("FutureWeights:[")
-    if i < 0:
-        raise RuntimeError("元大頁面找不到 FutureWeights")
-    seg = t[i: t.find("]", i)]
-    lots = sum(int(q) for q in re.findall(r'name:"臺股期貨"[^}]*?qty:(\d+)', seg))
+    # 主要：伺服器端渲染的表格文字「TX 臺股期貨 55300 158.49 202611」，依契約月份去重（手機/桌機版各一份）
+    txt = re.sub(r"\s+", " ", htmlmod.unescape(re.sub(r"<[^>]+>", " ", t)))
+    by_ym = {ym: int(q.replace(",", "")) for q, ym in
+             re.findall(r"\bTX 臺股期貨 ([\d,]+) [\d.]+ (\d{6})", txt)}
+    if not by_ym:
+        # 備用：內嵌資料 FutureWeights（臺股期貨字樣可能被壓縮成變數，所以也認 TAIEX FUTURE）
+        i = t.find("FutureWeights:[")
+        seg = t[i: t.find("]", i)] if i >= 0 else ""
+        for k, obj in enumerate(re.findall(r"\{[^{}]*\}", seg)):
+            if "臺股期貨" in obj or "TAIEX FUTURE" in obj:
+                q = re.search(r"qty:(\d+)", obj)
+                if q:
+                    by_ym[k] = int(q.group(1))
+    lots = sum(by_ym.values())
     if not lots:
-        raise RuntimeError("元大找不到臺股期貨口數：" + seg[:300])
-    # 日期：找 FundWeights 附近的日期字串
-    j = t.rfind("FundWeights", 0, i)
-    near = t[max(0, (j if j >= 0 else i) - 3000): i]
-    ds = re.findall(r'"(\d{4}(?:\\u002F|/|-)\d{2}(?:\\u002F|/|-)\d{2})', near)
-    d = norm_date(ds[-1].replace("\\u002F", "/")) if ds else None
+        raise RuntimeError("元大找不到臺股期貨口數")
+    # 日期：頁面上的「交易日期: 2026/11/10」（伺服器端已渲染）
+    m = re.search(r"交易日期[:：](?:\s|<[^>]+>)*(\d{4}/\d{1,2}/\d{1,2})", t)
+    d = norm_date(m.group(1)) if m else None
     return d, lots
 
 
@@ -94,7 +101,9 @@ def fubon():
     txt = re.sub(r"\s+", " ", txt)
     m = re.search(r"資料日期[:：]\s*(\d{4}/\d{1,2}/\d{1,2})", txt)
     d = norm_date(m.group(1)) if m else None
-    lots = sum(int(n.replace(",", "")) for n in re.findall(r"台股指數期貨\s+([\d,]+)", txt))
+    by_ym = {ym: int(n.replace(",", "")) for ym, n in
+             re.findall(r"(\d{4}/\d{1,2})\s*台股指數期貨\s+([\d,]+)", txt)}
+    lots = sum(by_ym.values())
     if not lots:
         raise RuntimeError("富邦找不到台股指數期貨口數")
     return d, lots

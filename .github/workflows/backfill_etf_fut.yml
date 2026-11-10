@@ -1,0 +1,30 @@
+name: 補資料：正2 ETF 期貨口數（群益歷史）
+on:
+  workflow_dispatch:
+    inputs:
+      start_date: {description: "起日 YYYY/MM/DD", default: "2025/10/01"}
+      end_date: {description: "迄日 YYYY/MM/DD", default: ""}
+permissions:
+  contents: write
+concurrency: {group: scrape, cancel-in-progress: false}
+jobs:
+  b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env: {TZ: Asia/Taipei}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.11"}
+      - run: pip install -r requirements.txt
+      - run: |
+          END="${{ inputs.end_date }}"; [ -z "$END" ] && END=$(date +%Y/%m/%d)
+          python scraper_etf_fut.py --backfill-capital "${{ inputs.start_date }}" "$END"
+          python scraper_etf_fut.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git add data/etf_fut.csv
+          git diff --cached --quiet && exit 0
+          git commit -qm "補資料：正2 ETF 期貨口數"
+          for i in 1 2 3; do git push -q origin HEAD:main && break; git pull -q --rebase origin main; done
