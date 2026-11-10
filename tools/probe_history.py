@@ -1,14 +1,8 @@
-import re, requests
-H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36"}
-s = requests.Session(); s.headers.update(H)
-v = s.get("https://www.taifex.com.tw/cht/3/futContractsDateView", timeout=60).text
-for f in re.findall(r"<form[^>]*>.*?</form>", v, re.S):
-    print("FORM", re.findall(r"<form[^>]*>", f), re.findall(r'<input[^>]*>', f)[:30])
-for m in re.finditer(r"(firstDate|lastDate|DateDown|三年|3年|1998|2007)", v):
-    print("CTX", v[max(0, m.start()-200):m.end()+200].replace("\n", " "))
-for (a, b) in [("2021/11/01", "2021/11/05"), ("2024/11/04", "2024/11/06")]:
-    for extra in [{}, {"firstDate": "2007/07/02 00:00", "lastDate": "2026/11/10 00:00"}]:
-        d = {"down_type": "1", "queryStartDate": a, "queryEndDate": b, "commodityId": "TXF", **extra}
-        r = s.post("https://www.taifex.com.tw/cht/3/futContractsDateDown", data=d, timeout=60)
-        t = r.content.decode("big5", "replace") if "csv" in r.headers.get("content-type", "") or "octet" in r.headers.get("content-type", "") else r.text
-        print("DOWN", a, b, extra, r.headers.get("content-type"), len(r.content)); print(t[:700])
+import requests, json
+u = "https://api.finmindtrade.com/api/v4/data"
+for s, e in [("2021/11/01", "2021/11/03"), ("2024-11-04", "2024-11-04")]:
+    r = requests.get(u, params={"dataset": "TaiwanFuturesInstitutionalInvestors", "data_id": "TX", "start_date": s.replace("/", "-"), "end_date": e.replace("/", "-")}, timeout=60)
+    print(r.status_code, r.text[:1500])
+r = requests.get(u, params={"dataset": "TaiwanFuturesInstitutionalInvestors", "data_id": "TX", "start_date": "2021-11-01", "end_date": "2023-11-10"}, timeout=120)
+j = r.json(); d = j.get("data", [])
+print("RANGE", r.status_code, j.get("msg"), len(d), d[:1], d[-1:] if d else None)
