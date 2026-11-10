@@ -1646,7 +1646,8 @@ function renderMarginTop() {
 
 let SHOW_HEDGE = false, HEDGE_PERIOD = 126;
 function toggleHedge() { SHOW_HEDGE = !SHOW_HEDGE; renderHedge(); }
-function setHedgePeriod(n) { HEDGE_PERIOD = n; renderHedge(); }
+function setHedgePeriod(n) { HEDGE_PERIOD = n; try { localStorage.setItem("hedgePeriod", n); } catch (e) {} renderHedge(); }
+try { const hp = Number(localStorage.getItem("hedgePeriod")); if ([126, 252, 756, 1260].includes(hp)) HEDGE_PERIOD = hp; } catch (e) {}
 
 // 兩條線各用自己的比例尺（無 Y 軸），用提示框看數值
 function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB) {
@@ -1673,6 +1674,7 @@ function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB) {
 
 function hedgePanel(data) {
   const tx = {};
+  (TAIEX_ROWS || []).forEach(r => { tx[r.date] = Number(r.taiex); });
   (MARGIN_ROWS || []).forEach(r => { tx[r.date] = Number(r.taiex); });
   const all = data.filter(r => tx[r.date]);
   if (all.length < 30) return `<div class="swing-panel"><div class="swing-note">資料不足</div></div>`;
@@ -1710,7 +1712,7 @@ function hedgePanel(data) {
   return `<div class="swing-panel">
     <div class="hedge-head">
       <div class="swing-title" style="margin:0">避險比例歷史統計</div>
-      <div class="seg"><button class="${HEDGE_PERIOD === 126 ? "on" : ""}" onclick="setHedgePeriod(126)">近半年</button><button class="${HEDGE_PERIOD === 252 ? "on" : ""}" onclick="setHedgePeriod(252)">近一年</button></div>
+      <div class="seg">${[[126, "半年"], [252, "1年"], [756, "3年"], [1260, "5年"]].map(([n, l]) => `<button class="${HEDGE_PERIOD === n ? "on" : ""}" onclick="setHedgePeriod(${n})">${l}</button>`).join("")}</div>
     </div>
     <div class="swing-sum">
       <div><b>${pp(cur)}</b><span>目前（第 ${Math.round(rank * 100)} 百分位）</span></div>
@@ -1727,7 +1729,7 @@ function hedgePanel(data) {
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>避險比例</th><th>區間</th><th class="hide-m">天數</th><th>之後 5 日</th><th>之後 20 日</th></tr></thead>
       <tbody>${gtr}</tbody></table></div>
-    <div class="swing-note">共 ${per.length} 個交易日。相關係數接近 −1 代表指數越低、避險比例越高；分組報酬只是過去統計，最近的日子還沒有「之後 20 日」資料。</div>
+    <div class="swing-note">${per[0].date} 起共 ${per.length} 個交易日${per.length < HEDGE_PERIOD - 5 ? "（歷史資料只到這裡）" : ""}。相關係數接近 −1 代表指數越低、避險比例越高；分組報酬只是過去統計，最近的日子還沒有「之後 20 日」資料。</div>
   </div>`;
 }
 
@@ -1780,7 +1782,7 @@ function renderHedge() {
 // 再用「該編號」讀檔，拿到的一定是最新版本。查不到編號（例如 API 次數用完）才退回 main。
 const REPO = "uptronyx-debug/taifex-oi-scraper";
 let CUR_REF = null, LAST_CHECK = 0;
-let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null, MTOP_ROWS = null, HOLD_ROWS = null, ETF_ROWS = null;
+let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null, MTOP_ROWS = null, HOLD_ROWS = null, ETF_ROWS = null, TAIEX_ROWS = null;
 
 async function latestSha() {
   try {
@@ -1797,8 +1799,8 @@ async function getCsv(name, ref) {
   return parseCSV(await r.text());
 }
 async function loadAll(ref) {
-  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv"];
-  const [opt, strike, fut, txm, spot, mg, mtop, hold, etf] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
+  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv", "taiex.csv"];
+  const [opt, strike, fut, txm, spot, mg, mtop, hold, etf, tai] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
   if (opt.status === "fulfilled" && opt.value.length) { render(opt.value); renderTrend(opt.value); }
   else if (!CUR_REF) {
     const st = document.getElementById("status");
@@ -1815,6 +1817,7 @@ async function loadAll(ref) {
   else if (!MARGIN_ROWS) document.getElementById("marginBox").innerHTML = `<div class="note">尚無融資資料</div>`;
   if (mtop.status === "fulfilled") { MTOP_ROWS = mtop.value; renderMarginTop(); }
   if (hold.status === "fulfilled") HOLD_ROWS = hold.value;
+  if (tai.status === "fulfilled") TAIEX_ROWS = tai.value;
   renderHedge();
   if (etf.status === "fulfilled") { ETF_ROWS = etf.value; renderEtfFut(); }
   CUR_REF = ref;
