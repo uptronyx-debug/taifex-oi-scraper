@@ -538,6 +538,7 @@
   .top-ctrl{ display:flex; align-items:center; gap:10px; }
   .fld span{ white-space:nowrap; }
   .day-total{ font-size:13px; color:var(--text-muted); margin-bottom:10px; }
+  .etf-note{ display:block; font-size:11px; color:var(--text-muted); margin-top:3px; }
   .day-total b{ font-family:'Roboto Mono', monospace; font-size:15px; }
   .seg{ display:inline-flex; border:1px solid var(--divider); border-radius:999px; padding:2px; }
   .seg button{ background:none; border:none; color:var(--text-muted); padding:4px 12px; border-radius:999px; font-size:12px; cursor:pointer; font-family:inherit; }
@@ -1534,7 +1535,11 @@ function renderMarginTop() {
         <td class="${side === "inc" ? "pos" : "neg"}">${yiS(r.change_amount)}</td><td class="hide-m">${lots(r.change_lots)}</td></tr>`).join("");
     const tbl = (title, side) => `<div class="top-col"><div class="top-title ${side === "inc" ? "pos" : "neg"}">${title}</div>
       <table class="trend-table top-table"><thead><tr><th></th><th>個股</th><th>金額(億)</th><th class="hide-m">張數</th></tr></thead><tbody>${list(side)}</tbody></table></div>`;
-    body = `${dayTotal === null ? "" : `<div class="day-total">當日全市場融資 <b class="${signCls(dayTotal)}">${(dayTotal > 0 ? "+" : "") + dayTotal.toFixed(1)} 億</b></div>`}
+    const etfIn = rowsAll.filter(r => r.date === d && r.scope === "all" && r.code.startsWith("00"));
+    const etfNote = MTOP_SCOPE === "all"
+      ? (etfIn.length ? `<span class="etf-note">含 ETF：${etfIn.map(r => r.name).join("、")}</span>` : `<span class="etf-note">當日前 5 名沒有 ETF，與「只看個股」相同</span>`)
+      : (etfIn.length ? `<span class="etf-note">已排除：${etfIn.map(r => r.name).join("、")}</span>` : `<span class="etf-note">當日前 5 名沒有 ETF，與「含 ETF」相同</span>`);
+    body = `<div class="day-total">${dayTotal === null ? "" : `當日全市場融資 <b class="${signCls(dayTotal)}">${(dayTotal > 0 ? "+" : "") + dayTotal.toFixed(1)} 億</b>`}${etfNote}</div>
       <div class="top-grid">${tbl("資增前 5", "inc")}${tbl("資減前 5", "dec")}</div>`;
   } else {
     const win = dates.filter(x => x <= d).slice(-30);
