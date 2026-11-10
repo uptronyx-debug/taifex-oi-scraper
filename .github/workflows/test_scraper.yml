@@ -13,7 +13,7 @@ jobs:
           python-version: "3.11"
       - run: pip install playwright && python -m playwright install --with-deps chromium
       - run: |
-          python tools/probe_etf.py > probe_output.txt 2>&1 || true
+          pip install requests && python tools/probe_etf.py > probe_output.txt 2>&1 || true
           git config user.name bot && git config user.email bot@x
           git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
           git push -f origin probe-output
