@@ -2,7 +2,7 @@ name: 補資料：避險比例長期歷史（期貨三大法人、外資持股�
 on:
   workflow_dispatch:
     inputs:
-      start_date: {description: "起日 YYYY/MM/DD", required: true, default: "2021/11/01"}
+      start_date: {description: "起日 YYYY/MM/DD", required: true, default: "2021/10/01"}
       end_date: {description: "迄日 YYYY/MM/DD（不含已有的資料）", required: true, default: "2025/09/30"}
       test_only: {description: "只測試不寫入（yes/no）", required: true, default: "yes"}
 permissions:
@@ -21,8 +21,10 @@ jobs:
       - run: pip install -r requirements.txt
       - name: 測試模式
         if: inputs.test_only == 'yes'
+        env: {DATA_DIR: newdata}
         run: |
-          python tools/probe_history.py > probe_output.txt 2>&1 || true
+          mkdir -p newdata
+          { python scraper_fut_finmind.py --backfill 2021/10/01 2021/10/08; python scraper_futures.py --backfill 2023/11/09 2023/11/14; python scraper_foreign_hold.py --backfill 2021/10/01 2021/10/05; python scraper_taiex.py --backfill 2021/10/01 2021/10/31; head -50 newdata/*.csv; } > probe_output.txt 2>&1 || true
           git config user.name bot && git config user.email bot@x
           git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
           git push -f origin probe-output
@@ -32,7 +34,9 @@ jobs:
         run: |
           mkdir -p newdata
           python scraper_taiex.py --backfill "$START" "$(date +%Y/%m/%d)"
-          python scraper_futures.py --backfill "$START" "$END"
+          # 期交所只給近三年（2023/11/10 起），更早的大台用 FinMind
+          python scraper_fut_finmind.py --backfill "$START" "2023/11/09"
+          python scraper_futures.py --backfill "2023/11/10" "$END"
           python scraper_foreign_hold.py --backfill "$START" "$END"
       - name: 併入正式資料（只加正式檔沒有的日期）
         if: ${{ inputs.test_only != 'yes' && !cancelled() }}
