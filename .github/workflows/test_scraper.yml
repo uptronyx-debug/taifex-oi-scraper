@@ -1,11 +1,16 @@
-name: 測試（暫時，不寫入 data）
+name: 測試（暫時）
 on:
   workflow_dispatch: {}
 permissions:
   contents: write
+concurrency:
+  group: scrape
+  cancel-in-progress: false
 jobs:
   t:
     runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Taipei
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -13,7 +18,8 @@ jobs:
           python-version: "3.11"
       - run: pip install requests
       - run: |
-          python tools/probe_etf.py > probe_output.txt 2>&1 || true
-          git config user.name bot && git config user.email bot@x
-          git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
-          git push -f origin probe-output
+          python scraper_etf_fut.py
+          git config user.name "uptronyx-debug"
+          git config user.email "uptronyx-debug@users.noreply.github.com"
+          git add data/etf_fut.csv
+          git diff --cached --quiet || (git commit -m "auto: 補 00631L 口數" && git pull --rebase && git push)

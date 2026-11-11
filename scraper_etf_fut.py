@@ -55,17 +55,19 @@ def yuanta():
     t = get("https://www.yuantaetfs.com/product/detail/00631L/ratio").text
     # 主要：伺服器端渲染的表格文字「TX 臺股期貨 55300 158.49 202611」，依契約月份去重（手機/桌機版各一份）
     txt = re.sub(r"\s+", " ", htmlmod.unescape(re.sub(r"<[^>]+>", " ", t)))
-    by_ym = {ym: int(q.replace(",", "")) for q, ym in
-             re.findall(r"\bTX 臺股期貨 ([\d,]+) [\d.]+ (\d{6})", txt)}
+    # 兩種版面都認：「TX 臺股期貨 55300 158.49 202611」或「商品代碼 TX 商品名稱 臺股期貨 商品數量 56150 商品權重 155.59 商品年月 202611」
+    by_ym = {ym: int(q.replace(",", "")) for q, ym in re.findall(
+        r"\bTX (?:商品名稱 )?臺股期貨 (?:商品數量 )?([\d,]+) (?:商品權重 )?[\d.]+ (?:商品年月 )?(\d{6})", txt)}
     if not by_ym:
-        # 備用：內嵌資料 FutureWeights（臺股期貨字樣可能被壓縮成變數，所以也認 TAIEX FUTURE）
+        # 備用：內嵌資料 FutureWeights（字樣常被壓縮成變數；排除台灣50 ETF 股票期貨 SSF）
         i = t.find("FutureWeights:[")
         seg = t[i: t.find("]", i)] if i >= 0 else ""
         for k, obj in enumerate(re.findall(r"\{[^{}]*\}", seg)):
-            if "臺股期貨" in obj or "TAIEX FUTURE" in obj:
-                q = re.search(r"qty:(\d+)", obj)
-                if q:
-                    by_ym[k] = int(q.group(1))
+            if "SSF" in obj or "ETF" in obj or "股票期貨" in obj:
+                continue
+            q = re.search(r"qty:(\d+)", obj)
+            if q:
+                by_ym[k] = int(q.group(1))
     lots = sum(by_ym.values())
     if not lots:
         raise RuntimeError("元大找不到臺股期貨口數")
