@@ -1,0 +1,17 @@
+// Cloudflare Worker（只放靜態檔案）：期權玩家 → https://options.uptronyx.com
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "options-player",
+  "compatibility_date": "2026-11-01",
+  // 整個 repo 當網站根目錄；不該公開的檔案由 .assetsignore 排除
+  "assets": {
+    "directory": ".",
+    "not_found_handling": "none"
+  },
+  // 部署時自動綁定自訂網域（DNS 由 Cloudflare 自動建立）
+  "routes": [
+    { "pattern": "options.uptronyx.com", "custom_domain": true }
+  ],
+  "workers_dev": false,
+  "preview_urls": false
+}

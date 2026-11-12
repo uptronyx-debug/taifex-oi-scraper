@@ -1,0 +1,31 @@
+name: cf-test
+on:
+  push:
+    branches: [cf-test]
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: |
+          (npx --yes wrangler@4 --version; npx --yes wrangler@4 deploy --dry-run --outdir /tmp/out) > probe_output.txt 2>&1 || true
+          echo "--- 會公開的檔案（排除 data 內容）" >> probe_output.txt
+          python3 - >> probe_output.txt <<'PY'
+          import fnmatch, os
+          pats=[l.strip() for l in open('.assetsignore') if l.strip() and not l.startswith('#')]
+          for root,dirs,files in os.walk('.'):
+              rel=os.path.relpath(root,'.')
+              for f in files:
+                  p=os.path.normpath(os.path.join(rel,f))
+                  parts=p.split(os.sep)
+                  if any(fnmatch.fnmatch(x,pt) for pt in pats for x in parts): continue
+                  if p.startswith('data'+os.sep): continue
+                  print(p)
+          PY
+          git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
+          git push -f origin probe-output

@@ -1,0 +1,14 @@
+# 不公開到網站的檔案（只留網頁、圖示、data/）
+.git
+.github
+.gitignore
+.assetsignore
+wrangler.jsonc
+node_modules
+__pycache__
+tools
+*.py
+*.pyc
+requirements.txt
+probe_output.txt
+newdata
