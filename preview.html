@@ -849,10 +849,11 @@ function lineChartSvg(series, labels) {
     `<path d="${pathFor(ld.key)}" fill="none" stroke="${ld.color}" stroke-width="2.2" stroke-dasharray="${ld.dash}"/>`
   ).join("");
 
+  const lstep = Math.max(2, Math.ceil(n / 6));
   const xl = (labels || []).map((l, i) => {
     const anchor = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
-    return (i % 2 === 0 || i === n - 1) && !(i === n - 2)
-      ? `<text x="${x(i).toFixed(1)}" y="${height - 6}" font-size="9" fill="var(--text-muted)" text-anchor="${anchor}">${l.slice(5)}</text>` : "";
+    return (i === n - 1 || (i % lstep === 0 && n - 1 - i >= lstep * 0.75))
+      ? `<text x="${x(i).toFixed(1)}" y="${height - 6}" font-size="9" fill="var(--text-muted)" text-anchor="${anchor}">${xLab(l, labels)}</text>` : "";
   }).join("");
   const pts = series.map((s, i) => ({
     x: +x(i).toFixed(1),
@@ -873,6 +874,7 @@ const CHART_LEGEND = `
 function trendTableHtml(dates, series) {
   const legKeys = ["bc", "sc", "bp", "sp"];
   const rows = dates.map((d, i) => {
+    if (i < dates.length - 20) return "";   // 表格最多 20 天
     const s = series[i];
     const cells = legKeys.map(k => `<td>${fmtYi(s[k])}</td>`).join("");
     return `<tr><td>${d.slice(5)}</td>${cells}</tr>`;
@@ -885,14 +887,15 @@ function trendTableHtml(dates, series) {
 
 function renderTrend(allRows) {
   const box = document.getElementById("trend");
-  const dates = [...new Set(allRows.map(r => r.date))].sort().slice(-10);
+  const dates = inPeriod([...new Set(allRows.map(r => r.date))].sort(), "opt");
   if (dates.length === 0) { box.style.display = "none"; return; }
+  const short = isShort(dates, "opt");
 
   const foreignSeries = buildSeries(allRows, "foreign", dates);
   const dealerSeries  = buildSeries(allRows, "dealer", dates);
 
   box.innerHTML = `
-    <h2>近 10 日部位變化<span class="h2-unit">未平倉金額・億元</span></h2>
+    <div class="hedge-head" style="margin-bottom:6px"><h2 style="margin:0">部位變化<span class="h2-unit">未平倉金額・億元・${short ? `${dates[0]} 起` : `近 ${dates.length} 日`}</span></h2>${periodSeg("opt")}</div>
     <div class="trend-grid">
       <div class="trend-inst">
         <h3>外資</h3>
@@ -1298,7 +1301,7 @@ function renderSettle() {
 // ================= 時段按鈕（各區塊獨立，預設 1 個月，不記憶） =================
 // 以「月」為單位，從最新一天往回推（5年＝最新日往前 60 個月）
 const PERIODS = [[1, "1個月"], [6, "半年"], [12, "1年"], [60, "5年"]];
-const PERIOD = { fut: 1, etf: 1, hedge: 1, hold: 1 };
+const PERIOD = { fut: 1, etf: 1, hedge: 1, hold: 1, opt: 1, spot: 1, mdaily: 1, mtop: 1 };
 const cutoffOf = (last, m) => { const d = new Date(last.replace(/\//g, "-") + "T00:00:00Z"); d.setUTCMonth(d.getUTCMonth() - m); return d.toISOString().slice(0, 10).replace(/-/g, "/"); };
 const inPeriod = (arr, k, key = x => x) => { if (!arr.length) return arr; const c = cutoffOf(key(arr[arr.length - 1]), PERIOD[k]); return arr.filter(x => key(x) > c); };
 // 資料起點比所選時段晚 10 天以上＝歷史不足
@@ -1308,6 +1311,10 @@ function setPeriod(k, n) {
   if (k === "fut" && FUT_ROWS) renderFutures(FUT_ROWS);
   else if (k === "etf" && ETF_ROWS) renderEtfFut();
   else if (k === "hedge" || k === "hold") renderHedge();
+  else if (k === "opt" && OPT_ROWS) renderTrend(OPT_ROWS);
+  else if (k === "spot" && SPOT_ROWS) renderSpot(SPOT_ROWS);
+  else if (k === "mdaily") renderMargin();
+  else if (k === "mtop") renderMarginTop();
 }
 const periodSeg = k => `<div class="seg">${PERIODS.map(([n, l]) => `<button class="${PERIOD[k] === n ? "on" : ""}" onclick="setPeriod('${k}',${n})">${l}</button>`).join("")}</div>`;
 // 圖表標題＋時段按鈕；資料不足所選時段時註明起始日
@@ -1503,8 +1510,8 @@ function renderSpot(rows) {
     ${statHtml("自營商（億）", t.dealer, fmtYi2(t.dealer), "", false)}
   </div>`;
 
-  const last20 = data.slice(-30);
-  const last10 = data.slice(-10).reverse();
+  const last20 = inPeriod(data, "spot", r => r.date);
+  const last10 = data.slice(-20).reverse();
   const td = v => `<td class="${signCls(v)}">${fmtYi2(v)}</td>`;
   const tableRows = last10.map(r => `<tr><td>${r.date.slice(5)}</td>${td(r.foreign)}${td(r.trust)}${td(r.dealer)}${td(r.total)}</tr>`).join("");
   const sum5 = data.slice(-5).reduce((a, r) => a + r.foreign, 0);
@@ -1514,7 +1521,8 @@ function renderSpot(rows) {
     <h2>三大法人現貨買賣超</h2>
     <div class="sub">資料日期 ${t.date}・集中市場・億元・外資含外資自營商</div>
     ${stats}
-    <div class="chart-title chart-title-row"><span>外資（億）・近 ${last20.length} 日</span><span>5 日 <b class="${signCls(sum5)}">${fmtYi2(sum5)}</b>　${last20.length} 日 <b class="${signCls(sum20)}">${fmtYi2(sum20)}</b></span></div>
+    ${periodHead("外資（億）", "spot", last20.map(r => r.date))}
+    <div class="chart-title chart-title-row" style="margin-top:0"><span></span><span>5 日 <b class="${signCls(sum5)}">${fmtYi2(sum5)}</b>　${last20.length} 日 <b class="${signCls(sum20)}">${fmtYi2(sum20)}</b></span></div>
     ${barChartSvg(last20.map(r => r.foreign), last20.map(r => r.date), v => fmtYi2(v) + " 億")}
     <div class="chart-title">投信（億）</div>
     ${barChartSvg(last20.map(r => r.trust), last20.map(r => r.date), v => fmtYi2(v) + " 億")}
@@ -1586,7 +1594,7 @@ function pairBarSvg(idx, mg, labels, warn) {
   }).join("");
   const step = Math.ceil(idx.length / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === labels.length - 1 || (i % step === 0 && labels.length - 1 - i >= step * 0.75))
-    ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${l.slice(5)}</text>` : "").join("");
+    ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${xLab(l, labels)}</text>` : "").join("");
   const grid = [maxAbs, 0, -maxAbs].map(v => {
     const yy = y0 - v * sc;
     return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
@@ -1732,14 +1740,15 @@ function renderMargin() {
   ], since.map(r => r.date));
 
   // 每日對照（近 30 日）
-  const daily = upto.slice(-31).map((r, i, a) => i === 0 ? null : {
+  const per = inPeriod(upto, "mdaily", r => r.date);
+  const daily = upto.slice(-(per.length + 1)).map((r, i, a) => i === 0 ? null : {
     date: r.date, idx: r.taiex / a[i - 1].taiex - 1, amt: r.amt / a[i - 1].amt - 1,
     amtDiff: r.amt - a[i - 1].amt, lotDiff: r.lots - a[i - 1].lots,
   }).filter(Boolean);
   const warn = daily.map(d => d.idx < 0 && d.amt > 0);
   const warnCount = warn.slice(-5).filter(Boolean).length;
 
-  const tableRows = upto.slice(-11).map((r, i, a) => {
+  const tableRows = upto.slice(-21).map((r, i, a) => {
     if (i === 0) return "";
     const p = a[i - 1];
     const di = r.taiex / p.taiex - 1, da = r.amt - p.amt, dl = r.lots - p.lots;
@@ -1765,7 +1774,8 @@ function renderMargin() {
       <span class="legend-item"><span class="swatch dash" style="border-color:var(--margin)"></span>融資張數</span>
     </div>
     ${lineChart}
-    <div class="chart-title chart-title-row"><span>每日對照（%）・近 ${daily.length} 日</span><span>近 5 日指數跌融資增 <b style="color:${warnCount ? "var(--gold)" : "var(--text-muted)"}">${warnCount} 天</b></span></div>
+    ${periodHead("每日對照（%）", "mdaily", daily.map(d => d.date))}
+    <div class="chart-title chart-title-row" style="margin-top:0"><span></span><span>近 5 日指數跌融資增 <b style="color:${warnCount ? "var(--gold)" : "var(--text-muted)"}">${warnCount} 天</b></span></div>
     <div class="trend-legend">
       <span class="legend-item"><span class="sq" style="background:var(--text-muted)"></span>指數</span>
       <span class="legend-item"><span class="sq" style="background:var(--margin)"></span>融資金額</span>
@@ -1812,7 +1822,7 @@ function renderMarginTop() {
     body = `<div class="day-total">${dayTotal === null ? "" : `當日全市場融資 <b class="${signCls(dayTotal)}">${(dayTotal > 0 ? "+" : "") + dayTotal.toFixed(1)} 億</b>`}${etfNote}</div>
       <div class="top-grid">${tbl("資增前 5", "inc")}${tbl("資減前 5", "dec")}</div>`;
   } else {
-    const win = dates.filter(x => x <= d).slice(-30);
+    const win = inPeriod(dates.filter(x => x <= d), "mtop");
     const agg = side => {
       const m = {};
       rows.filter(r => r.side === side && win.includes(r.date)).forEach(r => {
@@ -1826,7 +1836,7 @@ function renderMarginTop() {
       <table class="trend-table top-table"><thead><tr><th>個股</th><th>次數</th><th>累計(億)</th><th class="hide-m">最近</th></tr></thead><tbody>
       ${agg(side).map(x => `<tr><td class="nm">${x.name}<span class="cd">${x.code}</span></td><td>${x.n}</td>
         <td class="${side === "inc" ? "pos" : "neg"}">${yiS(x.sum)}</td><td class="hide-m">${x.last.slice(5)}</td></tr>`).join("")}</tbody></table></div>`;
-    body = `<div class="sub" style="margin:0 0 8px">${win[0]} ～ ${win[win.length - 1]}，${win.length} 個交易日的上榜次數與累計金額</div>
+    body = `<div class="hedge-head" style="margin:0 0 8px"><div class="sub" style="margin:0">${win[0]} ～ ${win[win.length - 1]}，${win.length} 個交易日的上榜次數與累計金額</div>${periodSeg("mtop")}</div>
       <div class="top-grid">${tbl("資增上榜", "inc")}${tbl("資減上榜", "dec")}</div>`;
   }
   const opts = dates.slice().reverse().map(x => `<option value="${x}" ${x === d ? "selected" : ""}>${x}</option>`).join("");
