@@ -63,6 +63,7 @@ HEADERS = {
 
 # 🔶 假設的表單欄位名稱。若第一個候選失敗，會依序嘗試下一個。
 PAYLOAD_FIELD_CANDIDATES = [
+    {"queryType": "1", "doQuery": "1", "queryDate": "{date}", "commodityId": ""},   # 查歷史日期要用這組
     {"queryDate": "{date}", "commodity_id": ""},
     {"queryStartDate": "{date}", "commodity_id": ""},
     {"queryDate": "{date}"},
