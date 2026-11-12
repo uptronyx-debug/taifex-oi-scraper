@@ -474,16 +474,39 @@
   .signal-title{ font-size:13px; color:var(--text-muted); font-weight:600; }
   .signal{ display:flex; align-items:center; gap:8px; }
   .signal-who{ font-size:14px; font-weight:600; }
-  .settle-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-  @media (max-width:700px){ .settle-grid{ grid-template-columns:1fr; } }
-  .settle-verdict{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:4px 0 14px; }
-  .settle-verdict .big{ font-family:'Noto Serif TC', serif; font-size:24px; font-weight:700; }
-  .settle-table td.b, .settle-table td.s{ font-weight:700; text-align:center; }
-  .settle-table td.b{ color:var(--long); } .settle-table td.s{ color:var(--short); }
-  .settle-table td.c{ text-align:center; color:var(--text-muted); }
-  .settle-table tr.retail td{ background:var(--surface-2); }
-  .lv{ display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--divider); font-size:13px; }
-  .lv b{ font-family:'Roboto Mono', monospace; }
+  .settle-grid{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .settle-grid > .card{ margin-bottom:24px; }
+  @media (max-width:900px){ .settle-grid{ grid-template-columns:1fr; gap:0; } }
+  .settle-quad th, .settle-quad td{ text-align:center; }
+  .settle-quad th:first-child, .settle-quad td:first-child{ text-align:left; color:var(--text-muted); }
+  .settle-quad td.b, .settle-quad td.s{ font-weight:700; }
+  .settle-quad td.b{ color:var(--long); } .settle-quad td.s{ color:var(--short); }
+  .settle-quad td.c{ color:var(--text-muted); }
+  .settle-quad tr.retail td{ background:var(--surface-2); font-weight:700; }
+  .settle-quad tr.retail td:first-child{ color:var(--text); }
+  .settle-chip th, .settle-chip td{ text-align:right; white-space:nowrap; }
+  .settle-chip th:first-child, .settle-chip td:first-child{ text-align:left; }
+  .settle-bt th, .settle-bt td{ text-align:right; }
+  .settle-bt th:first-child, .settle-bt td:first-child{ text-align:left; }
+  .muted{ color:var(--text-muted); }
+  .ladder{ font-size:13px; }
+  .lad{ display:grid; grid-template-columns:minmax(130px,auto) 1fr 104px; gap:10px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--divider); }
+  .lad > span:first-child{ display:flex; justify-content:space-between; gap:8px; }
+  .lad em{ font-style:normal; color:var(--text-muted); font-family:'Roboto Mono', monospace; font-size:12px; }
+  .lad > b{ font-family:'Roboto Mono', monospace; text-align:right; display:flex; justify-content:flex-end; gap:8px; }
+  .lad > b em{ min-width:48px; text-align:right; }
+  .lad-bar{ height:8px; background:transparent; }
+  .lad-bar i{ display:block; height:100%; border-radius:4px; }
+  .lad.call .lad-bar i{ background:var(--long); opacity:.75; }
+  .lad.put .lad-bar i{ background:var(--short); opacity:.75; }
+  .lad.zone{ background:var(--surface-2); }
+  .lad.now{ font-weight:700; border-bottom:2px solid var(--text); }
+  .lad.now .lad-bar i{ height:0; border-top:2px dashed var(--text-muted); border-radius:0; margin-top:3px; }
+  .lad.line{ font-weight:700; }
+  .lad.line .lad-bar i{ display:block; width:100%; height:0; border-top:1.5px dashed currentColor; border-radius:0; margin-top:3px; }
+  @media (max-width:700px){ #settleBox .stat-grid.three{ grid-template-columns:repeat(3,1fr); } }
+  .lad-foot{ font-size:12px; color:var(--text-muted); padding-top:10px; }
+  @media (max-width:700px){ .lad{ grid-template-columns:118px 1fr 92px; gap:6px; padding:6px 4px; } .lad > b em{ min-width:40px; } }
   .chip{
     display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px;
     font-family:'Roboto Mono', monospace; font-size:13px; line-height:1.4;
@@ -1224,24 +1247,25 @@ function renderSettle() {
 
   const BS = x => x === "B" ? `<td class="b">Buy</td>` : x === "S" ? `<td class="s">Sell</td>` : `<td class="c">—</td>`;
   const yi = v => (v / 1e5).toFixed(2), sg = v => (Number(String(v).replace(/,/g, "")) > 0 ? "+" : "") + v;
+  const n0 = v => Math.round(v).toLocaleString();
   const inv = [["foreign", "外資"], ["dealer", "自營商"]];
-  const chipTable = `<div class="table-scroll"><table class="trend-table settle-table">
-    <tr><th></th><th></th><th>淨部位</th><th>前一日變化</th><th>推論</th></tr>
-    ${inv.map(([k, n]) => ["call", "put"].map((t, j) => { const o = cur.out[k + t]; return `<tr>
-      ${j === 0 ? `<td rowspan="2"><b>${n}</b></td>` : ""}<td>${t === "call" ? "Call" : "Put"}</td>
-      <td class="num">${yi(o.nv)} 億<br>${o.nl.toLocaleString()} 口</td>
-      <td class="num"><span class="${signCls(o.dv)}">${sg(yi(o.dv))} 億</span><br><span class="${signCls(o.dl)}">${sg(o.dl.toLocaleString())} 口</span></td>
-      <td>價內 ${o.itm === "B" ? "Buy" : "Sell"}・價外 ${o.otm === "B" ? "Buy" : "Sell"}</td></tr>`; }).join("")).join("")}
+  const tag = x => `<span class="${x === "B" ? "pos" : "neg"}">${x === "B" ? "Buy" : "Sell"}</span>`;
+  const chipTable = `<div class="table-scroll"><table class="trend-table settle-chip">
+    <thead><tr><th></th><th class="hide-m">淨額(億)</th><th class="hide-m">淨口數</th><th>變化(億)</th><th>變化(口)</th><th>價內</th><th>價外</th></tr></thead>
+    <tbody>${inv.map(([k, n]) => ["call", "put"].map(t => { const o = cur.out[k + t]; return `<tr>
+      <td>${n} ${t === "call" ? "Call" : "Put"}</td>
+      <td class="hide-m">${yi(o.nv)}</td><td class="hide-m">${o.nl.toLocaleString()}</td>
+      <td class="${signCls(o.dv)}">${sg(yi(o.dv))}</td><td class="${signCls(o.dl)}">${sg(o.dl.toLocaleString())}</td>
+      <td>${tag(o.itm)}</td><td>${tag(o.otm)}</td></tr>`; }).join("")).join("")}</tbody>
   </table></div>`;
   const cell = (t, m) => cur.cells.find(c => c.t === t && c.m === m);
   const order = [["call", "itm", "價內 Call"], ["call", "otm", "價外 Call"], ["put", "itm", "價內 Put"], ["put", "otm", "價外 Put"]];
-  const quad = `<div class="table-scroll"><table class="trend-table settle-table">
-    <tr><th></th>${order.map(o => `<th>${o[2]}</th>`).join("")}</tr>
-    <tr><td>外資</td>${order.map(o => BS(cell(o[0], o[1]).f)).join("")}</tr>
+  const quad = `<div class="table-scroll"><table class="trend-table settle-quad">
+    <thead><tr><th></th>${order.map(o => `<th>${o[2]}</th>`).join("")}</tr></thead>
+    <tbody><tr><td>外資</td>${order.map(o => BS(cell(o[0], o[1]).f)).join("")}</tr>
     <tr><td>自營商</td>${order.map(o => BS(cell(o[0], o[1]).d)).join("")}</tr>
-    <tr class="retail"><td><b>散戶</b></td>${order.map(o => BS(cell(o[0], o[1]).retail)).join("")}</tr>
+    <tr class="retail"><td>散戶（推估）</td>${order.map(o => BS(cell(o[0], o[1]).retail)).join("")}</tr></tbody>
   </table></div>`;
-  const conf = cur.agree >= SETTLE_MIN_AGREE ? "足夠" : "不足";
 
   // 當週合約 OI 大量區（≥1500 口）＋防守區間
   const sd = [...new Set(STRIKE_ROWS.filter(r => r.expiry === cur.e).map(r => r.date))].sort();
@@ -1255,46 +1279,73 @@ function renderSettle() {
   const spot = tx[cur.d], ref = spot || (fut && Number(fut.settle));
   const basis = fut && spot ? Math.round(Number(fut.settle) - spot) : 0;
   const up = calls.filter(c => c.k >= ref).sort((a, b) => a.k - b.k)[0], dn = puts.filter(c => c.k <= ref)[0];
-  let defense = "";
+  let tgt = null, lo = null, hi = null, f = 0, w = 0;
   if (up && dn) {
-    const w = up.k - dn.k, f = Math.round(w * 130 / 500);
-    const tgt = cur.verdict === "拉高" ? up.k : cur.verdict === "壓低" ? dn.k : (up.k + dn.k) / 2;
-    defense = `<div class="lv"><span><b style="font-family:inherit">推估結算點位</b>（${cur.verdict === "拉高" ? "上方 Call 大量區" : cur.verdict === "壓低" ? "下方 Put 大量區" : "區間中點"}）</span><b>${Math.round(tgt + basis).toLocaleString()}</b></div>
-      <div class="lv"><span>推估區間（多方防線～空方防線）</span><b>${(dn.k + basis - f).toLocaleString()} – ${(up.k + basis + f).toLocaleString()}</b></div>
-      <div class="lv"><span>防守區間</span><b>${(dn.k + basis).toLocaleString()} – ${(up.k + basis).toLocaleString()}（${w.toLocaleString()} 點）</b></div>
-      <div class="lv"><span>防守力道（區間 × 130/500）</span><b>${f} 點</b></div>
-      <div class="lv"><span>空方防線</span><b class="pos">${(up.k + basis + f).toLocaleString()}</b></div>
-      <div class="lv"><span>多方防線</span><b class="neg">${(dn.k + basis - f).toLocaleString()}</b></div>`;
+    w = up.k - dn.k; f = Math.round(w * 130 / 500);
+    tgt = (cur.verdict === "拉高" ? up.k : cur.verdict === "壓低" ? dn.k : (up.k + dn.k) / 2) + basis;
+    lo = dn.k + basis - f; hi = up.k + basis + f;
   }
-  const lvRow = (c, t) => `<div class="lv"><span>${t} ${c.k.toLocaleString()}${basis ? `（期 ${(c.k + basis).toLocaleString()}）` : ""}</span><b>${c.v.toLocaleString()} 口 <span class="${signCls(c.dv)}">${sg(c.dv.toLocaleString())}</span></b></div>`;
-  const levels = `<div><div class="chart-title" style="margin-top:0">當週 OI 大量區（≥${SETTLE_MIN_OI.toLocaleString()} 口）</div>
-    ${calls.map(c => lvRow(c, "Call")).join("") || `<div class="note">Call 無</div>`}
-    <div class="lv"><span>${spot ? "加權指數收盤" : "近月期貨"}</span><b>${Math.round(ref || 0).toLocaleString()}${basis ? `（期現價差 ${sg(Math.round(basis))}）` : ""}</b></div>
-    ${puts.map(c => lvRow(c, "Put")).join("") || `<div class="note">Put 無</div>`}</div>`;
+  // 撐壓階梯：大量區＋現價＋防線，依價位由高到低
+  const maxOI = Math.max(1, ...calls.map(c => c.v), ...puts.map(c => c.v));
+  const lad = [
+    ...calls.map(c => ({ p: c.k + basis, kind: "call", c })),
+    ...puts.map(c => ({ p: c.k + basis, kind: "put", c })),
+    ...(ref ? [{ p: ref + basis, kind: "now" }] : []),
+    ...(hi ? [{ p: hi, kind: "hiLine" }, { p: lo, kind: "loLine" }] : []),
+  ].sort((a, b) => b.p - a.p || (a.kind === "now" ? -1 : 1));
+  const inZone = p => up && dn && p <= up.k + basis && p >= dn.k + basis;
+  const ladder = `<div class="ladder">${lad.map(r => {
+    if (r.kind === "now") return `<div class="lad now${inZone(r.p) ? " zone" : ""}"><span>${spot ? "現貨收盤" : "近月期貨"}<em>${spot && basis ? n0(r.p) : ""}</em></span><span class="lad-bar"><i style="width:100%"></i></span><b>${n0(ref)}</b></div>`;
+    if (r.kind === "hiLine" || r.kind === "loLine") return `<div class="lad line ${r.kind === "hiLine" ? "pos" : "neg"}"><span>${r.kind === "hiLine" ? "空方防線" : "多方防線"}</span><span class="lad-bar"><i></i></span><b>${n0(r.p)}</b></div>`;
+    const c = r.c;
+    return `<div class="lad ${r.kind}${inZone(r.p) ? " zone" : ""}"><span>${r.kind === "call" ? "Call" : "Put"} ${n0(c.k)}<em>${n0(r.p)}</em></span>
+      <span class="lad-bar"><i style="width:${(c.v / maxOI * 100).toFixed(0)}%"></i></span>
+      <b>${c.v.toLocaleString()}<em class="${signCls(c.dv)}">${sg(c.dv.toLocaleString())}</em></b></div>`;
+  }).join("")}</div>`;
 
   // 回測
   const done = hist.filter(h => h.chg !== null);
   const dir = done.filter(h => h.verdict !== "觀望"), hit = dir.filter(h => (h.chg > 0) === (h.verdict === "拉高")).length;
+  const allUp = dir.filter(h => h.chg > 0).length, pc = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
   const btRows = done.slice(-20).reverse().map(h => {
-    const ok = h.verdict === "觀望" ? "—" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
-    return `<tr><td>${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${h.verdict}${h.verdict === "觀望" && h.lean !== "觀望" ? `<span class="note" style="padding:0">（${h.lean}）</span>` : ""}</td><td>${h.agree}/4</td><td class="num ${signCls(h.chg)}">${sg(Math.round(h.chg).toLocaleString())}</td><td>${ok}</td></tr>`;
+    const ok = h.verdict === "觀望" ? "" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
+    const v = h.verdict === "觀望" ? `<span class="muted">觀望${h.lean !== "觀望" ? `（${h.lean}）` : ""}</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
+    return `<tr><td>${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
   }).join("");
 
+  const vCls = cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : "";
   box.innerHTML = `<div class="card">
-    <h2>結算前籌碼研判</h2>
-    <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算${cur.chg != null ? "・已結算" : ""}・週二看週三、週四看週五，其他天僅供參考</div>
-    <div class="settle-verdict"><span>可能結算態樣</span><span class="big ${cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : ""}">${cur.verdict}</span>
-      <span class="chip">法人同向 ${cur.agree}/4・信心${conf}</span>
-      ${cur.verdict === "觀望" && cur.lean !== "觀望" ? `<span class="note" style="padding:0">原始傾向：${cur.lean}</span>` : ""}</div>
-    ${quad}
-    <div class="settle-grid" style="margin-top:18px">
-      <div><div class="chart-title" style="margin-top:0">法人選擇權籌碼</div>${chipTable}</div>
-      <div>${levels}${defense ? `<div style="margin-top:12px">${defense}</div>` : ""}</div>
+    <h2>結算前夕</h2>
+    <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算${cur.chg != null ? "・已結算" : ""}・週二看週三、週四看週五</div>
+    <div class="stat-grid">
+      <div class="stat main"><div class="stat-label">可能結算態樣</div><div class="stat-value ${vCls}">${cur.verdict}</div>
+        <div class="stat-delta">${cur.verdict === "觀望" && cur.lean !== "觀望" ? `原始傾向 ${cur.lean}` : "&nbsp;"}</div></div>
+      <div class="stat"><div class="stat-label">法人同向</div><div class="stat-value">${cur.agree} / 4</div>
+        <div class="stat-delta">${cur.agree >= SETTLE_MIN_AGREE ? "信心足夠" : `未達 ${SETTLE_MIN_AGREE} 格`}</div></div>
+      <div class="stat"><div class="stat-label">推估結算點位</div><div class="stat-value">${tgt ? n0(tgt) : "—"}</div>
+        <div class="stat-delta">${cur.verdict === "拉高" ? "上方 Call 大量區" : cur.verdict === "壓低" ? "下方 Put 大量區" : "區間中點"}</div></div>
+      <div class="stat"><div class="stat-label">推估區間</div><div class="stat-value" style="font-size:18px">${lo ? `${n0(lo)}–${n0(hi)}` : "—"}</div>
+        <div class="stat-delta">多方防線～空方防線</div></div>
     </div>
-    <div class="chart-title">回測：結算前一日研判 vs 實際（加權指數收盤漲跌）</div>
-    <div class="table-scroll"><table class="trend-table settle-table"><tr><th>結算日</th><th>研判</th><th>同向</th><th>漲跌</th><th>命中</th></tr>${btRows}</table></div>
-    <div class="note">${done[0] ? done[0].ed : ""} 起共 ${done.length} 次結算：給方向 ${dir.length} 次、命中 ${hit} 次（${dir.length ? Math.round(hit / dir.length * 100) : 0}%），同一批日子若一律猜拉高只有 ${dir.filter(h => h.chg > 0).length} 次（${dir.length ? Math.round(dir.filter(h => h.chg > 0).length / dir.length * 100) : 0}%）。
-      同向未達 ${SETTLE_MIN_AGREE} 格視為觀望。點位以加權指數收盤推估、加期現價差換算；過去結算落在推估區間內約六成，點位只當參考。法人部位為全部到期日合計，價內外由金額與口數變化推估，不知道時假設都買。</div>
+  </div>
+
+  <div class="settle-grid">
+    <div class="card"><h2>法人四格與散戶推估</h2><div class="sub">兩法人同方向的格子，散戶站對面</div>${quad}
+      <div class="chart-title">法人選擇權籌碼</div><div class="sub" style="margin-bottom:6px">前一日變化推論價內／價外買賣（不知道時假設都買）</div>${chipTable}</div>
+    <div class="card"><h2>當週撐壓</h2><div class="sub">未平倉 ≥${SETTLE_MIN_OI.toLocaleString()} 口・灰字為換算期貨價${basis ? `（期現價差 ${sg(basis)}）` : ""}・底色為防守區間</div>
+      ${ladder}
+      ${up && dn ? `<div class="lad-foot">防守區間 ${w.toLocaleString()} 點 × 130/500 ＝ 力道 ${f} 點</div>` : ""}</div>
+  </div>
+
+  <div class="card">
+    <h2>回測</h2><div class="sub">結算前一日研判 vs 實際（加權指數收盤漲跌）・${done[0] ? done[0].ed : ""} 起 ${done.length} 次結算</div>
+    <div class="stat-grid three">
+      <div class="stat main"><div class="stat-label">命中率</div><div class="stat-value">${pc(hit, dir.length)}</div><div class="stat-delta">${hit} / ${dir.length} 次</div></div>
+      <div class="stat"><div class="stat-label">一律猜拉高</div><div class="stat-value">${pc(allUp, dir.length)}</div><div class="stat-delta">同一批日子對照</div></div>
+      <div class="stat"><div class="stat-label">給出方向</div><div class="stat-value">${pc(dir.length, done.length)}</div><div class="stat-delta">其餘觀望</div></div>
+    </div>
+    <div class="table-scroll" style="margin-top:14px"><table class="trend-table settle-bt"><thead><tr><th>結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
+    <div class="note">點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
   </div>`;
 }
 
