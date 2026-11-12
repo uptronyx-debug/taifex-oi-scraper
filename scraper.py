@@ -39,7 +39,7 @@ import requests
 from bs4 import BeautifulSoup
 
 TARGET_URL = "https://www.taifex.com.tw/cht/3/callsAndPutsDate"
-CSV_PATH = os.path.join(os.path.dirname(__file__), "data", "txo_oi.csv")
+CSV_PATH = os.path.join(os.environ.get("DATA_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")), "txo_oi.csv")
 
 CSV_HEADER = [
     "date", "option_type", "investor_type",

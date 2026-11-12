@@ -1,0 +1,26 @@
+name: 每週備份資料
+
+# 每週六把 data/ 全部打包成一個 zip，存成 GitHub Release（永久保留、可直接下載）
+on:
+  schedule:
+    - cron: "17 4 * * 6"   # 台灣時間週六 12:17
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Taipei
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 打包並建立 Release
+        run: |
+          d=$(date +%Y-%m-%d)
+          zip -qj "data-$d.zip" data/*.csv
+          gh release create "data-$d" "data-$d.zip" --title "資料備份 $d" \
+            --notes "data/ 全部 CSV（$(ls data/*.csv | wc -l) 個檔案）" || \
+          gh release upload "data-$d" "data-$d.zip" --clobber

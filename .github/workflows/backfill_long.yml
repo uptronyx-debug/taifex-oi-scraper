@@ -1,0 +1,57 @@
+name: 補資料：各分頁長期歷史（現貨、融資、大台各月份、選擇權法人）
+
+on:
+  workflow_dispatch:
+    inputs:
+      twse_start:
+        description: "證交所資料起點（現貨買賣超、融資）"
+        default: "2021/10/01"
+      taifex_start:
+        description: "期交所資料起點（期交所只提供近 3 年）"
+        default: "2023/11/14"
+      end_date:
+        description: "補到哪一天（之後的資料已存在）"
+        default: "2025/11/03"
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { file: spot_net.csv,    cmd: "python scraper_spot.py",       src: twse }
+          - { file: margin.csv,      cmd: "python scraper_margin.py",     src: twse }
+          - { file: tx_month_oi.csv, cmd: "python scraper_tx_months.py",  src: taifex }
+          - { file: txo_oi.csv,      cmd: "python scraper.py",            src: taifex }
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      TZ: Asia/Taipei
+      DATA_DIR: newdata
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: 補抓（寫到 newdata，不動正式資料）
+        run: |
+          S="${{ matrix.src == 'twse' && inputs.twse_start || inputs.taifex_start }}"
+          ${{ matrix.cmd }} --backfill "$S" "${{ inputs.end_date }}" || true
+      - name: 只補缺的日期，合併後推送
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name "uptronyx-debug"
+          git config user.email "uptronyx-debug@users.noreply.github.com"
+          for i in 1 2 3 4 5 6; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            python tools/merge_backfill.py ${{ matrix.file }}
+            git add data/${{ matrix.file }}
+            git diff --cached --quiet && { echo "沒有新資料"; break; }
+            git commit -qm "auto: 補 ${{ matrix.file }} 長期歷史"
+            git push -q origin HEAD:main && break
+            sleep $((i*10))
+          done
