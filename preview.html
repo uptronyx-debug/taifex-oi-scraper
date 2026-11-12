@@ -1166,6 +1166,7 @@ function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
 //   金額↑ 口數↓ → 買價內、賣價外
 // 兩法人同方向的格子 → 散戶站對面；散戶偏空（賣 Call／買 Put）→ 結算傾向拉高，偏多 → 傾向壓低
 const SETTLE_MIN_OI = 1500;   // 當週合約只看未平倉 ≥ 1500 口的履約價
+const SETTLE_MIN_AGREE = 3;   // 兩法人同方向 ≥3 格才給方向
 let OPT_ROWS = null, STRIKE_ROWS = null;
 const ymd = e => `${e.slice(0, 4)}/${e.slice(4, 6)}/${e.slice(6, 8)}`;
 const WD = d => "日一二三四五六"[new Date(d.replace(/\//g, "-") + "T00:00:00").getDay()];
@@ -1189,7 +1190,9 @@ function settleRead(d, p) {
     cells.push({ t, m, f, d: dd, retail });
   }
   const agree = cells.filter(c => c.retail).length;
-  return { out, cells, agree, verdict: vote > 0 ? "拉高" : vote < 0 ? "壓低" : "觀望" };
+  const lean = vote > 0 ? "拉高" : vote < 0 ? "壓低" : "觀望";
+  // 回測（2025/12 起約 90 次結算）：法人同向 ≥3 格才有優勢，其餘視為觀望
+  return { out, cells, agree, lean, verdict: agree >= SETTLE_MIN_AGREE ? lean : "觀望" };
 }
 
 function renderSettle() {
@@ -1235,7 +1238,7 @@ function renderSettle() {
     <tr><td>自營商</td>${order.map(o => BS(cell(o[0], o[1]).d)).join("")}</tr>
     <tr class="retail"><td><b>散戶</b></td>${order.map(o => BS(cell(o[0], o[1]).retail)).join("")}</tr>
   </table></div>`;
-  const conf = cur.agree >= 3 ? "高" : cur.agree === 2 ? "中" : "低";
+  const conf = cur.agree >= SETTLE_MIN_AGREE ? "足夠" : "不足";
 
   // 當週合約 OI 大量區（≥1500 口）＋防守區間
   const sd = [...new Set(STRIKE_ROWS.filter(r => r.expiry === cur.e).map(r => r.date))].sort();
@@ -1252,7 +1255,10 @@ function renderSettle() {
   let defense = "";
   if (up && dn) {
     const w = up.k - dn.k, f = Math.round(w * 130 / 500);
-    defense = `<div class="lv"><span>防守區間</span><b>${(dn.k + basis).toLocaleString()} – ${(up.k + basis).toLocaleString()}（${w.toLocaleString()} 點）</b></div>
+    const tgt = cur.verdict === "拉高" ? up.k : cur.verdict === "壓低" ? dn.k : (up.k + dn.k) / 2;
+    defense = `<div class="lv"><span><b style="font-family:inherit">推估結算點位</b>（${cur.verdict === "拉高" ? "上方 Call 大量區" : cur.verdict === "壓低" ? "下方 Put 大量區" : "區間中點"}）</span><b>${Math.round(tgt + basis).toLocaleString()}</b></div>
+      <div class="lv"><span>推估區間（多方防線～空方防線）</span><b>${(dn.k + basis - f).toLocaleString()} – ${(up.k + basis + f).toLocaleString()}</b></div>
+      <div class="lv"><span>防守區間</span><b>${(dn.k + basis).toLocaleString()} – ${(up.k + basis).toLocaleString()}（${w.toLocaleString()} 點）</b></div>
       <div class="lv"><span>防守力道（區間 × 130/500）</span><b>${f} 點</b></div>
       <div class="lv"><span>空方防線</span><b class="pos">${(up.k + basis + f).toLocaleString()}</b></div>
       <div class="lv"><span>多方防線</span><b class="neg">${(dn.k + basis - f).toLocaleString()}</b></div>`;
@@ -1268,14 +1274,15 @@ function renderSettle() {
   const dir = done.filter(h => h.verdict !== "觀望"), hit = dir.filter(h => (h.chg > 0) === (h.verdict === "拉高")).length;
   const btRows = done.slice(-20).reverse().map(h => {
     const ok = h.verdict === "觀望" ? "—" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
-    return `<tr><td>${h.ed.slice(5)}（${WD(h.ed)}）</td><td>${h.verdict}</td><td>${h.agree}/4</td><td class="num ${signCls(h.chg)}">${sg(Math.round(h.chg).toLocaleString())}</td><td>${ok}</td></tr>`;
+    return `<tr><td>${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${h.verdict}${h.verdict === "觀望" && h.lean !== "觀望" ? `<span class="note" style="padding:0">（${h.lean}）</span>` : ""}</td><td>${h.agree}/4</td><td class="num ${signCls(h.chg)}">${sg(Math.round(h.chg).toLocaleString())}</td><td>${ok}</td></tr>`;
   }).join("");
 
   box.innerHTML = `<div class="card">
     <h2>結算前籌碼研判</h2>
     <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算${cur.chg != null ? "・已結算" : ""}・週二看週三、週四看週五，其他天僅供參考</div>
     <div class="settle-verdict"><span>可能結算態樣</span><span class="big ${cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : ""}">${cur.verdict}</span>
-      <span class="chip">法人同向 ${cur.agree}/4・信心${conf}</span></div>
+      <span class="chip">法人同向 ${cur.agree}/4・信心${conf}</span>
+      ${cur.verdict === "觀望" && cur.lean !== "觀望" ? `<span class="note" style="padding:0">原始傾向：${cur.lean}</span>` : ""}</div>
     ${quad}
     <div class="settle-grid" style="margin-top:18px">
       <div><div class="chart-title" style="margin-top:0">法人選擇權籌碼</div>${chipTable}</div>
@@ -1283,7 +1290,8 @@ function renderSettle() {
     </div>
     <div class="chart-title">回測：結算前一日研判 vs 實際（加權指數收盤漲跌）</div>
     <div class="table-scroll"><table class="trend-table settle-table"><tr><th>結算日</th><th>研判</th><th>同向</th><th>漲跌</th><th>命中</th></tr>${btRows}</table></div>
-    <div class="note">有方向 ${dir.length} 次、命中 ${hit} 次（${dir.length ? Math.round(hit / dir.length * 100) : 0}%）；觀望 ${done.length - dir.length} 次。法人部位為全部到期月份合計；價內外由金額與口數變化推估，不知道時假設都買。</div>
+    <div class="note">${done[0] ? done[0].ed : ""} 起共 ${done.length} 次結算：給方向 ${dir.length} 次、命中 ${hit} 次（${dir.length ? Math.round(hit / dir.length * 100) : 0}%），同一批日子若一律猜拉高只有 ${dir.filter(h => h.chg > 0).length} 次（${dir.length ? Math.round(dir.filter(h => h.chg > 0).length / dir.length * 100) : 0}%）。
+      同向未達 ${SETTLE_MIN_AGREE} 格視為觀望。點位以加權指數收盤推估、加期現價差換算；過去結算落在推估區間內約六成，點位只當參考。法人部位為全部到期日合計，價內外由金額與口數變化推估，不知道時假設都買。</div>
   </div>`;
 }
 
