@@ -1,0 +1,26 @@
+name: 測試（暫時，不寫入 data）
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install playwright && python -m playwright install --with-deps chromium
+      - run: |
+          python - > probe_output.txt 2>&1 <<'PY' || true
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              b = p.chromium.launch(); pg = b.new_page(); errs = []; bad = []
+              pg.on("pageerror", lambda e: errs.append(str(e)))
+              pg.on("response", lambda r: r.status >= 400 and bad.append((r.status, r.url)))
+              pg.goto("https://uptronyx-debug.github.io/taifex-oi-scraper/?nocache=1", wait_until="networkidle"); pg.wait_for_timeout(3000)
+              print("title", pg.title()); print("date", pg.inner_text("header")[:120].replace("\n"," "))
+              print("futSvg", bool(pg.query_selector("#futBox svg")), "copy", pg.inner_text(".foot-copy"))
+              print("errors", errs); print("bad", bad)
+          PY
+          git config user.name bot && git config user.email bot@x
+          git checkout -q --orphan probe-output && git rm -rq --cached . && git add -f probe_output.txt && git commit -qm out
+          git push -f origin probe-output
