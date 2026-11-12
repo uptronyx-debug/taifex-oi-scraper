@@ -1,0 +1,9 @@
+  ✅ 成功抓到 2025/11/04 的資料（4 筆）
+2025/11/04 4 {'date': '2025/11/04', 'option_type': 'call', 'investor_type': 'dealer', 'oi_buy_volume': 29395, 'oi_buy_value_k': 785271, 'oi_sell_volume': 30915, 'oi_sell_value_k': 891583, 'oi_net_volume': -1520, 'oi_net_value_k': -106312}
+  ✅ 成功抓到 2026/09/08 的資料（4 筆）
+2026/09/08 4 {'date': '2026/09/08', 'option_type': 'call', 'investor_type': 'dealer', 'oi_buy_volume': 28555, 'oi_buy_value_k': 1404656, 'oi_sell_volume': 25821, 'oi_sell_value_k': 979544, 'oi_net_volume': 2734, 'oi_net_value_k': 425112}
+  ✅ 成功抓到 2026/11/12 的資料（4 筆）
+2026/11/12 4 {'date': '2026/11/12', 'option_type': 'call', 'investor_type': 'dealer', 'oi_buy_volume': 46932, 'oi_buy_value_k': 1916496, 'oi_sell_volume': 36988, 'oi_sell_value_k': 642022, 'oi_net_volume': 9944, 'oi_net_value_k': 1274474}
+{'queryType': '1', 'doQuery': '1', 'queryDate': '2025/11/04', 'commodityId': ''} 2025/11/04
+{'queryDate': '2025/11/04', 'commodityId': ''} None
+{'queryDate': '2025/11/04', 'commodityId': 'TXO'} None
