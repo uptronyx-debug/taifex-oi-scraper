@@ -1,11 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
-  <title>未平倉山形紋</title>
-  <g transform="translate(200 200) scale(1.4) translate(-200 -199)">
-    <rect x="97" y="200" width="30" height="94" rx="15" fill="#3E7B4F"/>
-    <rect x="141" y="140" width="30" height="154" rx="15" fill="#C8402E"/>
-    <rect x="185" y="80" width="30" height="214" rx="15" fill="#7E5228"/>
-    <rect x="229" y="140" width="30" height="154" rx="15" fill="#D9A521"/>
-    <rect x="273" y="200" width="30" height="94" rx="15" fill="#24426E"/>
-    <line x1="92" y1="318" x2="308" y2="318" stroke="#1C1A17" stroke-width="8" stroke-linecap="round"/>
-  </g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400"><rect width="400" height="400" rx="88" fill="#1C1A17"/><svg x="40" y="40" width="320" height="320" viewBox="0 0 400 400"><circle cx="200" cy="200" r="176" fill="none" stroke="#EFE8D6" stroke-width="16"/><line x1="200" y1="88" x2="200" y2="312" stroke="#EFE8D6" stroke-width="8" stroke-linecap="round"/><rect x="142" y="103" width="48" height="30" rx="15" fill="#2F5A93"/><rect x="210" y="103" width="62" height="30" rx="15" fill="#2F5A93"/><rect x="112" y="144" width="78" height="30" rx="15" fill="#E6B93C"/><rect x="210" y="144" width="104" height="30" rx="15" fill="#E6B93C"/><rect x="78" y="185" width="112" height="30" rx="15" fill="#9C6A38"/><rect x="210" y="185" width="92" height="30" rx="15" fill="#9C6A38"/><rect x="106" y="226" width="84" height="30" rx="15" fill="#C8402E"/><rect x="210" y="226" width="66" height="30" rx="15" fill="#C8402E"/><rect x="136" y="267" width="54" height="30" rx="15" fill="#3E7B4F"/><rect x="210" y="267" width="40" height="30" rx="15" fill="#3E7B4F"/></svg></svg>
