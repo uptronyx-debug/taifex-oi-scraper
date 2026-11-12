@@ -474,6 +474,16 @@
   .signal-title{ font-size:13px; color:var(--text-muted); font-weight:600; }
   .signal{ display:flex; align-items:center; gap:8px; }
   .signal-who{ font-size:14px; font-weight:600; }
+  .settle-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:700px){ .settle-grid{ grid-template-columns:1fr; } }
+  .settle-verdict{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:4px 0 14px; }
+  .settle-verdict .big{ font-family:'Noto Serif TC', serif; font-size:24px; font-weight:700; }
+  .settle-table td.b, .settle-table td.s{ font-weight:700; text-align:center; }
+  .settle-table td.b{ color:var(--long); } .settle-table td.s{ color:var(--short); }
+  .settle-table td.c{ text-align:center; color:var(--text-muted); }
+  .settle-table tr.retail td{ background:var(--surface-2); }
+  .lv{ display:flex; justify-content:space-between; padding:5px 0; border-bottom:1px solid var(--divider); font-size:13px; }
+  .lv b{ font-family:'Roboto Mono', monospace; }
   .chip{
     display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:999px;
     font-family:'Roboto Mono', monospace; font-size:13px; line-height:1.4;
@@ -565,7 +575,8 @@
     header{ padding-bottom:12px; margin-bottom:12px; }
     .meta{ font-size:12px; margin-top:8px; }
     .tabs{ margin-bottom:14px; }
-    .tab{ padding:8px 12px; font-size:15px; }
+    .tab{ padding:8px 10px; font-size:15px; white-space:nowrap; }
+    .tabs{ overflow-x:auto; scrollbar-width:none; }
     #trend, #strikeSection, .card{ padding:16px 14px; margin-bottom:14px; }
     #summary{ padding:10px 14px; margin-bottom:14px; }
     .card h2, #trend h2, #strikeSection h2{ font-size:16px; }
@@ -625,6 +636,7 @@
 
   <nav class="tabs">
     <button class="tab active" data-tab="options">選擇權</button>
+    <button class="tab" data-tab="settle">結算前夕</button>
     <button class="tab" data-tab="futures">期貨</button>
     <button class="tab" data-tab="spot">現貨</button>
     <button class="tab" data-tab="margin">融資</button>
@@ -635,6 +647,10 @@
     <div id="summary" style="display:none;"></div>
     <div id="trend" style="display:none;"></div>
     <div id="strikeSection" style="display:none;"></div>
+  </section>
+
+  <section class="tab-panel" id="panel-settle">
+    <div id="settleBox"><div class="note">資料載入中…</div></div>
   </section>
 
   <section class="tab-panel" id="panel-futures">
@@ -1139,6 +1155,136 @@ function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
   const dots = values.map((v, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.2" fill="${color}"/>`).join("");
   const pts = values.map((v, i) => ({ x: +x(i).toFixed(1), html: `<div class="td">${labels[i]}</div><b>${fmt(v)}</b>`, marks: [{ y: +y(v).toFixed(1), color }] }));
   return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${zero}<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>${dots}${xl}</svg>`, width, height, pts);
+}
+
+
+// ================= 結算前籌碼研判（週二看週三、週四看週五） =================
+// 規則：結算前一日，外資、自營商各自 Call / Put 的「淨金額變化」與「淨口數變化」
+//   金額↑ 口數↑ → 價內、價外都買（不知道價內外時假設都買）
+//   金額↓ 口數↓ → 價內、價外都賣
+//   金額↓ 口數↑ → 賣價內（貴）、買價外（便宜）
+//   金額↑ 口數↓ → 買價內、賣價外
+// 兩法人同方向的格子 → 散戶站對面；散戶偏空（賣 Call／買 Put）→ 結算傾向拉高，偏多 → 傾向壓低
+const SETTLE_MIN_OI = 1500;   // 當週合約只看未平倉 ≥ 1500 口的履約價
+let OPT_ROWS = null, STRIKE_ROWS = null;
+const ymd = e => `${e.slice(0, 4)}/${e.slice(4, 6)}/${e.slice(6, 8)}`;
+const WD = d => "日一二三四五六"[new Date(d.replace(/\//g, "-") + "T00:00:00").getDay()];
+
+function settleRead(d, p) {
+  const get = (dd, t, inv) => OPT_ROWS.find(r => r.date === dd && r.option_type === t && r.investor_type === inv);
+  const out = {};
+  for (const inv of ["foreign", "dealer"]) for (const t of ["call", "put"]) {
+    const a = get(d, t, inv), b = get(p, t, inv);
+    if (!a || !b) return null;
+    const dv = Number(a.oi_net_value_k) - Number(b.oi_net_value_k), dl = Number(a.oi_net_volume) - Number(b.oi_net_volume);
+    const [itm, otm] = dv >= 0 && dl >= 0 ? ["B", "B"] : dv < 0 && dl < 0 ? ["S", "S"] : dv < 0 ? ["S", "B"] : ["B", "S"];
+    out[inv + t] = { nv: Number(a.oi_net_value_k), nl: Number(a.oi_net_volume), dv, dl, itm, otm };
+  }
+  const cells = [];
+  let vote = 0;
+  for (const t of ["call", "put"]) for (const m of ["itm", "otm"]) {
+    const f = out["foreign" + t][m], dd = out["dealer" + t][m];
+    let retail = null;
+    if (f === dd) { retail = f === "B" ? "S" : "B"; vote += ((t === "call") === (retail === "S")) ? 1 : -1; }
+    cells.push({ t, m, f, d: dd, retail });
+  }
+  const agree = cells.filter(c => c.retail).length;
+  return { out, cells, agree, verdict: vote > 0 ? "拉高" : vote < 0 ? "壓低" : "觀望" };
+}
+
+function renderSettle() {
+  const box = document.getElementById("settleBox");
+  if (!OPT_ROWS || !STRIKE_ROWS) return;
+  const dates = [...new Set(OPT_ROWS.map(r => r.date))].sort();
+  const exps = [...new Set(STRIKE_ROWS.map(r => r.expiry))].sort();
+  const tx = taiexMap();
+  // 每個結算日的前一交易日 → 研判；有收盤就對答案
+  const hist = [];
+  for (const e of exps) {
+    const ed = ymd(e), i = dates.indexOf(ed);
+    if (i < 2) continue;
+    const r = settleRead(dates[i - 1], dates[i - 2]);
+    if (!r) continue;
+    const a = tx[dates[i - 1]], b = tx[ed];
+    hist.push({ e, ed, d: dates[i - 1], ...r, chg: a && b ? b - a : null });
+  }
+  // 今天（最新資料日）的下一個結算日
+  const last = dates[dates.length - 1];
+  const nextE = exps.find(e => ymd(e) > last);
+  const isEve = nextE && ["二", "四"].includes(WD(last)) && (new Date(ymd(nextE)) - new Date(last)) / 864e5 <= 1;
+  let cur = isEve ? { e: nextE, ed: ymd(nextE), d: last, ...settleRead(last, dates[dates.length - 2]) } : null;
+  if (!cur || !cur.cells) cur = hist[hist.length - 1];
+  if (!cur) { box.innerHTML = ""; return; }
+
+  const BS = x => x === "B" ? `<td class="b">Buy</td>` : x === "S" ? `<td class="s">Sell</td>` : `<td class="c">—</td>`;
+  const yi = v => (v / 1e5).toFixed(2), sg = v => (Number(String(v).replace(/,/g, "")) > 0 ? "+" : "") + v;
+  const inv = [["foreign", "外資"], ["dealer", "自營商"]];
+  const chipTable = `<div class="table-scroll"><table class="trend-table settle-table">
+    <tr><th></th><th></th><th>淨部位</th><th>前一日變化</th><th>推論</th></tr>
+    ${inv.map(([k, n]) => ["call", "put"].map((t, j) => { const o = cur.out[k + t]; return `<tr>
+      ${j === 0 ? `<td rowspan="2"><b>${n}</b></td>` : ""}<td>${t === "call" ? "Call" : "Put"}</td>
+      <td class="num">${yi(o.nv)} 億<br>${o.nl.toLocaleString()} 口</td>
+      <td class="num"><span class="${signCls(o.dv)}">${sg(yi(o.dv))} 億</span><br><span class="${signCls(o.dl)}">${sg(o.dl.toLocaleString())} 口</span></td>
+      <td>價內 ${o.itm === "B" ? "Buy" : "Sell"}・價外 ${o.otm === "B" ? "Buy" : "Sell"}</td></tr>`; }).join("")).join("")}
+  </table></div>`;
+  const cell = (t, m) => cur.cells.find(c => c.t === t && c.m === m);
+  const order = [["call", "itm", "價內 Call"], ["call", "otm", "價外 Call"], ["put", "itm", "價內 Put"], ["put", "otm", "價外 Put"]];
+  const quad = `<div class="table-scroll"><table class="trend-table settle-table">
+    <tr><th></th>${order.map(o => `<th>${o[2]}</th>`).join("")}</tr>
+    <tr><td>外資</td>${order.map(o => BS(cell(o[0], o[1]).f)).join("")}</tr>
+    <tr><td>自營商</td>${order.map(o => BS(cell(o[0], o[1]).d)).join("")}</tr>
+    <tr class="retail"><td><b>散戶</b></td>${order.map(o => BS(cell(o[0], o[1]).retail)).join("")}</tr>
+  </table></div>`;
+  const conf = cur.agree >= 3 ? "高" : cur.agree === 2 ? "中" : "低";
+
+  // 當週合約 OI 大量區（≥1500 口）＋防守區間
+  const sd = [...new Set(STRIKE_ROWS.filter(r => r.expiry === cur.e).map(r => r.date))].sort();
+  const sAt = dd => { const m = {}; STRIKE_ROWS.filter(r => r.expiry === cur.e && r.date === dd).forEach(r => { m[r.option_type + r.strike] = Number(r.open_interest); }); return m; };
+  const sdD = sd.includes(cur.d) ? cur.d : sd[sd.length - 1], sdP = sd[sd.indexOf(sdD) - 1];
+  const now = sAt(sdD), prev = sdP ? sAt(sdP) : {};
+  const big = t => Object.entries(now).filter(([k, v]) => k.startsWith(t) && v >= SETTLE_MIN_OI)
+    .map(([k, v]) => ({ k: Number(k.slice(t.length)), v, dv: v - (prev[k] || 0) })).sort((a, b) => b.k - a.k);
+  const calls = big("call"), puts = big("put");
+  const fut = (TXM_ROWS || []).filter(r => r.date === cur.d).sort((a, b) => a.contract < b.contract ? -1 : 1)[0];
+  const spot = tx[cur.d], ref = spot || (fut && Number(fut.settle));
+  const basis = fut && spot ? Math.round(Number(fut.settle) - spot) : 0;
+  const up = calls.filter(c => c.k >= ref).sort((a, b) => a.k - b.k)[0], dn = puts.filter(c => c.k <= ref)[0];
+  let defense = "";
+  if (up && dn) {
+    const w = up.k - dn.k, f = Math.round(w * 130 / 500);
+    defense = `<div class="lv"><span>防守區間</span><b>${(dn.k + basis).toLocaleString()} – ${(up.k + basis).toLocaleString()}（${w.toLocaleString()} 點）</b></div>
+      <div class="lv"><span>防守力道（區間 × 130/500）</span><b>${f} 點</b></div>
+      <div class="lv"><span>空方防線</span><b class="pos">${(up.k + basis + f).toLocaleString()}</b></div>
+      <div class="lv"><span>多方防線</span><b class="neg">${(dn.k + basis - f).toLocaleString()}</b></div>`;
+  }
+  const lvRow = (c, t) => `<div class="lv"><span>${t} ${c.k.toLocaleString()}${basis ? `（期 ${(c.k + basis).toLocaleString()}）` : ""}</span><b>${c.v.toLocaleString()} 口 <span class="${signCls(c.dv)}">${sg(c.dv.toLocaleString())}</span></b></div>`;
+  const levels = `<div><div class="chart-title" style="margin-top:0">當週 OI 大量區（≥${SETTLE_MIN_OI.toLocaleString()} 口）</div>
+    ${calls.map(c => lvRow(c, "Call")).join("") || `<div class="note">Call 無</div>`}
+    <div class="lv"><span>${spot ? "加權指數收盤" : "近月期貨"}</span><b>${Math.round(ref || 0).toLocaleString()}${basis ? `（期現價差 ${sg(Math.round(basis))}）` : ""}</b></div>
+    ${puts.map(c => lvRow(c, "Put")).join("") || `<div class="note">Put 無</div>`}</div>`;
+
+  // 回測
+  const done = hist.filter(h => h.chg !== null);
+  const dir = done.filter(h => h.verdict !== "觀望"), hit = dir.filter(h => (h.chg > 0) === (h.verdict === "拉高")).length;
+  const btRows = done.slice(-20).reverse().map(h => {
+    const ok = h.verdict === "觀望" ? "—" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
+    return `<tr><td>${h.ed.slice(5)}（${WD(h.ed)}）</td><td>${h.verdict}</td><td>${h.agree}/4</td><td class="num ${signCls(h.chg)}">${sg(Math.round(h.chg).toLocaleString())}</td><td>${ok}</td></tr>`;
+  }).join("");
+
+  box.innerHTML = `<div class="card">
+    <h2>結算前籌碼研判</h2>
+    <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算${cur.chg != null ? "・已結算" : ""}・週二看週三、週四看週五，其他天僅供參考</div>
+    <div class="settle-verdict"><span>可能結算態樣</span><span class="big ${cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : ""}">${cur.verdict}</span>
+      <span class="chip">法人同向 ${cur.agree}/4・信心${conf}</span></div>
+    ${quad}
+    <div class="settle-grid" style="margin-top:18px">
+      <div><div class="chart-title" style="margin-top:0">法人選擇權籌碼</div>${chipTable}</div>
+      <div>${levels}${defense ? `<div style="margin-top:12px">${defense}</div>` : ""}</div>
+    </div>
+    <div class="chart-title">回測：結算前一日研判 vs 實際（加權指數收盤漲跌）</div>
+    <div class="table-scroll"><table class="trend-table settle-table"><tr><th>結算日</th><th>研判</th><th>同向</th><th>漲跌</th><th>命中</th></tr>${btRows}</table></div>
+    <div class="note">有方向 ${dir.length} 次、命中 ${hit} 次（${dir.length ? Math.round(hit / dir.length * 100) : 0}%）；觀望 ${done.length - dir.length} 次。法人部位為全部到期月份合計；價內外由金額與口數變化推估，不知道時假設都買。</div>
+  </div>`;
 }
 
 // ================= 時段按鈕（各區塊獨立，預設 1 個月，不記憶） =================
@@ -1858,7 +2004,8 @@ async function loadAll(ref) {
     st.textContent = "資料載入失敗：" + (opt.reason ? opt.reason.message : "CSV 是空的");
     st.classList.add("error");
   }
-  if (strike.status === "fulfilled") renderStrikeSection(strike.value);
+  if (strike.status === "fulfilled") { renderStrikeSection(strike.value); STRIKE_ROWS = strike.value; }
+  if (opt.status === "fulfilled") OPT_ROWS = opt.value;
   TXM_ROWS = txm.status === "fulfilled" ? txm.value : (TXM_ROWS || []);
   if (tai.status === "fulfilled") TAIEX_ROWS = tai.value;
   if (mg.status === "fulfilled") MARGIN_ROWS = mg.value;
@@ -1872,6 +2019,7 @@ async function loadAll(ref) {
   if (hold.status === "fulfilled") HOLD_ROWS = hold.value;
   renderHedge();
   if (etf.status === "fulfilled") { ETF_ROWS = etf.value; renderEtfFut(); }
+  try { renderSettle(); } catch (e) { console.error(e); }
   CUR_REF = ref;
 }
 function inAfterHoursWindow() {
@@ -1909,6 +2057,7 @@ window.addEventListener("resize", () => {
 // ================= 分頁切換 =================
 const UPDATE_NOTE = {
   options: "交易日約 14:50（期交所公布後 1 分鐘內）",
+  settle: "週二、週四約 15:00（選擇權資料公布後）",
   futures: "交易日約 14:50（期交所公布後 1 分鐘內）",
   spot: "買賣超約 15:05；外資持股與避險比例約 21:30",
   margin: "交易日約 21:30（證交所公布融資後 1 分鐘內）",
@@ -1936,7 +2085,7 @@ setTheme(document.documentElement.dataset.theme || "dark");
 (function initTab() {
   let t = location.hash.slice(1);
   if (!t) { try { t = localStorage.getItem("tab") || ""; } catch (e) {} }
-  showTab(["options", "futures", "spot", "margin"].includes(t) ? t : "options");
+  showTab(["options", "settle", "futures", "spot", "margin"].includes(t) ? t : "options");
 })();
 
 // 版權年份：2026 起，跨年自動變成 2026–今年
