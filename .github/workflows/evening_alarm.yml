@@ -1,0 +1,38 @@
+name: 晚間鬧鐘（備援觸發融資）
+
+# 由每日盤後抓取結束時啟動，等到晚上自己觸發「晚間抓取融資餘額」。
+# 跟 Google Apps Script 互為備援：任一邊有觸發就會抓；重複觸發會自動略過已抓完的資料。
+on:
+  workflow_dispatch:
+    inputs:
+      now:
+        description: "測試用：立刻觸發一次（yes）"
+        default: "no"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: evening-alarm
+  cancel-in-progress: true   # 只保留最後一次啟動的鬧鐘
+
+jobs:
+  alarm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      TZ: Asia/Taipei
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: 等到 21:25 觸發，22:30 再觸發一次
+        run: |
+          fire() {
+            t=$(date -d "$1" +%s); w=$(( t - $(date +%s) ))
+            if [ $w -lt -600 ] || [ $w -gt 21000 ]; then echo "$1：不在今天的時段內，略過"; return; fi
+            [ $w -gt 0 ] && { echo "等待 $w 秒到 $1"; sleep $w; }
+            gh api -X POST repos/${{ github.repository }}/actions/workflows/margin_scrape.yml/dispatches -f ref=main && echo "✅ $1 已觸發融資抓取"
+          }
+          if [ "${{ inputs.now }}" = "yes" ]; then fire "$(date +%H:%M)"; exit 0; fi
+          fire 21:25
+          fire 22:30

@@ -129,6 +129,20 @@ def cathay():
     return d, lots
 
 
+def moneydj(etf):
+    """備援：MoneyDJ 全部持股頁，四檔格式一致，大台的代碼都是 FITX…（不含台灣50 ETF 股票期貨）。"""
+    r = get(f"https://www.moneydj.com/ETF/X/Basic/Basic0007B.xdjhtm?etfid={etf}.TW")
+    r.encoding = r.apparent_encoding or "utf-8"
+    txt = re.sub(r"\s+", " ", htmlmod.unescape(re.sub(r"<[^>]+>", " ", r.text)))
+    m = re.search(r"資料日期[:：]\s*(\d{4}/\d{1,2}/\d{1,2})", txt)
+    d = norm_date(m.group(1)) if m else None
+    rows = set(re.findall(r"(\S+\s?\S*)\((FITX[^)]*)\)\s+[\d.]+\s+([\d,]+)", txt))
+    lots = sum(int(n.replace(",", "")) for _, _, n in rows)
+    if not lots:
+        raise RuntimeError(f"MoneyDJ 找不到 {etf} 大台口數")
+    return d, lots
+
+
 SOURCES = [("00631L", yuanta), ("00685L", capital), ("00675L", fubon), ("00663L", cathay)]
 
 
@@ -179,19 +193,26 @@ def main():
         print(f"群益補了 {added} 天")
         return
 
-    today = datetime.now(TPE).strftime("%Y/%m/%d")
+    now = datetime.now(TPE)
+    today = now.strftime("%Y/%m/%d")
+    oldest = (now - timedelta(days=6)).strftime("%Y/%m/%d")   # 漏抓時，隔天還能補前一個交易日
     changed = False
     for etf, fn in SOURCES:
-        try:
-            d, lots = fn()
-        except Exception as e:
-            print(f"{etf} 失敗：{e}")
+        got = None
+        for name, f in ((fn.__name__, fn), ("MoneyDJ", lambda e=etf: moneydj(e))):
+            try:
+                d, lots = f()
+                print(f"{etf}（{name}）資料日期 {d} 大台多單 {lots} 口")
+                if d and lots:
+                    got = (d, lots)
+                    break
+            except Exception as e:
+                print(f"{etf}（{name}）失敗：{e}")
+        if not got or a.test:
             continue
-        print(f"{etf} 資料日期 {d} 大台多單 {lots} 口")
-        if a.test:
-            continue
-        if d != today:
-            print(f"  → 不是今天（{today}），不寫入")
+        d, lots = got
+        if not (oldest <= d <= today):
+            print(f"  → 資料日期不在近幾天內，不寫入")
             continue
         if (d, etf) in rows:
             continue

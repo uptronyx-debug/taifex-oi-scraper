@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write   # 用來啟動晚間鬧鐘
 
 concurrency:
   group: scrape
@@ -49,3 +50,12 @@ jobs:
       - name: 檢查今天資料是否齊全
         if: ${{ !cancelled() && steps.check.outputs.skip != 'true' }}
         run: python3 tools/check_today.py post
+
+      # 不依賴 Google Apps Script：啟動晚間鬧鐘，晚上自動觸發融資抓取（平日才啟動）
+      - name: 啟動晚間鬧鐘
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ "$(date +%u)" -le 5 ] && [ "$(date +%H)" -lt 21 ] || { echo "週末或已過 21 點，不啟動"; exit 0; }
+          gh api -X POST repos/${{ github.repository }}/actions/workflows/evening_alarm.yml/dispatches -f ref=main && echo "已啟動晚間鬧鐘"
