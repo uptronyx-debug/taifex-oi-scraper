@@ -3,7 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>台指期權</title>
+<title>期權玩家</title>
+<meta name="description" content="台指選擇權與期貨三大法人籌碼、外資避險、融資與正2 ETF 期貨部位，盤後自動更新。">
+<link rel="canonical" href="https://options.uptronyx.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="期權玩家">
+<meta property="og:title" content="期權玩家">
+<meta property="og:description" content="台指選擇權與期貨三大法人籌碼、外資避險、融資與正2 ETF 期貨部位，盤後自動更新。">
+<meta property="og:url" content="https://options.uptronyx.com/">
+<meta property="og:image" content="https://options.uptronyx.com/icon-512.png">
 <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=2">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=2">
@@ -593,6 +601,8 @@
     font-size:13px;
   }
   footer a{color:var(--text-muted);}
+  .foot-copy{margin-top:14px; display:flex; gap:24px; flex-wrap:wrap; letter-spacing:.02em;}
+  .foot-copy a{text-decoration:none;}
   .foot-row{ margin-bottom:6px; }
   .foot-k{ display:inline-block; min-width:64px; margin-right:8px; color:var(--text); opacity:.75; }
   .foot-num{ font-family:'Roboto Mono', monospace; color:var(--text); }
@@ -603,7 +613,7 @@
 
   <header>
     <div class="head-top">
-      <h1 class="brand"><img class="logo logo-dark" src="logo-dark.svg" alt="台指期權 TAIWAN OPTIONS"><img class="logo logo-light" src="logo-light.svg" alt="台指期權 TAIWAN OPTIONS"></h1>
+      <h1 class="brand"><img class="logo logo-dark" src="logo-dark.svg" alt="期權玩家"><img class="logo logo-light" src="logo-light.svg" alt="期權玩家"></h1>
       <button class="theme-toggle" id="themeToggle" type="button" aria-label="切換深色／淺色">
         <span class="tt-opt" data-v="dark">深</span><span class="tt-opt" data-v="light">淺</span>
       </button>
@@ -654,12 +664,13 @@
     </div>
     <div class="foot-row"><span class="foot-k">更新時間</span><span id="updateNote"></span></div>
     <div class="foot-row" id="visitRow" style="display:none;"><span class="foot-k">瀏覽人次</span><span id="visitCount" class="foot-num"></span></div>
+    <div class="foot-copy"><span>uptronyx.com © <span id="cpYear">2026</span></span><a href="mailto:hi@uptronyx.com">hi@uptronyx.com</a></div>
   </footer>
 
 </div>
 
 <script>
-const CSV_URL = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/txo_oi.csv";
+const CSV_URL = "data/txo_oi.csv";
 
 function parseCSV(text) {
   const lines = text.trim().split("\n");
@@ -894,7 +905,7 @@ function render(rows) {
   document.getElementById("status").style.display = "none";
 }
 
-const STRIKE_CSV_URL = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/txo_strike_oi.csv";
+const STRIKE_CSV_URL = "data/txo_strike_oi.csv";
 
 function daysUntil(expiryYYYYMMDD, latestDateStr) {
   const y = Number(expiryYYYYMMDD.slice(0, 4));
@@ -1055,7 +1066,7 @@ function renderStrikeSection(rows) {
 }
 
 // ================= 共用小工具 =================
-const RAW = "https://raw.githubusercontent.com/uptronyx-debug/taifex-oi-scraper/main/data/";
+const RAW = "data/";
 const signCls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
 const fmtInt = v => (v > 0 ? "+" : "") + Math.round(v).toLocaleString();
 const fmtYi2 = v => (v > 0 ? "+" : "") + v.toLocaleString("zh-Hant", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1817,29 +1828,29 @@ function renderHedge() {
   </div>`;
 }
 
-// ================= 讀取資料（避開 GitHub 快取）＋盤後自動更新 =================
-// raw.githubusercontent.com 的 main 會被快取數分鐘；先問 GitHub 最新的 commit 編號，
-// 再用「該編號」讀檔，拿到的一定是最新版本。查不到編號（例如 API 次數用完）才退回 main。
-const REPO = "uptronyx-debug/taifex-oi-scraper";
-let CUR_REF = null, LAST_CHECK = 0;
+// ================= 讀取資料（同網域 data/）＋盤後自動更新 =================
+// 每次都向伺服器確認（no-cache）：檔案沒變只回 304，很省流量；有變就拿到最新版。
+// 用各檔內容長度＋最後一行當「版本」，有變才重畫。
+let CUR_REF = null, LAST_CHECK = 0, CSV_TEXT = {};
 let FUT_ROWS = null, SPOT_ROWS = null, TXM_ROWS = null, MARGIN_ROWS = null, MTOP_ROWS = null, HOLD_ROWS = null, ETF_ROWS = null, TAIEX_ROWS = null;
 
-async function latestSha() {
-  try {
-    const r = await fetch(`https://api.github.com/repos/${REPO}/commits/main`,
-      { cache: "no-store", headers: { Accept: "application/vnd.github.sha" } });
-    if (r.ok) { const t = (await r.text()).trim(); if (/^[0-9a-f]{40}$/.test(t)) return t; }
-  } catch (e) {}
-  return null;
-}
-async function getCsv(name, ref) {
-  const url = `https://raw.githubusercontent.com/${REPO}/${ref}/data/${name}` + (ref === "main" ? "?t=" + Date.now() : "");
-  const r = await fetch(url, { cache: ref === "main" ? "no-store" : "default" });
+async function fetchText(name) {
+  const r = await fetch("data/" + name, { cache: "no-cache" });
   if (!r.ok) throw new Error("HTTP " + r.status);
-  return parseCSV(await r.text());
+  return CSV_TEXT[name] = await r.text();
 }
+async function getCsv(name) {
+  const t = CSV_TEXT[name];
+  if (t === undefined) throw new Error("讀取失敗");
+  return parseCSV(t);
+}
+async function dataVersion(names) {
+  const res = await Promise.allSettled(names.map(fetchText));
+  return res.map((x, i) => x.status === "fulfilled" ? x.value.length + ":" + x.value.slice(-40) : names[i] + ":x").join("|");
+}
+const DATA_FILES = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv", "taiex.csv"];
 async function loadAll(ref) {
-  const names = ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv", "taiex.csv"];
+  const names = DATA_FILES;
   const [opt, strike, fut, txm, spot, mg, mtop, hold, etf, tai] = await Promise.allSettled(names.map(n => getCsv(n, ref)));
   if (opt.status === "fulfilled" && opt.value.length) { render(opt.value); renderTrend(opt.value); }
   else if (!CUR_REF) {
@@ -1872,9 +1883,8 @@ function inAfterHoursWindow() {
 async function checkUpdate(force) {
   if (!force && Date.now() - LAST_CHECK < 60000) return;
   LAST_CHECK = Date.now();
-  const sha = await latestSha();
-  const ref = sha || "main";
-  if (force || ref === "main" || ref !== CUR_REF) await loadAll(ref);
+  const ref = await dataVersion(DATA_FILES);
+  if (force || ref !== CUR_REF) await loadAll(ref);
   const el = document.getElementById("lastChecked");
   const t = new Date().toLocaleTimeString("zh-Hant-TW", { hour12: false, timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit" });
   el.textContent = (inAfterHoursWindow() ? "自動更新中・" : "") + "檢查於 " + t;
@@ -1928,6 +1938,9 @@ setTheme(document.documentElement.dataset.theme || "dark");
   if (!t) { try { t = localStorage.getItem("tab") || ""; } catch (e) {} }
   showTab(["options", "futures", "spot", "margin"].includes(t) ? t : "options");
 })();
+
+// 版權年份：2026 起，跨年自動變成 2026–今年
+(function () { const y = new Date().getFullYear(); document.getElementById("cpYear").textContent = y > 2026 ? "2026–" + y : "2026"; })();
 
 // ================= 瀏覽人次 =================
 (function visits() {
