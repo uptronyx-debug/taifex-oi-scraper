@@ -12,10 +12,10 @@
 <meta property="og:description" content="台指選擇權與期貨三大法人籌碼、外資避險、融資與正2 ETF 期貨部位，盤後自動更新。">
 <meta property="og:url" content="https://options.uptronyx.com/">
 <meta property="og:image" content="https://options.uptronyx.com/icon-512.png">
-<link rel="icon" type="image/svg+xml" href="favicon.svg?v=4">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=4">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=4">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=4">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=5">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=5">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png?v=5">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=5">
 <meta name="theme-color" content="#1C1A17">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -505,6 +505,7 @@
   .lad.line{ font-weight:700; }
   .lad.line .lad-bar i{ display:block; width:100%; height:0; border-top:1.5px dashed currentColor; border-radius:0; margin-top:3px; }
   @media (max-width:700px){ #settleBox .stat-grid.three{ grid-template-columns:repeat(3,1fr); } }
+  .settle-result{ margin:-6px 0 14px; padding:8px 12px; border-radius:8px; background:var(--surface-2); font-size:13px; }
   .lad-foot{ font-size:12px; color:var(--text-muted); padding-top:10px; }
   @media (max-width:700px){ .lad{ grid-template-columns:118px 1fr 92px; gap:6px; padding:6px 4px; } .lad > b em{ min-width:40px; } }
   .chip{
@@ -635,6 +636,7 @@
     font-size:13px;
   }
   footer a{color:var(--text-muted);}
+  .foot-d{ font-family:'Roboto Mono', monospace; font-size:11px; opacity:.8; }
   .foot-copy{margin-top:14px; display:flex; gap:24px; flex-wrap:wrap; letter-spacing:.02em;}
   .foot-copy a{text-decoration:none;}
   .foot-row{ margin-bottom:6px; }
@@ -692,15 +694,7 @@
   </section>
 
   <footer>
-    <div class="foot-row"><span class="foot-k">資料來源</span>
-      <a href="https://www.taifex.com.tw/cht/3/callsAndPutsDate" target="_blank" rel="noopener">期交所 選擇權三大法人</a>、
-      <a href="https://www.taifex.com.tw/cht/3/optDailyMarketReport" target="_blank" rel="noopener">選擇權每日行情</a>、
-      <a href="https://www.taifex.com.tw/cht/3/futContractsDate" target="_blank" rel="noopener">期貨三大法人</a>、
-      <a href="https://www.taifex.com.tw/cht/3/futDailyMarketReport" target="_blank" rel="noopener">期貨每日行情</a>、
-      <a href="https://www.twse.com.tw/zh/trading/foreign/bfi82u.html" target="_blank" rel="noopener">證交所 三大法人買賣金額</a>、
-      <a href="https://www.twse.com.tw/zh/trading/margin/mi-margn.html" target="_blank" rel="noopener">信用交易統計</a>、
-      <a href="https://www.twse.com.tw/zh/trading/foreign/mi-qfiis.html" target="_blank" rel="noopener">外資及陸資持股統計</a>
-    </div>
+    <div class="foot-row"><span class="foot-k">資料來源</span><span id="srcNote"></span></div>
     <div class="foot-row"><span class="foot-k">更新時間</span><span id="updateNote"></span></div>
     <div class="foot-row" id="visitRow" style="display:none;"><span class="foot-k">瀏覽人次</span><span id="visitCount" class="foot-num"></span></div>
     <div class="foot-copy"><span>uptronyx.com © <span id="cpYear">2026</span></span><a href="mailto:hi@uptronyx.com">hi@uptronyx.com</a></div>
@@ -1316,7 +1310,8 @@ function renderSettle() {
   const vCls = cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : "";
   box.innerHTML = `<div class="card">
     <h2>結算前夕</h2>
-    <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算${cur.chg != null ? "・已結算" : ""}・週二看週三、週四看週五</div>
+    <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算・週二看週三、週四看週五</div>
+    ${cur.chg != null ? `<div class="settle-result">已結算：加權指數 <b class="${signCls(cur.chg)}">${sg(n0(cur.chg))}</b> 點（${n0(tx[cur.d])} → ${n0(tx[cur.ed])}）・${cur.verdict === "觀望" ? "研判觀望" : (cur.chg > 0) === (cur.verdict === "拉高") ? `<b class="pos">研判命中 ✓</b>` : `<b class="neg">研判未中 ✗</b>`}</div>` : ""}
     <div class="stat-grid">
       <div class="stat main"><div class="stat-label">可能結算態樣</div><div class="stat-value ${vCls}">${cur.verdict}</div>
         <div class="stat-delta">${cur.verdict === "觀望" && cur.lean !== "觀望" ? `原始傾向 ${cur.lean}` : "&nbsp;"}</div></div>
@@ -2089,6 +2084,7 @@ async function loadAll(ref) {
   renderHedge();
   if (etf.status === "fulfilled") { ETF_ROWS = etf.value; renderEtfFut(); }
   try { renderSettle(); } catch (e) { console.error(e); }
+  try { renderFootNote(); } catch (e) {}
   CUR_REF = ref;
 }
 function inAfterHoursWindow() {
@@ -2124,15 +2120,39 @@ window.addEventListener("resize", () => {
 });
 
 // ================= 分頁切換 =================
-const UPDATE_NOTE = {
-  options: "交易日約 14:50（期交所公布後 1 分鐘內）",
-  settle: "週二、週四約 15:00（選擇權資料公布後）",
-  futures: "交易日約 14:50（期交所公布後 1 分鐘內）",
-  spot: "買賣超約 15:05；外資持股與避險比例約 21:30",
-  margin: "交易日約 21:30（證交所公布融資後 1 分鐘內）",
+// 各分頁用到的資料：[檔名, 名稱, 連結]；括號內顯示該資料最新日期（每次讀到新資料就重算）
+const SRC = {
+  txo: ["txo_oi.csv", "期交所 選擇權三大法人", "https://www.taifex.com.tw/cht/3/callsAndPutsDate"],
+  strike: ["txo_strike_oi.csv", "期交所 選擇權每日行情", "https://www.taifex.com.tw/cht/3/optDailyMarketReport"],
+  fut: ["fut_oi.csv", "期交所 期貨三大法人", "https://www.taifex.com.tw/cht/3/futContractsDate"],
+  txm: ["tx_month_oi.csv", "期交所 期貨每日行情", "https://www.taifex.com.tw/cht/3/futDailyMarketReport"],
+  taiex: ["taiex.csv", "證交所 加權指數", "https://www.twse.com.tw/zh/trading/historical/fmtqik.html"],
+  spot: ["spot_net.csv", "證交所 三大法人買賣金額", "https://www.twse.com.tw/zh/trading/foreign/bfi82u.html"],
+  hold: ["foreign_hold.csv", "證交所 外資及陸資持股", "https://www.twse.com.tw/zh/trading/foreign/mi-qfiis.html"],
+  margin: ["margin.csv", "證交所 信用交易統計", "https://www.twse.com.tw/zh/trading/margin/mi-margn.html"],
+  mtop: ["margin_top.csv", "證交所 融資融券彙總（個股）", "https://www.twse.com.tw/zh/trading/margin/mi-margn.html"],
+  y631: ["etf_fut.csv", "元大 00631L", "https://www.yuantaetfs.com/product/detail/00631L/ratio"],
+  c685: ["etf_fut.csv", "群益 00685L", "https://www.capitalfund.com.tw/etf/product/detail/094/portfolio"],
+  f675: ["etf_fut.csv", "富邦 00675L", "https://websys.fsit.com.tw/FubonETF/Trade/ConstituentStock.aspx?lan=TW&stkId=00675L"],
+  k663: ["etf_fut.csv", "國泰 00663L（MoneyDJ）", "https://www.moneydj.com/ETF/X/Basic/Basic0007B.xdjhtm?etfid=00663L.TW"],
 };
+const TAB_INFO = {
+  options: { src: ["txo", "strike"], note: "交易日約 15:00（期交所公布後自動更新）" },
+  settle: { src: ["txo", "strike", "txm", "taiex"], note: "週二、週四約 15:00 研判；週三、週五結算當天約 15:00 更新結果" },
+  futures: { src: ["fut", "txm", "y631", "c685", "f675", "k663"], note: "期貨交易日約 15:00；正2 ETF 約 21:30（投信晚間公布持股）" },
+  spot: { src: ["spot", "hold", "fut", "taiex"], note: "買賣超約 15:00；外資持股與避險比例約 21:30" },
+  margin: { src: ["margin", "mtop", "taiex"], note: "交易日約 21:30（證交所公布融資後）" },
+};
+const lastDate = file => { const t = (typeof CSV_TEXT !== "undefined" && CSV_TEXT[file]) || ""; const m = t.trimEnd().split("\n").pop().match(/^(\d{4})\/(\d{2})\/(\d{2})/); return m ? `${m[2]}/${m[3]}` : ""; };
+let CUR_TAB = "options";
+function renderFootNote(name) {
+  const info = TAB_INFO[name || CUR_TAB]; if (!info) return;
+  document.getElementById("srcNote").innerHTML = info.src.map(k => { const [f, n, u] = SRC[k]; const d = lastDate(f);
+    return `<a href="${u}" target="_blank" rel="noopener">${n}</a>${d ? `<span class="foot-d">（${d}）</span>` : ""}`; }).join("、");
+  document.getElementById("updateNote").textContent = info.note;
+}
 function showTab(name) {
-  document.getElementById("updateNote").textContent = UPDATE_NOTE[name] || "";
+  CUR_TAB = name; renderFootNote(name);
   document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + name));
   try { localStorage.setItem("tab", name); } catch (e) {}

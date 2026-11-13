@@ -28,6 +28,7 @@ JOB_SCRAPERS = {
         ("期貨三大法人", ["scraper_futures.py"]),
         ("大台各月份", ["scraper_tx_months.py"]),
         ("現貨買賣超", ["scraper_spot.py"]),
+        ("加權指數收盤", ["scraper_taiex.py"]),
         ("正2 ETF 期貨", ["scraper_etf_fut.py"]),
     ],
     "margin": [
