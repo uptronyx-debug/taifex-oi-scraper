@@ -842,7 +842,7 @@ function lineChartSvg(series, labels) {
   const n = series.length;
 
   const allVals = series.flatMap(s => [s.bc, s.sc, s.bp, s.sp]);
-  const maxV = Math.max(...allVals, 1) * 1.15;
+  const T = niceTicks(0, Math.max(...allVals, 1), 3), maxV = T.hi, fa = axisNum(T.step);
 
   const x = i => padL + (n === 1 ? 0 : (i / (n - 1)) * plotW);
   const y = v => padT + plotH - (v / maxV) * plotH;
@@ -850,10 +850,10 @@ function lineChartSvg(series, labels) {
   const pathFor = key =>
     series.map((s, i) => (i === 0 ? "M" : "L") + x(i).toFixed(1) + "," + y(s[key]).toFixed(1)).join(" ");
 
-  const gridLines = [0, 0.5, 1].map(f => {
-    const yy = padT + plotH * (1 - f);
+  const gridLines = T.ticks.map(v => {
+    const yy = y(v);
     return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>
-            <text x="${padL - 4}" y="${yy + 3}" font-size="9" fill="var(--text-muted)" text-anchor="end">${(maxV * f).toFixed(0)}</text>`;
+            <text x="${padL - 4}" y="${yy + 3}" font-size="9" fill="var(--text-muted)" text-anchor="end">${fa(v)}</text>`;
   }).join("");
 
   const lineDefs = [
@@ -1115,6 +1115,37 @@ function statHtml(label, value, valueText, deltaText, main) {
   </div>`;
 }
 
+// ================= Y 軸刻度：整數好讀的步距（1、2、2.5、5 × 10ⁿ） =================
+const NICE = [1, 2, 2.5, 5, 10];
+function niceStep(range, target) {
+  const raw = Math.abs(range) / Math.max(1, target) || 1, p = Math.pow(10, Math.floor(Math.log10(raw)));
+  return NICE.find(m => m * p >= raw - 1e-12) * p;
+}
+const nextNice = s => { const p = Math.pow(10, Math.floor(Math.log10(s) + 1e-9)), m = +(s / p).toFixed(6); const i = NICE.indexOf(m); return (i < 0 || i >= NICE.length - 1 ? 2 : NICE[i + 1]) * p; };
+const mkTicks = (a, s, n) => Array.from({ length: n + 1 }, (_, i) => +(a + i * s).toPrecision(12));
+// 涵蓋 [lo, hi] 的整齊刻度，約 target 格
+function niceTicks(lo, hi, target = 4) {
+  if (!(hi > lo)) { const d = Math.abs(hi) * 0.05 || 1; lo -= d; hi += d; }
+  const s = niceStep(hi - lo, target), a = Math.floor(lo / s + 1e-9) * s, b = Math.ceil(hi / s - 1e-9) * s;
+  const n = Math.round((b - a) / s);
+  return { lo: a, hi: b, step: s, ticks: mkTicks(a, s, n) };
+}
+// 固定 n 格（雙軸用，讓左右刻度落在同一組格線上）
+function niceTicksN(lo, hi, n) {
+  if (!(hi > lo)) { const d = Math.abs(hi) * 0.05 || 1; lo -= d; hi += d; }
+  let s = niceStep(hi - lo, n);
+  for (let k = 0; k < 40; k++) {
+    const a = Math.floor(lo / s + 1e-9) * s;
+    if (a + n * s >= hi - 1e-9) return { lo: a, hi: a + n * s, step: s, ticks: mkTicks(a, s, n) };
+    s = nextNice(s);
+  }
+  return niceTicks(lo, hi, n);
+}
+// 依步距決定小數位：步距 5000 → 5,000；步距 0.25 → 0.25
+const stepDec = s => { for (let d = 0; d < 6; d++) if (Math.abs(Math.round(s * 10 ** d) - s * 10 ** d) < 1e-6) return d; return 2; };
+const axisNum = s => v => (Math.abs(v) < s / 1e6 ? 0 : v).toLocaleString(undefined, { minimumFractionDigits: stepDec(s), maximumFractionDigits: stepDec(s) });
+const axisPct = s => v => ((Math.abs(v) < s / 1e6 ? 0 : v) * 100).toFixed(stepDec(s * 100)) + "%";
+
 // 跨年度時 X 軸顯示「年/月」，否則「月/日」
 const xLab = (l, labels) => labels[0].slice(0, 4) !== labels[labels.length - 1].slice(0, 4) ? l.slice(2, 7) : l.slice(5);
 const chartW = () => Math.max(300, Math.min(900, document.querySelector(".wrap").clientWidth - 60));
@@ -1124,7 +1155,8 @@ function barChartSvg(values, labels, fmt) {
   fmt = fmt || (v => fmtYi2(v));
   const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 46, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
-  const maxAbs = Math.max(...values.map(v => Math.abs(v)), 1) * 1.1;
+  const ma = Math.max(...values.map(v => Math.abs(v)), 1e-9);
+  const T = niceTicks(-ma, ma, 4), maxAbs = Math.max(-T.lo, T.hi), fa = axisNum(T.step);
   const y0 = padT + plotH / 2;
   const scale = (plotH / 2) / maxAbs;
   const bw = plotW / values.length;
@@ -1138,10 +1170,10 @@ function barChartSvg(values, labels, fmt) {
   const showLbl = (i, n) => i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75);
   const xl = labels.map((l, i) => showLbl(i, labels.length)
     ? `<text x="${(i === labels.length - 1 ? width - padR : padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === labels.length - 1 ? "end" : "middle"}">${xLab(l, labels)}</text>` : "").join("");
-  const grid = [maxAbs, 0, -maxAbs].map(v => {
+  const grid = T.ticks.filter(v => Math.abs(v) <= maxAbs + 1e-9).map(v => {
     const yy = y0 - v * scale;
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
-      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${Math.round(v).toLocaleString()}</text>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="${v === 0 ? "var(--text-muted)" : "var(--divider)"}" stroke-width="1"/>
+      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${fa(v)}</text>`;
   }).join("");
   const pts = values.map((v, i) => ({
     x: +(padL + i * bw + bw / 2).toFixed(1),
@@ -1154,18 +1186,20 @@ function barChartSvg(values, labels, fmt) {
 // 淨部位折線（可為負值），含 0 軸
 function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
   fmt = fmt || (v => Math.round(v).toLocaleString());
-  fmtAxis = fmtAxis || (v => Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : v.toFixed(Math.abs(v) >= 10 ? 1 : 2));
   const width = chartW(), height = chartW() < 500 ? 140 : 170, padL = 54, padR = 10, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
-  let lo = Math.min(...values), hi = Math.max(...values);
-  const pad = (hi - lo) * 0.1 || Math.abs(hi) * 0.05 || 1; lo -= pad; hi += pad;
+  const T = niceTicks(Math.min(...values), Math.max(...values), 4);
+  const lo = T.lo, hi = T.hi;
+  const fa0 = axisNum(T.step);
+  const pctAxis = fmtAxis && /%\s*$/.test(String(fmtAxis(1)));
+  fmtAxis = v => fa0(v) + (pctAxis ? "%" : "");
   const n = values.length;
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const y = v => padT + (hi - v) / (hi - lo) * plotH;
   const path = values.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
   const last = values[n - 1];
   const color = fixedColor || (last >= 0 ? "var(--long)" : "var(--short)");
-  const grid = [hi, (hi + lo) / 2, lo].map(v =>
+  const grid = T.ticks.map(v =>
     `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)" stroke-width="1"/>
      <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${fmtAxis(v)}</text>`).join("");
   const zero = (lo < 0 && hi > 0) ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3,3"/>` : "";
@@ -1623,7 +1657,8 @@ const pct = v => (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 function pairBarSvg(idx, mg, labels, warn) {
   const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 42, padR = 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
-  const maxAbs = Math.max(...idx.map(Math.abs), ...mg.map(Math.abs), 0.001) * 1.15;
+  const ma = Math.max(...idx.map(Math.abs), ...mg.map(Math.abs), 0.0001);
+  const T = niceTicks(-ma, ma, 4), maxAbs = Math.max(-T.lo, T.hi), fa = axisPct(T.step);
   const y0 = padT + plotH / 2, sc = (plotH / 2) / maxAbs, bw = plotW / idx.length;
   const bar = (v, x, w, fill) => {
     const h = Math.abs(v) * sc;
@@ -1641,10 +1676,10 @@ function pairBarSvg(idx, mg, labels, warn) {
   const step = Math.ceil(idx.length / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === labels.length - 1 || (i % step === 0 && labels.length - 1 - i >= step * 0.75))
     ? `<text x="${(padL + i * bw + bw / 2).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="middle">${xLab(l, labels)}</text>` : "").join("");
-  const grid = [maxAbs, 0, -maxAbs].map(v => {
+  const grid = T.ticks.filter(v => Math.abs(v) <= maxAbs + 1e-12).map(v => {
     const yy = y0 - v * sc;
-    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="${v === 0 ? 1.2 : 1}"/>
-      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${(v * 100).toFixed(1)}%</text>`;
+    return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="${v === 0 ? "var(--text-muted)" : "var(--divider)"}" stroke-width="1"/>
+      <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${fa(v)}</text>`;
   }).join("");
   const pts = idx.map((v, i) => ({
     x: +(padL + i * bw + bw / 2).toFixed(1),
@@ -1662,13 +1697,13 @@ function multiLineSvg(seriesList, labels, fmt) {
   const width = chartW(), height = chartW() < 500 ? 160 : 190, padL = isPct ? 46 : 54, padR = 10, padT = 10, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const all = seriesList.flatMap(s => s.values).filter(v => v !== null && v !== undefined);
-  let lo = isPct ? Math.min(...all, 0) : Math.min(...all), hi = isPct ? Math.max(...all, 0) : Math.max(...all);
-  const pad = (hi - lo) * 0.08 || Math.abs(hi) * 0.05 || 0.01; lo -= pad; hi += pad;
+  const T = niceTicks(isPct ? Math.min(...all, 0) : Math.min(...all), isPct ? Math.max(...all, 0) : Math.max(...all), 4);
+  const lo = T.lo, hi = T.hi;
   const n = labels.length;
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const y = v => padT + (hi - v) / (hi - lo) * plotH;
-  const axis = v => isPct ? (v * 100).toFixed(1) + "%" : Math.round(v).toLocaleString();
-  const grid = [hi, (hi + lo) / 2, lo].map(v =>
+  const axis = isPct ? axisPct(T.step) : axisNum(T.step);
+  const grid = T.ticks.map(v =>
     `<line x1="${padL}" y1="${y(v)}" x2="${width - padR}" y2="${y(v)}" stroke="var(--divider)"/>
      <text x="${padL - 5}" y="${y(v) + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${axis(v)}</text>`).join("");
   const zero = isPct ? `<line x1="${padL}" y1="${y(0)}" x2="${width - padR}" y2="${y(0)}" stroke="var(--text-muted)" stroke-dasharray="3,3"/>` : "";
@@ -1908,18 +1943,30 @@ function renderMarginTop() {
 // 兩條線各用自己的比例尺（無 Y 軸），用提示框看數值
 function dualLineSvg(a, b, labels, fmtA, fmtB, colorA, colorB, nameA, nameB, extra, axisA, axisB) {
   axisA = axisA || fmtA; axisB = axisB || fmtB;
-  const rng = vals => { let lo = Math.min(...vals), hi = Math.max(...vals); const pd = (hi - lo) * 0.08 || 1; return [lo - pd, hi + pd]; };
-  const [aLo, aHi] = rng(a), [bLo, bHi] = rng(b);
-  const tw = (f, lo, hi) => Math.max(...[lo, hi, (lo + hi) / 2].map(v => String(f(v)).length)) * 6.2 + 8;
+  // 左右軸各自取整齊刻度，但格數相同（4 格），格線對齊
+  // 試 3～6 格，挑兩條線都最「撐滿」的格數
+  const aMin = Math.min(...a), aMax = Math.max(...a), bMin = Math.min(...b), bMax = Math.max(...b);
+  let TA, TB, best = -1;
+  for (let n = 3; n <= 6; n++) {
+    const ta = niceTicksN(aMin, aMax, n), tb = niceTicksN(bMin, bMax, n);
+    const fill = Math.min((aMax - aMin) / (ta.hi - ta.lo), (bMax - bMin) / (tb.hi - tb.lo)) - n * 0.01;
+    if (fill > best) { best = fill; TA = ta; TB = tb; }
+  }
+  const aLo = TA.lo, aHi = TA.hi, bLo = TB.lo, bHi = TB.hi;
+  const unitOf = f => (String(f(1)).match(/[%兆億口]+\s*$/) || [""])[0].trim();
+  const uA = unitOf(axisA), uB = unitOf(axisB);
+  axisA = (fa => v => fa(v) + (uA === "%" ? "%" : ""))(axisNum(TA.step));
+  axisB = (fb => v => fb(v) + (uB === "%" ? "%" : ""))(axisNum(TB.step));
+  const tw = (f, T) => Math.max(...T.ticks.map(v => String(f(v)).length)) * 6.2 + 8;
   const width = chartW(), height = chartW() < 500 ? 170 : 210, padT = 10, padB = 18;
-  const padL = Math.max(42, tw(axisA, aLo, aHi)), padR = Math.max(46, tw(axisB, bLo, bHi));
+  const padL = Math.max(42, tw(axisA, TA)), padR = Math.max(46, tw(axisB, TB));
   const plotW = width - padL - padR, plotH = height - padT - padB, n = labels.length;
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
   const ya = v => padT + (aHi - v) / (aHi - aLo) * plotH, yb = v => padT + (bHi - v) / (bHi - bLo) * plotH;
   const path = (vals, y) => vals.map((v, i) => (i ? "L" : "M") + x(i).toFixed(1) + "," + y(v).toFixed(1)).join(" ");
-  const grid = [0, 0.5, 1].map(f => `<line x1="${padL}" y1="${padT + plotH * f}" x2="${width - padR}" y2="${padT + plotH * f}" stroke="var(--divider)"/>
-    <text x="${padL - 5}" y="${padT + plotH * f + 3}" font-size="10" fill="${colorA}" text-anchor="end">${axisA(aHi - (aHi - aLo) * f)}</text>
-    <text x="${width - padR + 5}" y="${padT + plotH * f + 3}" font-size="10" fill="${colorB}" text-anchor="start">${axisB(bHi - (bHi - bLo) * f)}</text>`).join("");
+  const grid = TA.ticks.map((va, i) => { const yy = ya(va).toFixed(1); return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="var(--divider)"/>
+    <text x="${padL - 5}" y="${+yy + 3}" font-size="10" fill="${colorA}" text-anchor="end">${axisA(va)}</text>
+    <text x="${width - padR + 5}" y="${+yy + 3}" font-size="10" fill="${colorB}" text-anchor="start">${axisB(TB.ticks[i])}</text>`; }).join("");
   const step = Math.ceil(n / Math.max(3, Math.floor(width / 75)));
   const xl = labels.map((l, i) => (i === n - 1 || (i % step === 0 && n - 1 - i >= step * 0.75))
     ? `<text x="${x(i).toFixed(1)}" y="${height - 4}" font-size="10" fill="var(--text-muted)" text-anchor="${i === n - 1 ? "end" : i === 0 ? "start" : "middle"}">${xLab(l, labels)}</text>` : "").join("");
