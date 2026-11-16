@@ -506,6 +506,7 @@
   .lad.line .lad-bar i{ display:block; width:100%; height:0; border-top:1.5px dashed currentColor; border-radius:0; margin-top:3px; }
   @media (max-width:700px){ #settleBox .stat-grid.three{ grid-template-columns:repeat(3,1fr); } }
   .settle-result{ margin:-6px 0 14px; padding:8px 12px; border-radius:8px; background:var(--surface-2); font-size:13px; }
+  .settle-bt tr.main-row td{ background:var(--surface-2); }
   .lad-foot{ font-size:12px; color:var(--text-muted); padding-top:10px; }
   @media (max-width:700px){ .lad{ grid-template-columns:118px 1fr 92px; gap:6px; padding:6px 4px; } .lad > b em{ min-width:40px; } }
   .chip{
@@ -1255,22 +1256,27 @@ function renderSettle() {
   const dates = [...new Set(OPT_ROWS.map(r => r.date))].sort();
   const exps = [...new Set(STRIKE_ROWS.map(r => r.expiry))].sort();
   const tx = taiexMap();
-  // 每個結算日的前一交易日 → 研判；有收盤就對答案
-  const hist = [];
-  for (const e of exps) {
-    const ed = ymd(e), i = dates.indexOf(ed);
-    if (i < 2) continue;
-    const r = settleRead(dates[i - 1], dates[i - 2]);
+  // 每個交易日都研判「下一個結算日」；有收盤就對答案（主策略只看週二、週四）
+  const firstStrike = STRIKE_ROWS.reduce((m, r) => r.date < m ? r.date : m, "9999");
+  const all = [];
+  for (let i = 1; i < dates.length; i++) {
+    const d = dates[i];
+    if (d < firstStrike) continue;
+    const e = exps.find(x => ymd(x) > d);
+    if (!e) continue;
+    const r = settleRead(d, dates[i - 1]);
     if (!r) continue;
-    const a = tx[dates[i - 1]], b = tx[ed];
-    hist.push({ e, ed, d: dates[i - 1], ...r, chg: a && b ? b - a : null });
+    const ed = ymd(e), a = tx[d], b = tx[ed];
+    const gap = dates.includes(ed) ? dates.indexOf(ed) - i : null;
+    all.push({ e, ed, d, wd: WD(d), gap, eve: ["二", "四"].includes(WD(d)) && gap === 1, ...r, chg: a && b && ed <= dates[dates.length - 1] ? b - a : null });
   }
-  // 今天（最新資料日）的下一個結算日
+  const hist = all.filter(h => h.eve);
   const last = dates[dates.length - 1];
-  const nextE = exps.find(e => ymd(e) > last);
-  const isEve = nextE && ["二", "四"].includes(WD(last)) && (new Date(ymd(nextE)) - new Date(last)) / 864e5 <= 1;
-  let cur = isEve ? { e: nextE, ed: ymd(nextE), d: last, ...settleRead(last, dates[dates.length - 2]) } : null;
-  if (!cur || !cur.cells) cur = hist[hist.length - 1];
+  // 顯示：今天的研判（任何交易日都算）；今天剛好是結算日則顯示昨天對今天的結果
+  let cur = all.filter(h => h.d === last)[0];
+  const todaySettled = hist.find(h => h.ed === last);
+  if (todaySettled && todaySettled.chg !== null) cur = todaySettled;
+  if (!cur) cur = all[all.length - 1];
   if (!cur) { box.innerHTML = ""; return; }
 
   const BS = x => x === "B" ? `<td class="b">Buy</td>` : x === "S" ? `<td class="s">Sell</td>` : `<td class="c">—</td>`;
@@ -1302,7 +1308,10 @@ function renderSettle() {
   const now = sAt(sdD), prev = sdP ? sAt(sdP) : {};
   const big = t => Object.entries(now).filter(([k, v]) => k.startsWith(t) && v >= SETTLE_MIN_OI)
     .map(([k, v]) => ({ k: Number(k.slice(t.length)), v, dv: v - (prev[k] || 0) })).sort((a, b) => b.k - a.k);
-  const calls = big("call"), puts = big("put");
+  // 只看現價 ±5% 內的履約價（太遠的大量區對結算沒參考性）
+  const refPx = tx[cur.d] || (((TXM_ROWS || []).find(r => r.date === cur.d) || {}).settle * 1) || 0;
+  const near = c => !refPx || Math.abs(c.k / refPx - 1) <= 0.05;
+  const calls = big("call").filter(near), puts = big("put").filter(near);
   const fut = (TXM_ROWS || []).filter(r => r.date === cur.d).sort((a, b) => a.contract < b.contract ? -1 : 1)[0];
   const spot = tx[cur.d], ref = spot || (fut && Number(fut.settle));
   const basis = fut && spot ? Math.round(Number(fut.settle) - spot) : 0;
@@ -1335,6 +1344,17 @@ function renderSettle() {
   const done = hist.filter(h => h.chg !== null);
   const dir = done.filter(h => h.verdict !== "觀望"), hit = dir.filter(h => (h.chg > 0) === (h.verdict === "拉高")).length;
   const allUp = dir.filter(h => h.chg > 0).length, pc = (a, b) => b ? Math.round(a / b * 100) + "%" : "—";
+  // 各星期回測：同一套規則放在每個交易日
+  const wdRow = (wd, label) => {
+    const xs = all.filter(h => h.wd === wd && h.chg !== null && h.gap !== null && h.gap <= 3);
+    const dd = xs.filter(h => h.verdict !== "觀望"), hh = dd.filter(h => (h.chg > 0) === (h.verdict === "拉高")).length;
+    const uu = dd.filter(h => h.chg > 0).length;
+    return `<tr${["二", "四"].includes(wd) ? ' class="main-row"' : ""}><td>${label}</td><td>${xs.length}</td><td>${dd.length}</td><td><b>${pc(hh, dd.length)}</b></td><td>${pc(uu, dd.length)}</td></tr>`;
+  };
+  const wdTable = `<div class="chart-title">各星期回測（同一套規則套在每個交易日）</div>
+    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算</th><th>樣本</th><th>給方向</th><th>命中率</th><th>一律猜拉高</th></tr></thead><tbody>
+    ${wdRow("一", "週一 → 週三")}${wdRow("二", "週二 → 週三（主）")}${wdRow("三", "週三 → 週五")}${wdRow("四", "週四 → 週五（主）")}${wdRow("五", "週五 → 下週三")}
+    </tbody></table></div>`;
   const btRows = done.slice(-20).reverse().map(h => {
     const ok = h.verdict === "觀望" ? "" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
     const v = h.verdict === "觀望" ? `<span class="muted">觀望${h.lean !== "觀望" ? `（${h.lean}）` : ""}</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
@@ -1344,7 +1364,8 @@ function renderSettle() {
   const vCls = cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : "";
   box.innerHTML = `<div class="card">
     <h2>結算前夕</h2>
-    <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算・週二看週三、週四看週五</div>
+    <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算・主策略：週二看週三、週四看週五</div>
+    ${cur.eve ? "" : `<div class="settle-result">今天是週${cur.wd}，不在主策略的日子，研判僅供觀察（下方「各星期回測」可比較準確度）</div>`}
     ${cur.chg != null ? `<div class="settle-result">已結算：加權指數 <b class="${signCls(cur.chg)}">${sg(n0(cur.chg))}</b> 點（${n0(tx[cur.d])} → ${n0(tx[cur.ed])}）・${cur.verdict === "觀望" ? "研判觀望" : (cur.chg > 0) === (cur.verdict === "拉高") ? `<b class="pos">研判命中 ✓</b>` : `<b class="neg">研判未中 ✗</b>`}</div>` : ""}
     <div class="stat-grid">
       <div class="stat main"><div class="stat-label">可能結算態樣</div><div class="stat-value ${vCls}">${cur.verdict}</div>
@@ -1361,19 +1382,21 @@ function renderSettle() {
   <div class="settle-grid">
     <div class="card"><h2>法人四格與散戶推估</h2><div class="sub">兩法人同方向的格子，散戶站對面</div>${quad}
       <div class="chart-title">法人選擇權籌碼</div><div class="sub" style="margin-bottom:6px">前一日變化推論價內／價外買賣（不知道時假設都買）</div>${chipTable}</div>
-    <div class="card"><h2>當週撐壓</h2><div class="sub">未平倉 ≥${SETTLE_MIN_OI.toLocaleString()} 口・灰字為換算期貨價${basis ? `（期現價差 ${sg(basis)}）` : ""}・底色為防守區間</div>
+    <div class="card"><h2>當週撐壓</h2><div class="sub">未平倉 ≥${SETTLE_MIN_OI.toLocaleString()} 口、現價 ±5% 內・灰字為換算期貨價${basis ? `（期現價差 ${sg(basis)}）` : ""}・底色為防守區間</div>
       ${ladder}
       ${up && dn ? `<div class="lad-foot">防守區間 ${w.toLocaleString()} 點 × 130/500 ＝ 力道 ${f} 點</div>` : ""}</div>
   </div>
 
   <div class="card">
-    <h2>回測</h2><div class="sub">結算前一日研判 vs 實際（加權指數收盤漲跌）・${done[0] ? done[0].ed : ""} 起 ${done.length} 次結算</div>
+    <h2>回測</h2><div class="sub">主策略（週二、週四）研判 vs 實際（加權指數收盤漲跌）・${done[0] ? done[0].ed : ""} 起 ${done.length} 次結算</div>
     <div class="stat-grid three">
       <div class="stat main"><div class="stat-label">命中率</div><div class="stat-value">${pc(hit, dir.length)}</div><div class="stat-delta">${hit} / ${dir.length} 次</div></div>
       <div class="stat"><div class="stat-label">一律猜拉高</div><div class="stat-value">${pc(allUp, dir.length)}</div><div class="stat-delta">同一批日子對照</div></div>
       <div class="stat"><div class="stat-label">給出方向</div><div class="stat-value">${pc(dir.length, done.length)}</div><div class="stat-delta">其餘觀望</div></div>
     </div>
-    <div class="table-scroll" style="margin-top:14px"><table class="trend-table settle-bt"><thead><tr><th>結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
+    ${wdTable}
+    <div class="chart-title">主策略明細（近 20 次）</div>
+    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
     <div class="note">點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
   </div>`;
 }
