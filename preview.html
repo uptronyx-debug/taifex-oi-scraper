@@ -1223,6 +1223,8 @@ function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
 const SETTLE_MIN_OI = 1500;   // 當週合約只看未平倉 ≥ 1500 口的履約價
 const SETTLE_MIN_AGREE = 3;   // 兩法人同方向 ≥3 格才給方向
 let OPT_ROWS = null, STRIKE_ROWS = null;
+let SETTLE_DETAIL = "main";   // 明細分頁：main＝主策略（週二、週四），或 一／三／五
+function setSettleDetail(k) { SETTLE_DETAIL = k; renderSettle(); }
 const ymd = e => `${e.slice(0, 4)}/${e.slice(4, 6)}/${e.slice(6, 8)}`;
 const WD = d => "日一二三四五六"[new Date(d.replace(/\//g, "-") + "T00:00:00").getDay()];
 
@@ -1355,11 +1357,14 @@ function renderSettle() {
     <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算</th><th>樣本</th><th>給方向</th><th>命中率</th><th>一律猜拉高</th></tr></thead><tbody>
     ${wdRow("一", "週一 → 週三")}${wdRow("二", "週二 → 週三（主）")}${wdRow("三", "週三 → 週五")}${wdRow("四", "週四 → 週五（主）")}${wdRow("五", "週五 → 下週三")}
     </tbody></table></div>`;
-  const btRows = done.slice(-20).reverse().map(h => {
+  const DETAIL_TABS = [["main", "主策略"], ["一", "週一→週三"], ["三", "週三→週五"], ["五", "週五→下週三"]];
+  const detailSrc = SETTLE_DETAIL === "main" ? done : all.filter(h => h.wd === SETTLE_DETAIL && h.chg !== null && h.gap !== null && h.gap <= 3);
+  const btRows = detailSrc.slice(-20).reverse().map(h => {
     const ok = h.verdict === "觀望" ? "" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
     const v = h.verdict === "觀望" ? `<span class="muted">觀望${h.lean !== "觀望" ? `（${h.lean}）` : ""}</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
-    return `<tr><td>${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
+    return `<tr><td>${h.d.slice(5)}（${h.wd}）→ ${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
   }).join("");
+  const detailSeg = `<div class="seg">${DETAIL_TABS.map(([k, l]) => `<button class="${SETTLE_DETAIL === k ? "on" : ""}" onclick="setSettleDetail('${k}')">${l}</button>`).join("")}</div>`;
 
   const vCls = cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : "";
   box.innerHTML = `<div class="card">
@@ -1395,8 +1400,8 @@ function renderSettle() {
       <div class="stat"><div class="stat-label">給出方向</div><div class="stat-value">${pc(dir.length, done.length)}</div><div class="stat-delta">其餘觀望</div></div>
     </div>
     ${wdTable}
-    <div class="chart-title">主策略明細（近 20 次）</div>
-    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
+    <div class="hedge-head" style="margin:16px 0 6px"><div class="chart-title" style="margin:0">明細（近 20 次）</div>${detailSeg}</div>
+    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
     <div class="note">點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
   </div>`;
 }
