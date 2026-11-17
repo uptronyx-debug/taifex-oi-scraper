@@ -1786,10 +1786,10 @@ function swingPanel(rows) {
   const over1 = rs.filter(r => r >= 1).length;
   const rec = SWING_MODE === "recover";
   const tr = sw.slice().reverse().map(x => `<tr${x.done ? "" : ' class="live-row"'}>
-      <td>${x.H.date.startsWith(latestYear) ? "" : x.H.date.slice(2, 4) + "/"}${x.H.date.slice(5)}→${x.L.date.slice(5)}${x.done ? "" : ' <span class="live-tag">進行中</span>'}</td>
+      <td>${x.H.date.slice(2)} → ${x.L.date.slice(2)}${x.done ? "" : ' <span class="live-tag">進行中</span>'}</td>
       <td class="hide-m">${x.days}</td><td class="${signCls(x.di)}">${pct(x.di)}</td><td class="${signCls(x.da)}">${pct(x.da)}</td>
       <td class="${signCls(x.dl)}">${pct(x.dl)}</td>
-      ${rec ? `<td class="hide-m">${x.back ? (x.back.date.startsWith(latestYear) ? "" : x.back.date.slice(2, 4) + "/") + x.back.date.slice(5) : "—"}</td>` : ""}
+      ${rec ? `<td class="hide-m">${x.back ? x.back.date.slice(2) : "—"}</td>` : ""}
       <td style="font-weight:700;color:${x.ratio === null ? "inherit" : x.ratio >= 1 ? "var(--short)" : "var(--text)"}">${x.ratio === null ? "—" : x.ratio.toFixed(2)}</td></tr>`).join("");
   return `<div class="swing-panel">
     <div class="hedge-head" style="margin-bottom:8px"><div class="swing-title" style="margin:0">歷次回檔（${rec ? "跌 ≥10% 後漲回前高" : "跌 ≥5% 後反彈 ≥5%"}）</div>

@@ -588,8 +588,9 @@
   .seg button.on{ background:var(--text); color:var(--bg); font-weight:600; }
   .chartbox{ position:relative; touch-action:pan-y; cursor:crosshair; }
   .chartbox .tip{ display:none; position:absolute; top:-4px; z-index:5; pointer-events:none; white-space:nowrap;
-    background:var(--surface-2); border:1px solid var(--accent-border); border-radius:6px; padding:5px 8px;
-    font-size:11px; line-height:1.45; box-shadow:0 4px 14px rgba(0,0,0,.25); }
+    background:color-mix(in srgb, var(--surface-2) 72%, transparent); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);
+    border:1px solid var(--accent-border); border-radius:6px; padding:5px 8px;
+    font-size:11px; line-height:1.45; box-shadow:0 2px 8px rgba(0,0,0,.12); }
   .chartbox .tip .td{ color:var(--text-muted); font-family:'Roboto Mono', monospace; font-size:10px; }
   .chartbox .tip b{ font-family:'Roboto Mono', monospace; font-weight:700; }
   .chartbox .tip .tr{ display:flex; justify-content:space-between; gap:10px; }
@@ -665,6 +666,7 @@
     <button class="tab" data-tab="settle">結算前夕</button>
     <button class="tab" data-tab="futures">期貨</button>
     <button class="tab" data-tab="spot">現貨</button>
+    <button class="tab" data-tab="hedge">避險比例</button>
     <button class="tab" data-tab="margin">融資</button>
   </nav>
 
@@ -686,7 +688,10 @@
 
   <section class="tab-panel" id="panel-spot">
     <div id="spotBox"><div class="note">資料載入中…</div></div>
-    <div id="hedgeBox"></div>
+  </section>
+
+  <section class="tab-panel" id="panel-hedge">
+    <div id="hedgeBox"><div class="note">資料載入中…</div></div>
   </section>
 
   <section class="tab-panel" id="panel-margin">
@@ -817,9 +822,10 @@ function tipShow(box, clientX) {
     + (p.marks || []).map(m => `<circle cx="${p.x}" cy="${m.y}" r="4" fill="${m.color}" stroke="var(--surface)" stroke-width="1.5"/>`).join("");
   tip.innerHTML = p.html;
   tip.style.display = "block";
+  // 提示框放在查價線旁邊（右側放得下就放右邊，否則放左邊），不蓋住查價點
   const px = p.x * rect.width / d.W;
-  const tw = tip.offsetWidth, bw = box.clientWidth;
-  tip.style.left = Math.max(0, Math.min(bw - tw, px - tw / 2)) + "px";
+  const tw = tip.offsetWidth, bw = box.clientWidth, gap = 12;
+  tip.style.left = (px + gap + tw <= bw ? px + gap : Math.max(0, px - gap - tw)) + "px";
   box.classList.add("tipping");
 }
 function tipHide(box) {
@@ -1223,6 +1229,8 @@ function netLineSvg(values, labels, fmt, fixedColor, fmtAxis) {
 const SETTLE_MIN_OI = 1500;   // 當週合約只看未平倉 ≥ 1500 口的履約價
 const SETTLE_MIN_AGREE = 3;   // 兩法人同方向 ≥3 格才給方向
 let OPT_ROWS = null, STRIKE_ROWS = null;
+let SETTLE_DETAIL = "main";   // 明細分頁：main＝主策略（週二、週四），或 一／三／五
+function setSettleDetail(k) { SETTLE_DETAIL = k; renderSettle(); }
 const ymd = e => `${e.slice(0, 4)}/${e.slice(4, 6)}/${e.slice(6, 8)}`;
 const WD = d => "日一二三四五六"[new Date(d.replace(/\//g, "-") + "T00:00:00").getDay()];
 
@@ -1356,16 +1364,20 @@ function renderSettle() {
     <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算</th><th>樣本</th><th>給方向</th><th>命中率</th><th>一律猜拉高</th></tr></thead><tbody>
     ${wdRow("一", "週一 → 週三")}${wdRow("二", "週二 → 週三（主）")}${wdRow("三", "週三 → 週五")}${wdRow("四", "週四 → 週五（主）")}${wdRow("五", "週五 → 下週三")}
     </tbody></table></div>`;
-  const btRows = done.slice(-20).reverse().map(h => {
+  const DETAIL_TABS = [["main", "主策略"], ["一", "週一→週三"], ["三", "週三→週五"], ["五", "週五→下週三"]];
+  const detailSrc = SETTLE_DETAIL === "main" ? done : all.filter(h => h.wd === SETTLE_DETAIL && h.chg !== null && h.gap !== null && h.gap <= 3);
+  const btRows = detailSrc.slice(-20).reverse().map(h => {
     const ok = h.verdict === "觀望" ? "" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
     const v = h.verdict === "觀望" ? `<span class="muted">觀望${h.lean !== "觀望" ? `（${h.lean}）` : ""}</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
-    return `<tr><td>${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
+    return `<tr><td>${h.d.slice(5)}（${h.wd}）→ ${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
   }).join("");
+  const detailSeg = `<div class="seg">${DETAIL_TABS.map(([k, l]) => `<button class="${SETTLE_DETAIL === k ? "on" : ""}" onclick="setSettleDetail('${k}')">${l}</button>`).join("")}</div>`;
 
   const vCls = cur.verdict === "拉高" ? "pos" : cur.verdict === "壓低" ? "neg" : "";
   box.innerHTML = `<div class="card">
     <h2>結算前夕</h2>
     <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算・主策略：週二看週三、週四看週五</div>
+    <div class="sub" style="margin-top:-6px">資料日期：選擇權法人 <b>${lastDate("txo_oi.csv") || "—"}</b>・各履約價 <b>${lastDate("txo_strike_oi.csv") || "—"}</b>・加權指數 <b>${lastDate("taiex.csv") || "—"}</b></div>
     ${cur.eve ? "" : `<div class="settle-result">今天是週${cur.wd}，不在主策略的日子，研判僅供觀察（下方「各星期回測」可比較準確度）</div>`}
     ${cur.chg != null ? `<div class="settle-result">已結算：加權指數 <b class="${signCls(cur.chg)}">${sg(n0(cur.chg))}</b> 點（${n0(tx[cur.d])} → ${n0(tx[cur.ed])}）・${cur.verdict === "觀望" ? "研判觀望" : (cur.chg > 0) === (cur.verdict === "拉高") ? `<b class="pos">研判命中 ✓</b>` : `<b class="neg">研判未中 ✗</b>`}</div>` : ""}
     <div class="stat-grid">
@@ -1396,15 +1408,15 @@ function renderSettle() {
       <div class="stat"><div class="stat-label">給出方向</div><div class="stat-value">${pc(dir.length, done.length)}</div><div class="stat-delta">其餘觀望</div></div>
     </div>
     ${wdTable}
-    <div class="chart-title">主策略明細（近 20 次）</div>
-    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
+    <div class="hedge-head" style="margin:16px 0 6px"><div class="chart-title" style="margin:0">明細（近 20 次）</div>${detailSeg}</div>
+    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
     <div class="note">點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
   </div>`;
 }
 
 // ================= 時段按鈕（各區塊獨立，預設 1 個月，不記憶） =================
 // 以「月」為單位，從最新一天往回推（5年＝最新日往前 60 個月）
-const PERIODS = [[1, "1個月"], [6, "半年"], [12, "1年"], [60, "5年"]];
+const PERIODS = [[1, "1個月"], [6, "半年"], [12, "1年"], [36, "3年"], [60, "5年"]];
 const PERIOD = { fut: 1, etf: 1, hedge: 1, hold: 1, opt: 1, spot: 1, mdaily: 1, mtop: 1 };
 const cutoffOf = (last, m) => { const d = new Date(last.replace(/\//g, "-") + "T00:00:00Z"); d.setUTCMonth(d.getUTCMonth() - m); return d.toISOString().slice(0, 10).replace(/-/g, "/"); };
 const inPeriod = (arr, k, key = x => x) => { if (!arr.length) return arr; const c = cutoffOf(key(arr[arr.length - 1]), PERIOD[k]); return arr.filter(x => key(x) > c); };
@@ -1649,6 +1661,25 @@ function setMarginAnchor(v) {
   renderMargin();
 }
 let SHOW_SWINGS = false;
+// 回檔定義：recover＝跌 ≥10% 後漲回前高；bounce＝跌 ≥5% 後反彈 ≥5%
+let SWING_MODE = "recover";
+function setSwingMode(m) { SWING_MODE = m; renderMargin(); }
+// 跌 ≥th 才算一波回檔；指數漲回前高（≥ 起跌點）才算結束
+function findSwingsRecover(rows, th) {
+  const out = []; let hi = 0, k = 1;
+  while (k < rows.length) {
+    if (rows[k].taiex >= rows[hi].taiex) { hi = k; k++; continue; }
+    if (rows[k].taiex > rows[hi].taiex * (1 - th)) { k++; continue; }
+    let lo = k, j = k;      // 已跌破門檻：找低點直到漲回前高
+    while (j < rows.length && rows[j].taiex < rows[hi].taiex) { if (rows[j].taiex < rows[lo].taiex) lo = j; j++; }
+    const H = rows[hi], L = rows[lo], done = j < rows.length;
+    const di = L.taiex / H.taiex - 1, da = L.amt / H.amt - 1, dl = L.lots / H.lots - 1;
+    out.push({ H, L, done, back: done ? rows[j] : null, days: lo - hi, di, da, dl, ratio: di < 0 ? da / di : null });
+    if (!done) break;
+    hi = j; k = j + 1;
+  }
+  return out;
+}
 function toggleSwings() { SHOW_SWINGS = !SHOW_SWINGS; renderMargin(); }
 // 找出歷次「高點回落 ≥ th、之後反彈 ≥ th」的波段（zigzag）
 function findSwings(rows, th) {
@@ -1748,18 +1779,21 @@ function multiLineSvg(seriesList, labels, fmt) {
 
 function swingPanel(rows) {
   const latestYear = rows[rows.length - 1].date.slice(0, 4);
-  const sw = findSwings(rows, 0.05);
+  const sw = SWING_MODE === "recover" ? findSwingsRecover(rows, 0.10) : findSwings(rows, 0.05);
   const done = sw.filter(x => x.done && x.ratio !== null);
   const rs = done.map(x => x.ratio).sort((a, b) => a - b);
   const med = rs.length ? (rs.length % 2 ? rs[(rs.length - 1) / 2] : (rs[rs.length / 2 - 1] + rs[rs.length / 2]) / 2) : null;
   const over1 = rs.filter(r => r >= 1).length;
+  const rec = SWING_MODE === "recover";
   const tr = sw.slice().reverse().map(x => `<tr${x.done ? "" : ' class="live-row"'}>
-      <td>${x.H.date.startsWith(latestYear) ? "" : x.H.date.slice(2, 4) + "/"}${x.H.date.slice(5)}→${x.L.date.slice(5)}${x.done ? "" : ' <span class="live-tag">進行中</span>'}</td>
+      <td>${x.H.date.slice(2)} → ${x.L.date.slice(2)}${x.done ? "" : ' <span class="live-tag">進行中</span>'}</td>
       <td class="hide-m">${x.days}</td><td class="${signCls(x.di)}">${pct(x.di)}</td><td class="${signCls(x.da)}">${pct(x.da)}</td>
       <td class="${signCls(x.dl)}">${pct(x.dl)}</td>
+      ${rec ? `<td class="hide-m">${x.back ? x.back.date.slice(2) : "—"}</td>` : ""}
       <td style="font-weight:700;color:${x.ratio === null ? "inherit" : x.ratio >= 1 ? "var(--short)" : "var(--text)"}">${x.ratio === null ? "—" : x.ratio.toFixed(2)}</td></tr>`).join("");
   return `<div class="swing-panel">
-    <div class="swing-title">歷次回檔（跌 ≥5% 後反彈 ≥5%）</div>
+    <div class="hedge-head" style="margin-bottom:8px"><div class="swing-title" style="margin:0">歷次回檔（${rec ? "跌 ≥10% 後漲回前高" : "跌 ≥5% 後反彈 ≥5%"}）</div>
+      <div class="seg"><button class="${rec ? "on" : ""}" onclick="setSwingMode('recover')">跌10%・漲回前高</button><button class="${rec ? "" : "on"}" onclick="setSwingMode('bounce')">跌5%・反彈5%</button></div></div>
     <div class="swing-sum">
       <div><b>${done.length}</b><span>次數</span></div>
       <div><b>${med === null ? "—" : med.toFixed(2)}</b><span>低點中位數</span></div>
@@ -1767,10 +1801,10 @@ function swingPanel(rows) {
       <div><b>${over1}</b><span>≥1 倍</span></div>
     </div>
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>高點→低點</th><th class="hide-m">天數</th><th>指數</th><th>金額</th><th>張數</th><th>倍數</th></tr></thead>
+      <thead><tr><th>高點→低點</th><th class="hide-m">天數</th><th>指數</th><th>金額</th><th>張數</th>${rec ? '<th class="hide-m">漲回前高</th>' : ""}<th>倍數</th></tr></thead>
       <tbody>${tr}</tbody>
     </table></div>
-    <div class="swing-note">即時計算。進行中的那波算到最新一天；要從低點漲回 5% 才確認反轉。</div>
+    <div class="swing-note">即時計算。${rec ? "從高點跌 ≥10% 才算一波；漲回起跌點才算結束，未漲回的標「進行中」。" : "進行中的那波算到最新一天；要從低點漲回 5% 才確認反轉。"}</div>
   </div>`;
 }
 
@@ -2211,7 +2245,8 @@ const TAB_INFO = {
   options: { src: ["txo", "strike"], note: "交易日約 15:00（期交所公布後自動更新）" },
   settle: { src: ["txo", "strike", "txm", "taiex"], note: "週二、週四約 15:00 研判；週三、週五結算當天約 15:00 更新結果" },
   futures: { src: ["fut", "txm", "y631", "c685", "f675", "k663"], note: "期貨交易日約 15:00；正2 ETF 約 21:30（投信晚間公布持股）" },
-  spot: { src: ["spot", "hold", "fut", "taiex"], note: "買賣超約 15:00；外資持股與避險比例約 21:30" },
+  spot: { src: ["spot"], note: "交易日約 15:00" },
+  hedge: { src: ["hold", "fut", "taiex"], note: "交易日約 21:30（證交所公布外資持股後）；期貨部位約 15:00" },
   margin: { src: ["margin", "mtop", "taiex"], note: "交易日約 21:30（證交所公布融資後）" },
 };
 const lastDate = file => { const t = (typeof CSV_TEXT !== "undefined" && CSV_TEXT[file]) || ""; const m = t.trimEnd().split("\n").pop().match(/^(\d{4})\/(\d{2})\/(\d{2})/); return m ? `${m[2]}/${m[3]}` : ""; };
@@ -2245,7 +2280,7 @@ setTheme(document.documentElement.dataset.theme || "dark");
 (function initTab() {
   let t = location.hash.slice(1);
   if (!t) { try { t = localStorage.getItem("tab") || ""; } catch (e) {} }
-  showTab(["options", "settle", "futures", "spot", "margin"].includes(t) ? t : "options");
+  showTab(["options", "settle", "futures", "spot", "hedge", "margin"].includes(t) ? t : "options");
 })();
 
 // 版權年份：2026 起，跨年自動變成 2026–今年
