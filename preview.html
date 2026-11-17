@@ -1269,7 +1269,8 @@ function renderSettle() {
     const r = settleRead(d, dates[i - 1]);
     if (!r) continue;
     const ed = ymd(e), a = tx[d], b = tx[ed];
-    const gap = dates.includes(ed) ? dates.indexOf(ed) - i : null;
+    // 結算日還沒到時（今天的研判），用日曆天數推算：隔天結算＝前一天
+    const gap = dates.includes(ed) ? dates.indexOf(ed) - i : ((new Date(ed) - new Date(d)) / 864e5 <= 1 ? 1 : null);
     all.push({ e, ed, d, wd: WD(d), gap, eve: ["二", "四"].includes(WD(d)) && gap === 1, ...r, chg: a && b && ed <= dates[dates.length - 1] ? b - a : null });
   }
   const hist = all.filter(h => h.eve);
