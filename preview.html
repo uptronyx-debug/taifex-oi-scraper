@@ -1286,6 +1286,7 @@ function renderSettle() {
   if (!cur) cur = all[all.length - 1];
   // 最近一次已結算的主策略結果（另列一行，不取代今天的研判）
   const lastDone = hist.filter(h => h.chg !== null).slice(-1)[0];
+  const showLast = lastDone && lastDone.verdict !== "觀望";
   if (!cur) { box.innerHTML = ""; return; }
 
   const BS = x => x === "B" ? `<td class="b">Buy</td>` : x === "S" ? `<td class="s">Sell</td>` : `<td class="c">—</td>`;
@@ -1368,9 +1369,8 @@ function renderSettle() {
   const detailSrc = SETTLE_DETAIL === "main" ? done : all.filter(h => h.wd === SETTLE_DETAIL && h.chg !== null && h.gap !== null && h.gap <= 3);
   const btRows = detailSrc.slice(-20).reverse().map(h => {
     const ok = h.verdict === "觀望" ? "" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
-    const v = h.verdict === "觀望" ? `<span class="muted">觀望</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
-    const ln = h.lean === "觀望" ? `<span class="muted">—</span>` : `<span class="${h.lean === "拉高" ? "pos" : "neg"}">${h.lean}</span>`;
-    return `<tr><td>${h.d.slice(5)}（${h.wd}）→ ${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td class="hide-m">${ln}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
+    const v = h.verdict === "觀望" ? `<span class="muted">觀望${h.lean !== "觀望" ? `（${h.lean}）` : ""}</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
+    return `<tr><td>${h.d.slice(5)}（${h.wd}）→ ${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
   }).join("");
   const detailSeg = `<div class="seg">${DETAIL_TABS.map(([k, l]) => `<button class="${SETTLE_DETAIL === k ? "on" : ""}" onclick="setSettleDetail('${k}')">${l}</button>`).join("")}</div>`;
 
@@ -1380,7 +1380,7 @@ function renderSettle() {
     <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算・主策略：週二看週三、週四看週五</div>
     <div class="sub" style="margin-top:-6px">資料日期：選擇權法人 <b>${lastDate("txo_oi.csv") || "—"}</b>・各履約價 <b>${lastDate("txo_strike_oi.csv") || "—"}</b>・加權指數 <b>${lastDate("taiex.csv") || "—"}</b></div>
     ${cur.eve ? "" : `<div class="settle-result">今天是週${cur.wd}，不在主策略的日子，研判僅供觀察（下方「各星期回測」可比較準確度）</div>`}
-    ${lastDone ? `<div class="settle-result">上次結算 ${lastDone.ed.slice(5)}（${WD(lastDone.ed)}）：加權指數 <b class="${signCls(lastDone.chg)}">${sg(n0(lastDone.chg))}</b> 點（${n0(tx[lastDone.d])} → ${n0(tx[lastDone.ed])}）・${lastDone.verdict === "觀望" ? "當時研判觀望" : (lastDone.chg > 0) === (lastDone.verdict === "拉高") ? `當時研判${lastDone.verdict}，<b class="pos">命中 ✓</b>` : `當時研判${lastDone.verdict}，<b class="neg">未中 ✗</b>`}</div>` : ""}
+    ${showLast ? `<div class="settle-result">上次結算 ${lastDone.ed.slice(5)}（${WD(lastDone.ed)}）：研判 <b class="${lastDone.verdict === "拉高" ? "pos" : "neg"}">${lastDone.verdict}</b>・加權指數 <b class="${signCls(lastDone.chg)}">${sg(n0(lastDone.chg))}</b> 點（${n0(tx[lastDone.d])} → ${n0(tx[lastDone.ed])}）・${(lastDone.chg > 0) === (lastDone.verdict === "拉高") ? `<b class="pos">命中 ✓</b>` : `<b class="neg">未中 ✗</b>`}</div>` : ""}
     <div class="stat-grid">
       <div class="stat main"><div class="stat-label">可能結算態樣</div><div class="stat-value ${vCls}">${cur.verdict}</div>
         <div class="stat-delta">${cur.verdict === "觀望" && cur.lean !== "觀望" ? `原始傾向 ${cur.lean}` : "&nbsp;"}</div></div>
@@ -1410,8 +1410,8 @@ function renderSettle() {
     </div>
     ${wdTable}
     <div class="hedge-head" style="margin:16px 0 6px"><div class="chart-title" style="margin:0">明細（近 20 次）</div>${detailSeg}</div>
-    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算日</th><th>研判</th><th class="hide-m">原始傾向</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
-    <div class="note">研判：法人同向 ≥3 格才給「拉高／壓低」，不到 3 格一律「觀望」；原始傾向是不看門檻時的投票結果，僅供參考。點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
+    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
+    <div class="note">研判：法人同向 ≥3 格才給「拉高／壓低」；不到 3 格為「觀望」，括號內是不看門檻時的原始傾向（僅供參考），沒有括號表示多空票數打平。點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
   </div>`;
 }
 
