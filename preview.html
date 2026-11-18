@@ -1283,9 +1283,9 @@ function renderSettle() {
   const last = dates[dates.length - 1];
   // 顯示：今天的研判（任何交易日都算）；今天剛好是結算日則顯示昨天對今天的結果
   let cur = all.filter(h => h.d === last)[0];
-  const todaySettled = hist.find(h => h.ed === last);
-  if (todaySettled && todaySettled.chg !== null) cur = todaySettled;
   if (!cur) cur = all[all.length - 1];
+  // 最近一次已結算的主策略結果（另列一行，不取代今天的研判）
+  const lastDone = hist.filter(h => h.chg !== null).slice(-1)[0];
   if (!cur) { box.innerHTML = ""; return; }
 
   const BS = x => x === "B" ? `<td class="b">Buy</td>` : x === "S" ? `<td class="s">Sell</td>` : `<td class="c">—</td>`;
@@ -1368,8 +1368,9 @@ function renderSettle() {
   const detailSrc = SETTLE_DETAIL === "main" ? done : all.filter(h => h.wd === SETTLE_DETAIL && h.chg !== null && h.gap !== null && h.gap <= 3);
   const btRows = detailSrc.slice(-20).reverse().map(h => {
     const ok = h.verdict === "觀望" ? "" : (h.chg > 0) === (h.verdict === "拉高") ? `<span class="pos">✓</span>` : `<span class="neg">✗</span>`;
-    const v = h.verdict === "觀望" ? `<span class="muted">觀望${h.lean !== "觀望" ? `（${h.lean}）` : ""}</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
-    return `<tr><td>${h.d.slice(5)}（${h.wd}）→ ${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
+    const v = h.verdict === "觀望" ? `<span class="muted">觀望</span>` : `<b class="${h.verdict === "拉高" ? "pos" : "neg"}">${h.verdict}</b>`;
+    const ln = h.lean === "觀望" ? `<span class="muted">—</span>` : `<span class="${h.lean === "拉高" ? "pos" : "neg"}">${h.lean}</span>`;
+    return `<tr><td>${h.d.slice(5)}（${h.wd}）→ ${h.ed.slice(2)}（${WD(h.ed)}）</td><td>${v}</td><td class="hide-m">${ln}</td><td>${h.agree}/4</td><td class="${signCls(h.chg)}">${sg(n0(h.chg))}</td><td>${ok}</td></tr>`;
   }).join("");
   const detailSeg = `<div class="seg">${DETAIL_TABS.map(([k, l]) => `<button class="${SETTLE_DETAIL === k ? "on" : ""}" onclick="setSettleDetail('${k}')">${l}</button>`).join("")}</div>`;
 
@@ -1379,14 +1380,14 @@ function renderSettle() {
     <div class="sub">${cur.d}（${WD(cur.d)}）盤後 → ${cur.ed}（${WD(cur.ed)}）結算・主策略：週二看週三、週四看週五</div>
     <div class="sub" style="margin-top:-6px">資料日期：選擇權法人 <b>${lastDate("txo_oi.csv") || "—"}</b>・各履約價 <b>${lastDate("txo_strike_oi.csv") || "—"}</b>・加權指數 <b>${lastDate("taiex.csv") || "—"}</b></div>
     ${cur.eve ? "" : `<div class="settle-result">今天是週${cur.wd}，不在主策略的日子，研判僅供觀察（下方「各星期回測」可比較準確度）</div>`}
-    ${cur.chg != null ? `<div class="settle-result">已結算：加權指數 <b class="${signCls(cur.chg)}">${sg(n0(cur.chg))}</b> 點（${n0(tx[cur.d])} → ${n0(tx[cur.ed])}）・${cur.verdict === "觀望" ? "研判觀望" : (cur.chg > 0) === (cur.verdict === "拉高") ? `<b class="pos">研判命中 ✓</b>` : `<b class="neg">研判未中 ✗</b>`}</div>` : ""}
+    ${lastDone ? `<div class="settle-result">上次結算 ${lastDone.ed.slice(5)}（${WD(lastDone.ed)}）：加權指數 <b class="${signCls(lastDone.chg)}">${sg(n0(lastDone.chg))}</b> 點（${n0(tx[lastDone.d])} → ${n0(tx[lastDone.ed])}）・${lastDone.verdict === "觀望" ? "當時研判觀望" : (lastDone.chg > 0) === (lastDone.verdict === "拉高") ? `當時研判${lastDone.verdict}，<b class="pos">命中 ✓</b>` : `當時研判${lastDone.verdict}，<b class="neg">未中 ✗</b>`}</div>` : ""}
     <div class="stat-grid">
       <div class="stat main"><div class="stat-label">可能結算態樣</div><div class="stat-value ${vCls}">${cur.verdict}</div>
         <div class="stat-delta">${cur.verdict === "觀望" && cur.lean !== "觀望" ? `原始傾向 ${cur.lean}` : "&nbsp;"}</div></div>
       <div class="stat"><div class="stat-label">法人同向</div><div class="stat-value">${cur.agree} / 4</div>
         <div class="stat-delta">${cur.agree >= SETTLE_MIN_AGREE ? "信心足夠" : `未達 ${SETTLE_MIN_AGREE} 格`}</div></div>
       <div class="stat"><div class="stat-label">推估結算點位</div><div class="stat-value">${tgt ? n0(tgt) : "—"}</div>
-        <div class="stat-delta">${cur.verdict === "拉高" ? "上方 Call 大量區" : cur.verdict === "壓低" ? "下方 Put 大量區" : "區間中點"}</div></div>
+        <div class="stat-delta">${!tgt ? `尚無 ≥${SETTLE_MIN_OI.toLocaleString()} 口的大量區` : cur.verdict === "拉高" ? "上方 Call 大量區" : cur.verdict === "壓低" ? "下方 Put 大量區" : "區間中點"}</div></div>
       <div class="stat"><div class="stat-label">推估區間</div><div class="stat-value" style="font-size:18px">${lo ? `${n0(lo)}–${n0(hi)}` : "—"}</div>
         <div class="stat-delta">多方防線～空方防線</div></div>
     </div>
@@ -1409,8 +1410,8 @@ function renderSettle() {
     </div>
     ${wdTable}
     <div class="hedge-head" style="margin:16px 0 6px"><div class="chart-title" style="margin:0">明細（近 20 次）</div>${detailSeg}</div>
-    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算日</th><th>研判</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
-    <div class="note">點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
+    <div class="table-scroll"><table class="trend-table settle-bt"><thead><tr><th>研判日 → 結算日</th><th>研判</th><th class="hide-m">原始傾向</th><th>同向</th><th>指數漲跌</th><th></th></tr></thead><tbody>${btRows}</tbody></table></div>
+    <div class="note">研判：法人同向 ≥3 格才給「拉高／壓低」，不到 3 格一律「觀望」；原始傾向是不看門檻時的投票結果，僅供參考。點位以加權指數收盤推估，加期現價差換算成期貨價；過去結算約六成落在推估區間內，點位只當參考。法人部位為全部到期日合計。</div>
   </div>`;
 }
 
@@ -1709,8 +1710,11 @@ function setMarginEnd(v) { MARGIN_END = v || null; renderMargin(); }
 const pct = v => (v > 0 ? "+" : "") + (v * 100).toFixed(2) + "%";
 
 // 每日對照：兩組長條（指數漲跌%、融資金額增減%），警訊日（指數跌、融資增）加底色
-function pairBarSvg(idx, mg, labels, warn) {
-  const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 42, padR = 6, padT = 8, padB = 18;
+let MARGIN_OVERLAY = false;   // 每日對照疊加權指數
+function toggleMarginOverlay() { MARGIN_OVERLAY = !MARGIN_OVERLAY; renderMargin(); }
+function pairBarSvg(idx, mg, labels, warn, line) {
+  const TL = line && line.length ? niceTicksN(Math.min(...line), Math.max(...line), 4) : null;
+  const width = chartW(), height = chartW() < 500 ? 150 : 180, padL = 42, padR = TL ? 52 : 6, padT = 8, padB = 18;
   const plotW = width - padL - padR, plotH = height - padT - padB;
   const ma = Math.max(...idx.map(Math.abs), ...mg.map(Math.abs), 0.0001);
   const T = niceTicks(-ma, ma, 4), maxAbs = Math.max(-T.lo, T.hi), fa = axisPct(T.step);
@@ -1736,12 +1740,22 @@ function pairBarSvg(idx, mg, labels, warn) {
     return `<line x1="${padL}" y1="${yy}" x2="${width - padR}" y2="${yy}" stroke="${v === 0 ? "var(--text-muted)" : "var(--divider)"}" stroke-width="1"/>
       <text x="${padL - 5}" y="${yy + 3}" font-size="10" fill="var(--text-muted)" text-anchor="end">${fa(v)}</text>`;
   }).join("");
+  // 疊圖：加權指數（右軸，整齊刻度，格數 4 → 右軸刻度畫在自己的位置）
+  let lineSvg = "", ly = null;
+  if (TL) {
+    ly = v => padT + (TL.hi - v) / (TL.hi - TL.lo) * plotH;
+    const fl = axisNum(TL.step);
+    lineSvg = `<path d="${line.map((v, i) => `${i ? "L" : "M"}${(padL + i * bw + bw / 2).toFixed(1)},${ly(v).toFixed(1)}`).join("")}" fill="none" stroke="var(--text)" stroke-width="1.5" opacity="0.85"/>`
+      + TL.ticks.map(v => `<text x="${width - padR + 5}" y="${(ly(v) + 3).toFixed(1)}" font-size="10" fill="var(--text)" text-anchor="start">${fl(v)}</text>`).join("");
+  }
   const pts = idx.map((v, i) => ({
     x: +(padL + i * bw + bw / 2).toFixed(1),
-    html: `<div class="td">${labels[i]}</div>` + tipRow("指數", pct(v)) + tipRow("融資", pct(mg[i]), "var(--margin)") + (warn[i] ? `<div class="tw">指數跌、融資增</div>` : ""),
-    marks: [],
+    html: `<div class="td">${labels[i]}</div>` + tipRow("指數", pct(v)) + tipRow("融資", pct(mg[i]), "var(--margin)")
+      + (TL ? tipRow("加權指數", line[i].toLocaleString(undefined, { maximumFractionDigits: 0 }), "var(--text)") : "")
+      + (warn[i] ? `<div class="tw">指數跌、融資增</div>` : ""),
+    marks: TL ? [{ y: +ly(line[i]).toFixed(1), color: "var(--text)" }] : [],
   }));
-  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${body}${xl}</svg>`, width, height, pts);
+  return tipWrap(`<svg viewBox="0 0 ${width} ${height}" style="width:100%; height:auto; display:block;">${grid}${body}${lineSvg}${xl}</svg>`, width, height, pts);
 }
 
 // 自起算日的累計變化（%），多條線
@@ -1919,8 +1933,9 @@ function renderMargin() {
       <span class="legend-item"><span class="sq" style="background:var(--text-muted)"></span>指數</span>
       <span class="legend-item"><span class="sq" style="background:var(--margin)"></span>融資金額</span>
       <span class="legend-item"><span style="color:var(--gold)">▲</span>&nbsp;指數跌、融資增</span>
+      <span class="legend-item"><label style="cursor:pointer;display:inline-flex;align-items:center;gap:4px"><input type="checkbox" ${MARGIN_OVERLAY ? "checked" : ""} onchange="toggleMarginOverlay()">疊加權指數（右軸）</label></span>
     </div>
-    ${pairBarSvg(daily.map(d => d.idx), daily.map(d => d.amt), daily.map(d => d.date), warn)}
+    ${pairBarSvg(daily.map(d => d.idx), daily.map(d => d.amt), daily.map(d => d.date), warn, MARGIN_OVERLAY ? (m => { let pv = null; return daily.map(d => (pv = m[d.date] || pv)); })(taiexMap()) : null)}
     <div class="table-scroll"><table class="trend-table">
       <thead><tr><th>日期</th><th class="hide-m">加權</th><th>漲跌</th><th class="hide-m">融資(億)</th><th>增減(億)</th><th>張數增減</th><th class="hide-m">指數自起算</th><th class="hide-m">融資自起算</th></tr></thead>
       <tbody>${tableRows}</tbody>
