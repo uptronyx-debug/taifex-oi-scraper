@@ -507,6 +507,8 @@
   @media (max-width:700px){ #settleBox .stat-grid.three{ grid-template-columns:repeat(3,1fr); } }
   .settle-result{ margin:-6px 0 14px; padding:8px 12px; border-radius:8px; background:var(--surface-2); font-size:13px; }
   .settle-bt tr.main-row td{ background:var(--surface-2); }
+  .low-line{ margin:12px 0 14px; padding:8px 12px; border-radius:8px; background:var(--surface-2); font-size:13px; line-height:1.8; }
+  .low-line b{ font-family:'Roboto Mono', monospace; }
   .lad-foot{ font-size:12px; color:var(--text-muted); padding-top:10px; }
   @media (max-width:700px){ .lad{ grid-template-columns:118px 1fr 92px; gap:6px; padding:6px 4px; } .lad > b em{ min-width:40px; } }
   .chip{
@@ -1854,6 +1856,17 @@ function renderMargin() {
   const amtChg = last.amt / anchor.amt - 1;
   const lotChg = last.lots / anchor.lots - 1;
   const ratio = idxChg < 0 ? amtChg / idxChg : null;
+  // 期間內指數最低點（反彈點）：當下的指數、融資各跌幾 %；最新一天若高於低點＝反彈中
+  const lowRow = since.reduce((m, r) => r.taiex < m.taiex ? r : m, since[0]);
+  let lowLine = "";
+  if (lowRow !== anchor && lowRow.taiex < anchor.taiex) {
+    const li = lowRow.taiex / anchor.taiex - 1, la = lowRow.amt / anchor.amt - 1, ll = lowRow.lots / anchor.lots - 1;
+    const bounce = last.taiex / lowRow.taiex - 1, bAmt = last.amt / lowRow.amt - 1;
+    lowLine = `<div class="low-line">
+      <div><span class="muted">低點 ${lowRow.date.slice(2)}</span>　指數 <b class="${signCls(li)}">${pct(li)}</b>・融資金額 <b class="${signCls(la)}">${pct(la)}</b>・融資張數 <b class="${signCls(ll)}">${pct(ll)}</b>・減幅÷跌幅 <b>${(la / li).toFixed(2)} 倍</b></div>
+      <div><span class="muted">${lowRow === last ? "最新一天就是低點" : `低點後至 ${last.date.slice(2)}`}</span>${lowRow === last ? "" : `　指數 <b class="${signCls(bounce)}">${pct(bounce)}</b>・融資金額 <b class="${signCls(bAmt)}">${pct(bAmt)}</b>${bounce > 0 ? (bAmt < 0 ? "（指數反彈、融資續減）" : "（指數反彈、融資回補）") : ""}`}</div>
+    </div>`;
+  }
 
   const verdict = ratio === null
     ? `<div class="stat clickable ${SHOW_SWINGS ? "selected" : ""}" onclick="toggleSwings()"><div class="stat-label">減幅 ÷ 跌幅<span class="tap-hint">歷次 ${SHOW_SWINGS ? "▴" : "▾"}</span></div><div class="stat-value">—</div></div>`
@@ -1866,7 +1879,7 @@ function renderMargin() {
     ${statHtml("融資金額", amtChg, pct(amtChg), `${anchor.amt.toFixed(0)} → ${last.amt.toFixed(0)} 億`, false)}
     ${statHtml("融資張數", lotChg, pct(lotChg), "", false)}
     ${verdict}
-  </div>`;
+  </div>${lowLine}`;
 
   // 起算日選單（近 120 個交易日）
   const opts = upto.slice(0, -1).reverse().map(r =>
@@ -1911,7 +1924,7 @@ function renderMargin() {
     return `<tr${w ? ' class="warn-row"' : ""}><td>${r.date.slice(5)}${w ? ' <span class="warn-tag">接刀</span>' : ""}</td>
       <td class="hide-m">${r.taiex.toLocaleString()}</td><td class="${signCls(di)}">${pct(di)}</td>
       <td class="hide-m">${r.amt.toFixed(1)}</td><td class="${signCls(da)}">${(da > 0 ? "+" : "") + da.toFixed(1)}</td>
-      <td class="${signCls(dl)}">${fmtInt(dl)}</td><td class="hide-m">${fromIdx}</td><td class="hide-m">${fromAmt}</td></tr>`;
+      <td class="${signCls(dl)}">${pct(dl / p.lots)}</td><td class="hide-m">${fromIdx}</td><td class="hide-m">${fromAmt}</td></tr>`;
   }).reverse().join("");
 
   box.innerHTML = `<div class="card">
@@ -1937,7 +1950,7 @@ function renderMargin() {
     </div>
     ${pairBarSvg(daily.map(d => d.idx), daily.map(d => d.amt), daily.map(d => d.date), warn, MARGIN_OVERLAY ? (m => { let pv = null; return daily.map(d => (pv = m[d.date] || pv)); })(taiexMap()) : null)}
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>日期</th><th class="hide-m">加權</th><th>漲跌</th><th class="hide-m">融資(億)</th><th>增減(億)</th><th>張數增減</th><th class="hide-m">指數自起算</th><th class="hide-m">融資自起算</th></tr></thead>
+      <thead><tr><th>日期</th><th class="hide-m">加權</th><th>漲跌</th><th class="hide-m">融資(億)</th><th>增減(億)</th><th>張數增減(%)</th><th class="hide-m">指數自起算</th><th class="hide-m">融資自起算</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table></div>
   </div>`;
