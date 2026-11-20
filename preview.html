@@ -1924,7 +1924,7 @@ function renderMargin() {
     return `<tr${w ? ' class="warn-row"' : ""}><td>${r.date.slice(5)}${w ? ' <span class="warn-tag">接刀</span>' : ""}</td>
       <td class="hide-m">${r.taiex.toLocaleString()}</td><td class="${signCls(di)}">${pct(di)}</td>
       <td class="hide-m">${r.amt.toFixed(1)}</td><td class="${signCls(da)}">${(da > 0 ? "+" : "") + da.toFixed(1)}</td>
-      <td class="${signCls(dl)}">${pct(dl / p.lots)}</td><td class="hide-m">${fromIdx}</td><td class="hide-m">${fromAmt}</td></tr>`;
+      <td class="${signCls(da)}">${pct(r.amt / p.amt - 1)}</td><td class="hide-m">${fromIdx}</td><td class="hide-m">${fromAmt}</td></tr>`;
   }).reverse().join("");
 
   box.innerHTML = `<div class="card">
@@ -1950,7 +1950,7 @@ function renderMargin() {
     </div>
     ${pairBarSvg(daily.map(d => d.idx), daily.map(d => d.amt), daily.map(d => d.date), warn, MARGIN_OVERLAY ? (m => { let pv = null; return daily.map(d => (pv = m[d.date] || pv)); })(taiexMap()) : null)}
     <div class="table-scroll"><table class="trend-table">
-      <thead><tr><th>日期</th><th class="hide-m">加權</th><th>漲跌</th><th class="hide-m">融資(億)</th><th>增減(億)</th><th>張數增減(%)</th><th class="hide-m">指數自起算</th><th class="hide-m">融資自起算</th></tr></thead>
+      <thead><tr><th>日期</th><th class="hide-m">加權</th><th>漲跌</th><th class="hide-m">融資(億)</th><th>增減(億)</th><th>融資增減(%)</th><th class="hide-m">指數自起算</th><th class="hide-m">融資自起算</th></tr></thead>
       <tbody>${tableRows}</tbody>
     </table></div>
   </div>`;
