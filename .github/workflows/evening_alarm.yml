@@ -25,7 +25,7 @@ jobs:
       TZ: Asia/Taipei
       GH_TOKEN: ${{ github.token }}
     steps:
-      - name: 等到 21:25 觸發，22:30 再觸發一次
+      - name: 等到 21:00 觸發（融資約 21:00 後公布，抓取會每分鐘輪詢到 23:30），22:30 再觸發一次
         run: |
           fire() {
             t=$(date -d "$1" +%s); w=$(( t - $(date +%s) ))
@@ -34,5 +34,5 @@ jobs:
             gh api -X POST repos/${{ github.repository }}/actions/workflows/margin_scrape.yml/dispatches -f ref=main && echo "✅ $1 已觸發融資抓取"
           }
           if [ "${{ inputs.now }}" = "yes" ]; then fire "$(date +%H:%M)"; exit 0; fi
-          fire 21:25
+          fire 21:00
           fire 22:30
