@@ -646,6 +646,10 @@
   .foot-row{ margin-bottom:6px; }
   .foot-k{ display:inline-block; min-width:64px; margin-right:8px; color:var(--text); opacity:.75; }
   .foot-num{ font-family:'Roboto Mono', monospace; color:var(--text); }
+  .head-right{ display:flex; align-items:center; gap:14px; }
+  .home-link{ font-size:14px; color:var(--text-muted); text-decoration:none; white-space:nowrap; }
+  .home-link:hover{ color:var(--text); }
+  @media (max-width:700px){ .home-link{ font-size:12.5px; } .head-right{ gap:10px; } }
   /* ===== 置頂 Header（全站規則）：捲動後收合 ===== */
   header{ position:sticky; top:0; z-index:50; background:var(--bg); padding-top:14px; transition:padding .2s ease; }
   .is-scrolled header{ padding-top:10px; padding-bottom:10px; }
@@ -666,9 +670,12 @@
   <header>
     <div class="head-top">
       <h1 class="brand"><img class="logo logo-dark" src="logo-dark.svg" alt="期權玩家"><img class="logo logo-light" src="logo-light.svg" alt="期權玩家"></h1>
-      <button class="theme-toggle" id="themeToggle" type="button" aria-label="切換深色／淺色">
-        <span class="tt-opt" data-v="dark">深</span><span class="tt-opt" data-v="light">淺</span>
-      </button>
+      <div class="head-right">
+        <a class="home-link" href="https://uptronyx.com/">← uptronyx.com</a>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-label="切換深色／淺色">
+          <span class="tt-opt" data-v="dark">深</span><span class="tt-opt" data-v="light">淺</span>
+        </button>
+      </div>
     </div>
     <div class="meta">
       資料日期 <span class="date" id="dataDate">—</span><span class="meta-sep">｜</span><span id="lastChecked"></span>
