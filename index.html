@@ -646,7 +646,19 @@
   .foot-row{ margin-bottom:6px; }
   .foot-k{ display:inline-block; min-width:64px; margin-right:8px; color:var(--text); opacity:.75; }
   .foot-num{ font-family:'Roboto Mono', monospace; color:var(--text); }
+  /* ===== 置頂 Header（全站規則）：捲動後收合 ===== */
+  header{ position:sticky; top:0; z-index:50; background:var(--bg); padding-top:14px; transition:padding .2s ease; }
+  .is-scrolled header{ padding-top:10px; padding-bottom:10px; }
+  .is-scrolled header .meta{ margin-top:4px; }
+  @media (max-width:700px){ header{ padding-top:10px; } .is-scrolled header{ padding-top:8px; padding-bottom:8px; } }
 </style>
+<script>
+(() => {
+  const onScroll = () => document.documentElement.classList.toggle('is-scrolled', window.scrollY > 24);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  document.addEventListener('DOMContentLoaded', onScroll);
+})();
+</script>
 </head>
 <body>
 <div class="wrap">
