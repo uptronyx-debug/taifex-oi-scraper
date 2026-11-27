@@ -143,18 +143,22 @@ def exp_from_code(code):
 
 
 TENOR = 14
+MIN_EXP_OI = 1000                                  # 該到期合約總未平倉 < 1000 口不用（剛掛牌、沒成交的週選，結算價是理論值）
 WIN, MIN_WIN = 250, 60                             # PR／中位數：當日之前 250 個交易日，至少 60 天
 
 
 def day_metrics(d, chain, tenor=TENOR):
-    """chain: [(contract, exp_date, strike, cp, settle, bid, ask)] → {'atm','p10','p25','c25','c10'(%), 'est': [...]} 或 None"""
-    by = {}
-    for code, exd, k, cp, settle, bid, ask in chain:
+    """chain: [(contract, exp_date, strike, cp, settle, bid, ask, oi)] → {'atm','p10','p25','c25','c10'(%), 'est': [...]} 或 None"""
+    by, ois = {}, {}
+    for code, exd, k, cp, settle, bid, ask, oi in chain:
         if not exd or not str(exd).startswith("20"):
             exd = exp_from_code(str(code).strip())
         by.setdefault(exd, []).append((float(k), cp, mid(bid, ask, settle)))
+        ois[exd] = ois.get(exd, 0) + (oi or 0)
     curves = []
     for exd, rows in by.items():
+        if ois[exd] < MIN_EXP_OI:
+            continue
         T = ((date.fromisoformat(exd) - date.fromisoformat(d)).days - 0.01) / 365
         if T * 365 < 1.5:                          # 剩不到 1.5 天的到期不用
             continue
@@ -238,7 +242,7 @@ def run_csv(opt_dir, index_csv):
                     raise ValueError(f"Duplicate date {d} in {day_source[d]} and {p}")
                 day_source[d] = p
                 by.setdefault(d, []).append((r["contract"], r["exp_date"], r["strike"], r["cp"],
-                                             num(r["settle"]), num(r["bid"]), num(r["ask"])))
+                                             num(r["settle"]), num(r["bid"]), num(r["ask"]), num(r["oi"])))
     rows = [dict(day_metrics(d, ch) or {}, d=d) for d, ch in sorted(by.items())]
     with open(index_csv, encoding="utf-8") as f:
         closes = {
