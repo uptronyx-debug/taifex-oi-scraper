@@ -77,7 +77,7 @@
   .wrap{
     max-width:960px;
     margin:0 auto;
-    padding:48px 24px 80px;
+    padding:20px 24px 80px;
   }
 
   /* ---------- Header ---------- */
@@ -87,9 +87,9 @@
     align-items:baseline;
     justify-content:space-between;
     gap:12px;
-    padding-bottom:28px;
+    padding-bottom:16px;
     border-bottom:1px solid var(--divider);
-    margin-bottom:36px;
+    margin-bottom:20px;
   }
   h1{
     font-family:'Noto Serif TC', serif;
@@ -97,16 +97,6 @@
     font-size:28px;
     margin:0;
     letter-spacing:0.02em;
-  }
-  .meta{
-    color:var(--text-muted);
-    font-size:14px;
-    text-align:right;
-  }
-  .meta .date{
-    color:var(--text);
-    font-family:'Roboto Mono', monospace;
-    font-weight:500;
   }
 
   /* ---------- Status ---------- */
@@ -458,10 +448,8 @@
   @media (max-width:700px){ .logo{ height:40px; } }
 
   /* ===== 介面整理：減少框線、燈號精簡 ===== */
-  header{ display:block; padding-bottom:16px; margin-bottom:20px; }
-  .head-top{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-  .meta{ text-align:left; font-size:13px; margin-top:12px; }
-  .meta-sep{ margin:0 8px; opacity:.5; }
+  header{ display:block; }
+  .head-top{ display:flex; align-items:center; justify-content:space-between; flex-wrap:nowrap; gap:12px; }
   .theme-toggle{
     position:relative; display:inline-flex; padding:3px; gap:0; cursor:pointer;
     background:var(--surface-2); border:1px solid var(--divider); border-radius:999px;
@@ -477,6 +465,7 @@
   #summary{ border:none; border-radius:8px; padding:12px 18px; margin-bottom:20px; }
   .signal-row{ display:flex; align-items:center; gap:10px 28px; flex-wrap:wrap; }
   .signal-title{ font-size:13px; color:var(--text-muted); font-weight:600; }
+  .signal-date{ margin-left:auto; font-family:'Roboto Mono', monospace; font-size:12px; color:var(--text-muted); white-space:nowrap; }
   .signal{ display:flex; align-items:center; gap:8px; }
   .signal-who{ font-size:14px; font-weight:600; }
   .settle-grid{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
@@ -528,6 +517,7 @@
   .chip.down{ color:var(--short); background:var(--short-soft); }
   @media (max-width:700px){
     .signal-title{ width:100%; }
+    .signal-date{ margin-left:0; font-size:11px; }
   }
 
   /* 外框只留最外層卡片 */
@@ -604,9 +594,7 @@
   .chartbox .tip .tw{ color:var(--gold); }
   /* ===== 手機版 ===== */
   @media (max-width:700px){
-    .wrap{ padding:18px 14px 48px; }
-    header{ padding-bottom:12px; margin-bottom:12px; }
-    .meta{ font-size:12px; margin-top:8px; }
+    .wrap{ padding:10px 14px 48px; }
     .tabs{ margin-bottom:14px; }
     .tab{ padding:8px 10px; font-size:15px; white-space:nowrap; }
     .tabs{ overflow-x:auto; scrollbar-width:none; }
@@ -651,15 +639,24 @@
   .foot-row{ margin-bottom:6px; }
   .foot-k{ display:inline-block; min-width:64px; margin-right:8px; color:var(--text); opacity:.75; }
   .foot-num{ font-family:'Roboto Mono', monospace; color:var(--text); }
-  .head-right{ display:flex; align-items:center; gap:14px; }
+  .foot-chk{ font-family:'Roboto Mono', monospace; font-size:11px; opacity:.8; }
+  .head-right{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
   .home-link{ font-size:14px; color:var(--text-muted); text-decoration:none; white-space:nowrap; }
   .home-link:hover{ color:var(--text); }
-  @media (max-width:700px){ .home-link{ font-size:12px; } .head-right{ gap:6px; } .logo{ height:34px; } .tt-opt{ padding:3px 9px; font-size:12px; } }
+  .brand-compact{ display:none; }
+  .brand-name{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:19px; color:var(--text); letter-spacing:.02em; white-space:nowrap; }
+  .brand-icon{ width:26px; height:26px; display:block; flex-shrink:0; }
+  @media (max-width:700px){
+    .home-link{ font-size:12px; } .head-right{ gap:6px; } .logo{ height:34px; } .tt-opt{ padding:3px 9px; font-size:12px; }
+    .brand-name{ font-size:16px; } .brand-icon{ width:22px; height:22px; }
+  }
   /* ===== 置頂 Header（全站規則）：捲動後收合 ===== */
-  header{ position:sticky; top:0; z-index:50; background:var(--bg); padding-top:14px; transition:padding .2s ease; }
-  .is-scrolled header{ padding-top:10px; padding-bottom:10px; }
-  .is-scrolled header .meta{ margin-top:4px; }
-  @media (max-width:700px){ header{ padding-top:10px; } .is-scrolled header{ padding-top:8px; padding-bottom:8px; } }
+  header{ position:sticky; top:0; z-index:50; background:var(--bg); padding:12px 0; margin:0 0 16px; transition:padding .2s ease; }
+  .is-scrolled header{ padding:8px 0; }
+  .is-scrolled .brand-full{ display:none; }
+  .is-scrolled .brand-compact{ display:inline-flex; align-items:center; gap:8px; line-height:1; }
+  @media (max-width:700px){ header{ padding:8px 0; margin-bottom:12px; } .is-scrolled header{ padding:6px 0; } }
+  section.tab-panel, .sg-cockpit, .card, #summary, #trend, #strikeSection{ scroll-margin-top:64px; }
 
   /* ===== 情緒刻度（聯動視窗） ===== */
   .sg-head{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; margin-bottom:8px; }
@@ -710,17 +707,23 @@
   .sg-chip-btn.on.fear{ border-color:var(--short); background:var(--short-soft); }
   .sg-chip-btn.on.fomo{ border-color:var(--long); background:color-mix(in srgb, var(--long) 12%, var(--surface)); }
   .sg-ch-title{ font-size:11.5px; color:var(--text-muted); margin:4px 0 2px; }
+  .sg-mk-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--purple); vertical-align:-0.5px; margin:0 3px 0 1px; }
+  .sg-mk-sq{ display:inline-block; width:6.5px; height:6.5px; border-radius:1.5px; vertical-align:-0.5px; margin-right:2px; }
+  .sg-mk-sq.hot{ background:var(--long); }
+  .sg-mk-sq.put{ background:var(--short); margin-right:3px; }
   .sg-sync-charts{ touch-action:pan-y; cursor:crosshair; }
   .sg-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; color:var(--text-muted); margin-top:4px; align-items:center; }
   .sg-legend .legend-item{ display:inline-flex; align-items:center; gap:5px; }
+  .sg-est[hidden]{ display:none !important; }
+  .sg-est-desk{ margin-top:8px; padding:7px 9px; font-size:11.5px; line-height:1.5; }
   .sg-est.put{ border:1px solid var(--short); background:var(--short-soft); color:var(--text); }
   .sg-est.put b{ color:var(--short); }
   .sg-est.hot{ border:1px solid var(--long); background:color-mix(in srgb, var(--long) 10%, var(--surface)); color:var(--text); }
   .sg-est.hot b{ color:var(--long); }
   .sg-smile-col{ border-left:1px solid var(--divider); padding-left:18px; }
-  .sg-smile-head{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:nowrap; gap:4px 8px; margin-bottom:4px; }
+  .sg-smile-head{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; margin-bottom:4px; }
   .sg-smile-head h3{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:15px; margin:0; white-space:nowrap; }
-  #sgSmileDay{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #sgSmileDay{ font-size:11.5px; font-family:'Roboto Mono', 'Noto Sans TC', monospace; font-variant-numeric:tabular-nums; white-space:normal; overflow:visible; text-overflow:clip; line-height:1.35; }
   .sg-help{ font-size:13.5px; line-height:1.75; }
   .sg-help h3{ font-family:'Noto Serif TC', serif; font-size:16px; margin:0 0 10px; }
   .sg-help h4{ font-size:13.5px; font-weight:600; margin:16px 0 6px; color:var(--text); }
@@ -732,11 +735,14 @@
   .sg-help td{ color:var(--text-muted); }
   .sg-help td:first-child{ color:var(--text); font-weight:500; }
   @media (min-width:701px){ .sg-help td:first-child{ min-width:116px; } }
+  @media (min-width:861px){ .sg-est-mob{ display:none !important; } }
   @media (max-width:860px){
+    .sg-est-desk{ display:none !important; }
     .sg-kpis-wrap{ order:4; margin-top:8px; padding-top:8px; border-top:1px solid var(--divider); }
     .sg-main{ order:2; grid-template-columns:1fr; gap:8px; }
     .sg-kpis{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
     .sg-smile-col{ border-left:none; padding-left:0; border-top:1px solid var(--divider); padding-top:7px; }
+    .sg-smile-head{ flex-direction:row; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:2px 8px; }
   }
   @media (max-width:700px){
     .seg{ max-width:100%; overflow-x:auto; scrollbar-width:none; }
@@ -768,14 +774,22 @@
     .sg-ch-title{ font-size:10px; margin:2px 0 1px; }
     .sg-smile-head{ margin-bottom:2px; }
     .sg-smile-head h3{ font-size:12.5px; }
-    #sgSmileDay{ font-size:10px !important; }
+    #sgSmileDay{ font-size:10.5px; }
     .sg-est{ font-size:11.5px; padding:6px 8px; margin-top:6px; }
     .sg-help table{ font-size:12px; }
   }
 </style>
 <script>
 (() => {
-  const onScroll = () => document.documentElement.classList.toggle('is-scrolled', window.scrollY > 24);
+  let scrolled = false;
+  const onScroll = () => {
+    const y = window.scrollY;
+    const next = scrolled ? y > 8 : y > 40;
+    if (next !== scrolled) {
+      scrolled = next;
+      document.documentElement.classList.toggle('is-scrolled', scrolled);
+    }
+  };
   window.addEventListener('scroll', onScroll, { passive: true });
   document.addEventListener('DOMContentLoaded', onScroll);
 })();
@@ -786,16 +800,19 @@
 
   <header>
     <div class="head-top">
-      <h1 class="brand"><img class="logo logo-dark" src="logo-dark.svg" alt="期權玩家"><img class="logo logo-light" src="logo-light.svg" alt="期權玩家"></h1>
+      <h1 class="brand">
+        <span class="brand-full"><img class="logo logo-dark" src="logo-dark.svg" alt="期權玩家"><img class="logo logo-light" src="logo-light.svg" alt="期權玩家"></span>
+        <span class="brand-compact" aria-hidden="true">
+          <svg class="brand-icon" viewBox="0 0 400 400"><g transform="translate(200 200) scale(1.4) translate(-200 -200)"><line x1="200" y1="88" x2="200" y2="312" stroke="var(--text)" stroke-width="8" stroke-linecap="round"/><rect x="142" y="103" width="48" height="30" rx="15" fill="#2F5A93"/><rect x="210" y="103" width="62" height="30" rx="15" fill="#2F5A93"/><rect x="112" y="144" width="78" height="30" rx="15" fill="#E6B93C"/><rect x="210" y="144" width="104" height="30" rx="15" fill="#E6B93C"/><rect x="78" y="185" width="112" height="30" rx="15" fill="#9C6A38"/><rect x="210" y="185" width="92" height="30" rx="15" fill="#9C6A38"/><rect x="106" y="226" width="84" height="30" rx="15" fill="#C8402E"/><rect x="210" y="226" width="66" height="30" rx="15" fill="#C8402E"/><rect x="136" y="267" width="54" height="30" rx="15" fill="#3E7B4F"/><rect x="210" y="267" width="40" height="30" rx="15" fill="#3E7B4F"/></g></svg>
+          <span class="brand-name">期權玩家</span>
+        </span>
+      </h1>
       <div class="head-right">
         <a class="home-link" href="https://uptronyx.com/">← uptronyx.com</a>
         <button class="theme-toggle" id="themeToggle" type="button" aria-label="切換深色／淺色">
           <span class="tt-opt" data-v="dark">深</span><span class="tt-opt" data-v="light">淺</span>
         </button>
       </div>
-    </div>
-    <div class="meta">
-      資料日期 <span class="date" id="dataDate">—</span><span class="meta-sep">｜</span><span id="lastChecked"></span>
     </div>
   </header>
 
@@ -844,7 +861,7 @@
 
   <footer>
     <div class="foot-row"><span class="foot-k">資料來源</span><span id="srcNote"></span></div>
-    <div class="foot-row"><span class="foot-k">更新時間</span><span id="updateNote"></span></div>
+    <div class="foot-row"><span class="foot-k">更新時間</span><span id="updateNote"></span><span id="lastChecked" class="foot-chk"></span></div>
     <div class="foot-row" id="visitRow" style="display:none;"><span class="foot-k">瀏覽人次</span><span id="visitCount" class="foot-num"></span></div>
     <div class="foot-copy"><span>uptronyx.com © <span id="cpYear">2026</span></span><a href="mailto:hi@uptronyx.com">hi@uptronyx.com</a></div>
   </footer>
@@ -924,7 +941,7 @@ function signalHtml(who, key) {
   return `<div class="signal"><span class="signal-who">${who}</span>
     <span class="chip ${p.cls}" title="${p.label}">${p.icon}<b>${p.formula}</b></span></div>`;
 }
-function renderSummary(latestRows) {
+function renderSummary(latestRows, latestDate) {
   const box = document.getElementById("summary");
   const foreignLegs = getLegs(latestRows, "foreign");
   const dealerLegs  = getLegs(latestRows, "dealer");
@@ -933,6 +950,7 @@ function renderSummary(latestRows) {
       <div class="signal-title">當日部位型態</div>
       ${signalHtml("外資", classify(foreignLegs).key)}
       ${signalHtml("自營商", classify(dealerLegs).key)}
+      ${latestDate ? `<span class="signal-date">資料日期 ${latestDate}</span>` : ""}
     </div>`;
   box.style.display = "block";
 }
@@ -1062,7 +1080,7 @@ function renderTrend(allRows) {
   const dealerSeries  = buildSeries(allRows, "dealer", dates);
 
   box.innerHTML = `
-    <div class="hedge-head" style="margin-bottom:6px"><h2 style="margin:0">部位變化<span class="h2-unit">未平倉金額・億元・${short ? `${dates[0]} 起` : `近 ${dates.length} 日`}</span></h2>${periodSeg("opt")}</div>
+    <div class="hedge-head" style="margin-bottom:6px"><h2 style="margin:0">部位變化<span class="h2-unit">資料日期 ${dates[dates.length - 1]}・未平倉金額・億元・${short ? `${dates[0]} 起` : `近 ${dates.length} 日`}</span></h2>${periodSeg("opt")}</div>
     <div class="trend-grid">
       <div class="trend-inst">
         <h3>外資</h3>
@@ -1085,9 +1103,7 @@ function render(rows) {
   const latestDate = rows.reduce((max, r) => r.date > max ? r.date : max, rows[0].date);
   const latestRows = rows.filter(r => r.date === latestDate);
 
-  document.getElementById("dataDate").textContent = latestDate;
-
-  renderSummary(latestRows);
+  renderSummary(latestRows, latestDate);
   document.getElementById("status").style.display = "none";
 }
 
@@ -2423,29 +2439,31 @@ function renderSentimentTop(r) {
 }
 
 function renderSgEst(r) {
-  const el = document.getElementById("sgEst");
-  if (!el || !r) return;
+  const els = document.querySelectorAll("#sgEstDesk, #sgEstMob");
+  if (!els.length || !r) return;
   const estArr = Array.isArray(r.est) ? r.est : [];
   const pEst = sgPEst(r), cEst = sgCEst(r);
+  let cls = "", html = "", hasMsg = true;
   if (r.over) {
-    el.className = "sg-est put";
-    el.innerHTML = `<b>破表</b>：賣權翼端無法計算（推估亦不可行），履約價遭跌穿，該項 PR 以 100 計。`;
-    el.style.display = "block";
+    cls = "put";
+    html = `<b>破表</b>：賣權翼端無法計算（推估亦不可行），履約價遭跌穿，該項 PR 以 100 計。`;
   } else if (pEst) {
     const ks = estArr.filter(k => k[0] === "p").map(k => k.toUpperCase()).join("、");
-    el.className = "sg-est put";
-    el.innerHTML = `<b>推估（${ks}）</b>：週選賣權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭跌穿，恐慌刻度最低以 80 計。`;
-    el.style.display = "block";
+    cls = "put";
+    html = `<b>推估（${ks}）</b>：週選賣權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭跌穿，恐慌刻度最低以 80 計。`;
   } else if (cEst) {
     const ks = estArr.filter(k => k[0] === "c").map(k => k.toUpperCase()).join("、");
-    el.className = "sg-est hot";
-    el.innerHTML = `<b>推估（${ks}）</b>：週選買權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭漲穿，FOMO 刻度最低以 80 計。`;
-    el.style.display = "block";
+    cls = "hot";
+    html = `<b>推估（${ks}）</b>：週選買權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭漲穿，FOMO 刻度最低以 80 計。`;
   } else {
-    el.className = "sg-est";
-    el.innerHTML = "";
-    el.style.display = "none";
+    hasMsg = false;
   }
+  els.forEach(el => {
+    const pos = el.id === "sgEstDesk" ? "sg-est-desk" : "sg-est-mob";
+    el.className = `sg-est ${pos}${cls ? " " + cls : ""}`;
+    el.innerHTML = html;
+    el.hidden = !hasMsg;
+  });
 }
 
 function renderSgSmile(r) {
@@ -2639,7 +2657,7 @@ function renderSgCharts() {
     return d;
   };
 
-  const titleIdx = `<div class="sg-ch-title">加權指數（● 雙尾警示　■ 推估／破表，連續出現只標第一天）</div>`;
+  const titleIdx = `<div class="sg-ch-title">加權指數（<span class="sg-mk-dot" aria-hidden="true"></span>雙尾警示　<span class="sg-mk-sq hot" aria-hidden="true"></span><span class="sg-mk-sq put" aria-hidden="true"></span>推估／破表，連續出現只標第一天）</div>`;
 
   const h1 = isMob ? 78 : 132, p1T = isMob ? 11 : 15, p1B = isMob ? 9 : 11, plotH1 = h1 - p1T - p1B;
   const T1 = niceTicks(Math.min(...cs), Math.max(...cs), 4);
@@ -2824,7 +2842,7 @@ function renderSentiment() {
         <div class="sg-smile-col">
           <div class="sg-smile-head">
             <h3>微笑曲線（相對價平）</h3>
-            <div class="muted" id="sgSmileDay" style="font-size:11px"></div>
+            <div class="muted" id="sgSmileDay"></div>
           </div>
           <svg id="sgSmile" viewBox="0 0 300 200" style="width:100%;max-width:340px;height:auto;display:block;margin:0 auto"></svg>
           <div class="sg-legend" style="margin-top:2px">
@@ -2832,9 +2850,10 @@ function renderSentiment() {
             <span class="legend-item"><span class="swatch dash" style="border-color:var(--text-muted)"></span>當時近一年中位數</span>
             <span class="legend-item">○ 推估</span>
           </div>
+          <div id="sgEstDesk" class="sg-est sg-est-desk" hidden></div>
         </div>
       </div>
-      <div id="sgEst" class="sg-est" style="display:none"></div>
+      <div id="sgEstMob" class="sg-est sg-est-mob" hidden></div>
     </div>
     ${SG_HELP_HTML}`;
 
@@ -2915,7 +2934,7 @@ async function checkUpdate(force) {
   if (force || ref !== CUR_REF) await loadAll(ref);
   const el = document.getElementById("lastChecked");
   const t = new Date().toLocaleTimeString("zh-Hant-TW", { hour12: false, timeZone: "Asia/Taipei", hour: "2-digit", minute: "2-digit" });
-  el.textContent = (inAfterHoursWindow() ? "自動更新中・" : "") + "檢查於 " + t;
+  if (el) el.textContent = "・" + (inAfterHoursWindow() ? "自動更新中・" : "") + "檢查於 " + t;
 }
 checkUpdate(true);
 setInterval(() => { if (document.visibilityState === "visible" && inAfterHoursWindow()) checkUpdate(false); }, 90000);
