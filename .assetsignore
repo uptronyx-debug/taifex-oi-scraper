@@ -12,3 +12,4 @@ tools
 requirements.txt
 probe_output.txt
 newdata
+data/txo_opt_daily

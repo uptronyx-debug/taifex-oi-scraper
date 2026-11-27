@@ -29,7 +29,7 @@ from datetime import datetime, timedelta, timezone
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 JOBS = {
-    "daily": {"files": ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv"], "late": 17},
+    "daily": {"files": ["txo_oi.csv", "txo_strike_oi.csv", "fut_oi.csv", "tx_month_oi.csv", "spot_net.csv", "txo_skew.csv"], "late": 17},
     "margin": {"files": ["margin.csv", "margin_top.csv", "foreign_hold.csv", "etf_fut.csv"], "late": 23, "evidence": "spot_net.csv"},
 }
 JOB = JOBS[os.environ.get("JOB", "daily")]
@@ -75,10 +75,25 @@ def holiday_name(day):
     return None
 
 
+def _last_row_is_iso_date(path, day_str):
+    target_iso = day_str.replace("/", "-")
+    last = ""
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            s = line.strip()
+            if s:
+                last = s
+    if not last or last.startswith("d,"):
+        return False
+    return last.split(",", 1)[0] == target_iso
+
+
 def has_date(name, day_str):
     path = os.path.join(DATA_DIR, name)
     if not os.path.exists(path):
         return False
+    if name == "txo_skew.csv":
+        return _last_row_is_iso_date(path, day_str)
     with open(path, encoding="utf-8") as f:
         return any(line.startswith(day_str + ",") for line in f)
 
@@ -89,9 +104,12 @@ def have_today(day_str, files=None):
         path = os.path.join(DATA_DIR, name)
         found = False
         if os.path.exists(path):
-            with open(path, encoding="utf-8") as f:
-                n = sum(1 for line in f if line.startswith(day_str + ","))
-                found = n >= MIN_ROWS.get(name, 1)
+            if name == "txo_skew.csv":
+                found = _last_row_is_iso_date(path, day_str)
+            else:
+                with open(path, encoding="utf-8") as f:
+                    n = sum(1 for line in f if line.startswith(day_str + ","))
+                    found = n >= MIN_ROWS.get(name, 1)
         present[name] = found
     return present
 
