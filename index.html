@@ -661,48 +661,66 @@
   .is-scrolled header .meta{ margin-top:4px; }
   @media (max-width:700px){ header{ padding-top:10px; } .is-scrolled header{ padding-top:8px; padding-bottom:8px; } }
 
-  /* ===== 情緒刻度 ===== */
-  .sg-head{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; margin-bottom:16px; }
+  /* ===== 情緒刻度（聯動視窗） ===== */
+  .sg-head{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:4px 12px; margin-bottom:8px; }
   .sg-head h2{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:20px; margin:0; }
-  .sg-sub{ font-size:13px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
-  .sg-top{ display:grid; grid-template-columns:340px minmax(0, 1fr); gap:16px; margin-bottom:16px; }
-  .sg-card{ background:var(--surface); border-radius:8px; padding:18px 20px; }
-  .sg-card h3{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:16px; margin:0 0 8px; }
-  .sg-gauge + .sg-gauge{ margin-top:14px; }
-  .sg-score{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-  .sg-score .lbl{ font-size:13px; color:var(--text-muted); width:46px; }
-  .sg-score .big{ font-family:'Roboto Mono', monospace; font-size:32px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.1; }
-  .sg-score .zone{ font-size:14px; font-weight:600; }
-  .sg-bar{ position:relative; height:8px; border-radius:4px; margin:8px 0 4px; }
-  .sg-bar.fear{ background:linear-gradient(90deg, var(--surface-2) 0%, color-mix(in srgb, var(--short) 22%, var(--surface-2)) 45%, color-mix(in srgb, var(--short) 60%, var(--surface-2)) 78%, var(--short) 100%); }
-  .sg-bar.hot{ background:linear-gradient(90deg, var(--surface-2) 0%, color-mix(in srgb, var(--long) 20%, var(--surface-2)) 45%, color-mix(in srgb, var(--long) 55%, var(--surface-2)) 78%, var(--long) 100%); }
-  .sg-bar i{ position:absolute; top:-4px; width:4px; height:16px; border-radius:2px; background:var(--text); transform:translateX(-2px); }
-  .sg-ticks{ display:flex; justify-content:space-between; font-family:'Roboto Mono', monospace; font-size:11px; color:var(--text-muted); }
-  .sg-flags{ margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-height:24px; font-size:12px; }
-  .sg-flag.two{ font-size:12px; padding:2px 9px; border-radius:999px; border:1px solid var(--purple); color:var(--purple); background:color-mix(in srgb, var(--purple) 14%, transparent); font-weight:600; }
-  .sg-day-tag{ font-family:'Roboto Mono', monospace; font-size:11px; color:var(--text-muted); }
-  .sg-reset{ margin-left:auto; background:none; border:1px solid var(--divider); color:var(--text-muted); border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer; font-family:inherit; }
+  .sg-sub{ font-size:12.5px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .sg-card{ background:var(--surface); border-radius:8px; padding:16px 18px; margin-bottom:16px; }
+  .sg-cockpit{ padding:11px 16px 12px; display:flex; flex-direction:column; }
+  .sg-head-gauges{ order:1; }
+  .sg-kpis-wrap{ order:2; }
+  .sg-main{ order:3; display:grid; grid-template-columns:minmax(0, 1fr) 290px; gap:18px; margin-top:9px; padding-top:9px; border-top:1px solid var(--divider); align-items:start; }
+  .sg-est{ order:5; margin-top:8px; padding:7px 10px; border-radius:6px; font-size:12px; line-height:1.45; }
+  .sg-bar-head{ display:flex; align-items:center; flex-wrap:nowrap; gap:6px 10px; min-height:24px; margin-bottom:6px; font-size:12.5px; font-variant-numeric:tabular-nums; overflow:hidden; }
+  .sg-day-tag{ font-family:'Roboto Mono', monospace; font-weight:600; color:var(--text); white-space:nowrap; }
+  .sg-taiex-tag{ font-family:'Roboto Mono', monospace; color:var(--text-muted); white-space:nowrap; }
+  .sg-taiex-tag b{ color:var(--text); font-weight:600; }
+  .sg-flag.two{ font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--purple); color:var(--purple); background:color-mix(in srgb, var(--purple) 14%, transparent); font-weight:600; white-space:nowrap; }
+  .sg-pill-est{ font-size:11px; padding:1px 7px; border-radius:999px; border:1px solid var(--short); color:var(--short); background:var(--short-soft); font-weight:600; white-space:nowrap; }
+  .sg-pill-est.hot{ border-color:var(--long); color:var(--long); background:color-mix(in srgb, var(--long) 12%, var(--surface)); }
+  .sg-reset{ margin-left:auto; background:none; border:1px solid var(--divider); color:var(--text-muted); border-radius:6px; padding:2px 8px; font-size:11px; cursor:pointer; font-family:inherit; white-space:nowrap; flex-shrink:0; }
   .sg-reset:hover{ color:var(--text); border-color:var(--accent-border); }
-  .sg-est{ margin-top:10px; padding:8px 10px; border-radius:6px; font-size:12.5px; line-height:1.5; min-height:78px; display:flex; align-items:center; }
-  .sg-est.idle{ border:1px dashed var(--divider); color:var(--text-muted); background:var(--surface-2); }
+  .sg-gauges{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:8px; }
+  .sg-gauge{ background:var(--surface-2); border-radius:6px; padding:6px 11px; }
+  .sg-g-top{ display:flex; align-items:baseline; justify-content:space-between; gap:6px; min-height:19px; margin-bottom:3px; white-space:nowrap; overflow:hidden; }
+  .sg-g-top .lbl{ font-size:12px; color:var(--text-muted); font-weight:600; }
+  .sg-g-top .zone{ font-size:12.5px; font-weight:600; text-overflow:ellipsis; overflow:hidden; }
+  .sg-g-row{ display:flex; align-items:center; gap:10px; }
+  .sg-g-row .big{ font-family:'Roboto Mono', monospace; font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1; min-width:44px; }
+  .sg-bar-wrap{ flex:1; min-width:0; }
+  .sg-bar{ position:relative; height:7px; border-radius:4px; margin:4px 0 3px; }
+  .sg-bar.fear{ background:linear-gradient(90deg, var(--surface) 0%, color-mix(in srgb, var(--short) 24%, var(--surface)) 45%, color-mix(in srgb, var(--short) 62%, var(--surface)) 78%, var(--short) 100%); }
+  .sg-bar.hot{ background:linear-gradient(90deg, var(--surface) 0%, color-mix(in srgb, var(--long) 22%, var(--surface)) 45%, color-mix(in srgb, var(--long) 58%, var(--surface)) 78%, var(--long) 100%); }
+  .sg-bar i{ position:absolute; top:-4px; width:4px; height:15px; border-radius:2px; background:var(--text); transform:translateX(-2px); }
+  .sg-ticks{ display:flex; justify-content:space-between; font-family:'Roboto Mono', monospace; font-size:10px; color:var(--text-muted); line-height:1; }
+  .sg-kpis{ display:grid; grid-template-columns:repeat(6, minmax(0, 1fr)); gap:8px; }
+  .sg-kpi{ background:var(--surface-2); border-radius:6px; padding:7px 9px; min-width:0; }
+  .sg-kpi .l{ font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sg-kpi .v-row{ display:flex; align-items:baseline; justify-content:space-between; gap:4px; margin:2px 0 1px; }
+  .sg-kpi .v{ font-family:'Roboto Mono', monospace; font-size:17px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.2; }
+  .sg-kpi .pr{ font-family:'Roboto Mono', monospace; font-size:10.5px; color:var(--text-muted); white-space:nowrap; }
+  .sg-kpi .s{ font-family:'Roboto Mono', monospace; font-size:10.5px; color:var(--text-muted); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sg-tag{ font-size:9.5px; padding:0 4px; border-radius:3px; margin-left:4px; vertical-align:1px; border:1px solid var(--short); background:var(--short-soft); color:var(--short); font-weight:600; }
+  .sg-tag.hot{ border-color:var(--long); background:color-mix(in srgb, var(--long) 12%, var(--surface)); color:var(--long); }
+  .sg-range-bar{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 10px; margin-bottom:4px; }
+  .sg-range-lbl{ font-size:12px; color:var(--text-muted); font-variant-numeric:tabular-nums; }
+  .sg-ctrl-bar{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:4px; }
+  .sg-chip-btn{ display:inline-flex; align-items:center; gap:5px; background:var(--surface-2); border:1px solid var(--divider); color:var(--text-muted); border-radius:999px; padding:2px 10px; font-size:11.5px; cursor:pointer; font-family:inherit; opacity:0.62; transition:opacity .12s, border-color .12s; }
+  .sg-chip-btn.on{ opacity:1; color:var(--text); border-color:var(--accent-border); }
+  .sg-chip-btn.on.fear{ border-color:var(--short); background:var(--short-soft); }
+  .sg-chip-btn.on.fomo{ border-color:var(--long); background:color-mix(in srgb, var(--long) 12%, var(--surface)); }
+  .sg-ch-title{ font-size:11.5px; color:var(--text-muted); margin:4px 0 2px; }
+  .sg-sync-charts{ touch-action:pan-y; cursor:crosshair; }
+  .sg-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11px; color:var(--text-muted); margin-top:4px; align-items:center; }
+  .sg-legend .legend-item{ display:inline-flex; align-items:center; gap:5px; }
   .sg-est.put{ border:1px solid var(--short); background:var(--short-soft); color:var(--text); }
   .sg-est.put b{ color:var(--short); }
   .sg-est.hot{ border:1px solid var(--long); background:color-mix(in srgb, var(--long) 10%, var(--surface)); color:var(--text); }
   .sg-est.hot b{ color:var(--long); }
-  .sg-tag{ font-size:10px; padding:1px 5px; border-radius:4px; margin-left:5px; vertical-align:1px; border:1px solid var(--short); background:var(--short-soft); color:var(--short); font-weight:600; }
-  .sg-tag.hot{ border-color:var(--long); background:color-mix(in srgb, var(--long) 12%, var(--surface)); color:var(--long); }
-  .sg-kpis{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; height:100%; align-content:start; }
-  .sg-kpi{ background:var(--surface-2); border-radius:6px; padding:12px 14px; }
-  .sg-kpi .l{ font-size:12px; color:var(--text-muted); }
-  .sg-kpi .v{ font-family:'Roboto Mono', monospace; font-size:21px; font-weight:700; font-variant-numeric:tabular-nums; margin:3px 0 4px; line-height:1.25; }
-  .sg-kpi .s{ font-family:'Roboto Mono', monospace; font-size:11.5px; color:var(--text-muted); display:flex; justify-content:space-between; gap:6px; font-variant-numeric:tabular-nums; }
-  .sg-main{ display:grid; grid-template-columns:minmax(0, 1fr) 300px; gap:16px; margin-bottom:16px; }
-  .sg-info{ display:flex; flex-wrap:wrap; gap:4px 12px; font-size:12px; font-variant-numeric:tabular-nums; min-height:42px; align-content:flex-start; margin:8px 0 4px; color:var(--text-muted); }
-  .sg-info b{ font-family:'Roboto Mono', monospace; color:var(--text); font-weight:600; }
-  .sg-ch-title{ font-size:12px; color:var(--text-muted); margin:6px 0 2px; }
-  .sg-sync-charts{ touch-action:pan-y; cursor:crosshair; }
-  .sg-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11.5px; color:var(--text-muted); margin-top:6px; align-items:center; }
-  .sg-legend .legend-item{ display:inline-flex; align-items:center; gap:5px; }
+  .sg-smile-col{ border-left:1px solid var(--divider); padding-left:18px; }
+  .sg-smile-head{ display:flex; align-items:baseline; justify-content:space-between; flex-wrap:nowrap; gap:4px 8px; margin-bottom:4px; }
+  .sg-smile-head h3{ font-family:'Noto Serif TC', serif; font-weight:700; font-size:15px; margin:0; white-space:nowrap; }
+  #sgSmileDay{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .sg-help{ font-size:13.5px; line-height:1.75; }
   .sg-help h3{ font-family:'Noto Serif TC', serif; font-size:16px; margin:0 0 10px; }
   .sg-help h4{ font-size:13.5px; font-weight:600; margin:16px 0 6px; color:var(--text); }
@@ -714,16 +732,44 @@
   .sg-help td{ color:var(--text-muted); }
   .sg-help td:first-child{ color:var(--text); font-weight:500; }
   @media (min-width:701px){ .sg-help td:first-child{ min-width:116px; } }
-  @media (max-width:820px){
-    .sg-top, .sg-main{ grid-template-columns:1fr; gap:14px; }
+  @media (max-width:860px){
+    .sg-kpis-wrap{ order:4; margin-top:8px; padding-top:8px; border-top:1px solid var(--divider); }
+    .sg-main{ order:2; grid-template-columns:1fr; gap:8px; }
+    .sg-kpis{ grid-template-columns:repeat(3, minmax(0, 1fr)); }
+    .sg-smile-col{ border-left:none; padding-left:0; border-top:1px solid var(--divider); padding-top:7px; }
   }
   @media (max-width:700px){
+    .seg{ max-width:100%; overflow-x:auto; scrollbar-width:none; }
+    .seg button{ padding:3.5px 8px; font-size:11.5px; white-space:nowrap; }
+    .sg-head{ margin-bottom:6px; flex-wrap:nowrap; }
+    .sg-head h2{ font-size:17px; white-space:nowrap; }
+    .sg-sub{ font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .sg-card{ padding:14px; }
-    .sg-kpis{ grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
-    .sg-kpi{ padding:10px; }
-    .sg-kpi .v{ font-size:18px; }
-    .sg-info{ min-height:60px; font-size:11.5px; gap:3px 10px; }
-    .sg-est{ min-height:78px; font-size:12px; }
+    .sg-cockpit{ padding:9px 11px 10px; }
+    .sg-bar-head{ font-size:11.5px; gap:5px 6px; margin-bottom:5px; min-height:22px; }
+    .sg-gauges{ gap:6px; margin-bottom:2px; }
+    .sg-gauge{ padding:5px 8px; }
+    .sg-g-top{ min-height:15px; margin-bottom:2px; }
+    .sg-g-top .lbl{ font-size:10.5px; }
+    .sg-g-top .zone{ font-size:10.5px; }
+    .sg-g-row{ gap:6px; }
+    .sg-g-row .big{ font-size:20px; min-width:30px; }
+    .sg-kpis{ gap:5px; }
+    .sg-kpi{ padding:4px 7px; }
+    .sg-kpi .l{ font-size:10px; }
+    .sg-kpi .v{ font-size:14px; }
+    .sg-kpi .pr{ font-size:9.5px; }
+    .sg-kpi .s{ font-size:9.5px; }
+    .sg-main{ margin-top:6px; padding-top:6px; gap:6px; }
+    .sg-range-bar{ gap:4px; margin-bottom:3px; flex-wrap:nowrap; }
+    .sg-range-lbl{ font-size:10.5px; white-space:nowrap; }
+    .sg-ctrl-bar{ gap:5px; margin-bottom:2px; }
+    .sg-chip-btn{ padding:2px 8px; font-size:11px; }
+    .sg-ch-title{ font-size:10px; margin:2px 0 1px; }
+    .sg-smile-head{ margin-bottom:2px; }
+    .sg-smile-head h3{ font-size:12.5px; }
+    #sgSmileDay{ font-size:10px !important; }
+    .sg-est{ font-size:11.5px; padding:6px 8px; margin-top:6px; }
     .sg-help table{ font-size:12px; }
   }
 </style>
@@ -1514,12 +1560,12 @@ function renderSettle() {
 
 // ================= 時段按鈕（各區塊獨立，預設 1 個月，不記憶） =================
 // 以「月」為單位，從最新一天往回推（5年＝最新日往前 60 個月）
-const PERIODS = [[1, "1個月"], [6, "半年"], [12, "1年"], [36, "3年"], [60, "5年"]];
-const PERIOD = { fut: 1, etf: 1, hedge: 1, hold: 1, opt: 1, spot: 1, mdaily: 1, mtop: 1 };
+const PERIODS = [[1, "1個月"], [3, "3個月"], [6, "半年"], [12, "1年"], [0, "全部"]];
+const PERIOD = { fut: 1, etf: 1, hedge: 1, hold: 1, opt: 1, spot: 1, mdaily: 1, mtop: 1, sg: 3 };
 const cutoffOf = (last, m) => { const d = new Date(last.replace(/\//g, "-") + "T00:00:00Z"); d.setUTCMonth(d.getUTCMonth() - m); return d.toISOString().slice(0, 10).replace(/-/g, "/"); };
-const inPeriod = (arr, k, key = x => x) => { if (!arr.length) return arr; const c = cutoffOf(key(arr[arr.length - 1]), PERIOD[k]); return arr.filter(x => key(x) > c); };
+const inPeriod = (arr, k, key = x => x) => { if (!arr.length || !PERIOD[k]) return arr; const c = cutoffOf(key(arr[arr.length - 1]), PERIOD[k]); return arr.filter(x => key(x) > c); };
 // 資料起點比所選時段晚 10 天以上＝歷史不足
-const isShort = (labels, k) => labels.length > 0 && (new Date(labels[0].replace(/\//g, "-")) - new Date(cutoffOf(labels[labels.length - 1], PERIOD[k]).replace(/\//g, "-"))) / 864e5 > 10;
+const isShort = (labels, k) => !!PERIOD[k] && labels.length > 0 && (new Date(labels[0].replace(/\//g, "-")) - new Date(cutoffOf(labels[labels.length - 1], PERIOD[k]).replace(/\//g, "-"))) / 864e5 > 10;
 function setPeriod(k, n) {
   PERIOD[k] = n;
   if (k === "fut" && FUT_ROWS) renderFutures(FUT_ROWS);
@@ -1529,6 +1575,7 @@ function setPeriod(k, n) {
   else if (k === "spot" && SPOT_ROWS) renderSpot(SPOT_ROWS);
   else if (k === "mdaily") renderMargin();
   else if (k === "mtop") renderMarginTop();
+  else if (k === "sg" && SKEW_DATA) { SG_LOCKED = false; SG_SELECTED = null; renderSentiment(); }
 }
 const periodSeg = k => `<div class="seg">${PERIODS.map(([n, l]) => `<button class="${PERIOD[k] === n ? "on" : ""}" onclick="setPeriod('${k}',${n})">${l}</button>`).join("")}</div>`;
 // 圖表標題＋時段按鈕；資料不足所選時段時註明起始日
@@ -2268,37 +2315,45 @@ function renderHedge() {
 
 // ================= 情緒刻度 =================
 let SKEW_DATA = null;
-let SG_RANGE = 250;       // 預設一年（250 交易日）；0＝全部
 let SG_LOCKED = false;
 let SG_SELECTED = null;   // 目前顯示的日期字串 YYYY-MM-DD
+let SG_SHOW_FEAR = true;
+let SG_SHOW_FOMO = true;
 
 const sgZoneOf = s => s >= 80 ? "極度恐慌" : s >= 60 ? "偏恐慌" : s >= 40 ? "中性" : s >= 20 ? "偏安逸" : "極度安逸";
 const sgFzoneOf = s => s >= 80 ? "極度過熱" : s >= 60 ? "偏熱" : s >= 40 ? "中性" : s >= 20 ? "偏冷" : "冷清";
 const sgTwoTail = r => r && r.two_tail === true;
 const sgPEst = r => !!(r && (r.over || (Array.isArray(r.est) && r.est.some(k => k[0] === "p"))));
-const sgCEst = r => !!(r && Array.isArray(r.est) && r.est.some(k => k[0] === "c"));
+const sgCEst = r => !!(r && ((Array.isArray(r.est) && r.est.some(k => k[0] === "c")) || (r.atm != null && r.csk == null)));
 const sgF1 = v => v == null ? "—" : v.toFixed(1);
 const sgSgn = v => v == null ? "—" : (v > 0 ? "+" : "") + v.toFixed(1);
 const sgFmtDate = d => d ? d.slice(2).replace(/-/g, "/") : "";
-
-function setSgRange(n) {
-  SG_RANGE = n;
-  SG_LOCKED = false;
-  SG_SELECTED = null;
-  renderSentiment();
-}
 
 function sgResetLatest() {
   if (!SKEW_DATA || !SKEW_DATA.rows || !SKEW_DATA.rows.length) return;
   SG_LOCKED = false;
   SG_SELECTED = null;
-  const last = SKEW_DATA.rows[SKEW_DATA.rows.length - 1];
-  sgApplyDay(last);
+  sgApplyDay(SKEW_DATA.rows[SKEW_DATA.rows.length - 1]);
+}
+
+function toggleSgSeries(which) {
+  if (which === "fear") SG_SHOW_FEAR = !SG_SHOW_FEAR;
+  else if (which === "fomo") SG_SHOW_FOMO = !SG_SHOW_FOMO;
+  renderSgCtrlBar();
+  renderSgCharts();
+}
+
+function renderSgCtrlBar() {
+  const el = document.getElementById("sgCtrlBar");
+  if (!el) return;
+  el.innerHTML = `<button type="button" class="sg-chip-btn ${SG_SHOW_FEAR ? "on fear" : ""}" onclick="toggleSgSeries('fear')"><span class="swatch" style="border-color:var(--short)"></span>恐慌</button>`
+    + `<button type="button" class="sg-chip-btn ${SG_SHOW_FOMO ? "on fomo" : ""}" onclick="toggleSgSeries('fomo')"><span class="swatch" style="border-color:var(--long)"></span>FOMO</button>`;
 }
 
 function renderSentimentTop(r) {
-  const el = document.getElementById("sgTop");
-  if (!el || !r) return;
+  const hgEl = document.getElementById("sgHeadGauges");
+  const kpiEl = document.getElementById("sgKpisWrap");
+  if (!hgEl || !kpiEl || !r) return;
   const rows = SKEW_DATA.rows;
   const last = rows[rows.length - 1];
   const isLatest = r.d === last.d;
@@ -2312,70 +2367,85 @@ function renderSentimentTop(r) {
     ? sgFzoneOf(r.fomo) + (r.fomo_raw != null && r.fomo_raw !== r.fomo ? `（原始 ${r.fomo_raw}）` : "")
     : "資料不足";
 
-  let estBox = `<div class="sg-est idle">履約價涵蓋完整，無推估或破表。</div>`;
-  if (r.over) {
-    estBox = `<div class="sg-est put"><span><b>破表</b>：賣權翼端無法計算（推估亦不可行），履約價遭跌穿，該項 PR 以 100 計。</span></div>`;
-  } else if (pEst) {
-    const ks = estArr.filter(k => k[0] === "p").map(k => k.toUpperCase()).join("、");
-    estBox = `<div class="sg-est put"><span><b>推估（${ks}）</b>：週選賣權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭跌穿，恐慌刻度最低以 80 計。</span></div>`;
-  } else if (cEst) {
-    const ks = estArr.filter(k => k[0] === "c").map(k => k.toUpperCase()).join("、");
-    estBox = `<div class="sg-est hot"><span><b>推估（${ks}）</b>：週選買權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭漲穿，FOMO 刻度最低以 80 計。</span></div>`;
-  }
+  const estPill = r.over
+    ? `<span class="sg-pill-est">破表</span>`
+    : pEst ? `<span class="sg-pill-est">推估</span>`
+    : cEst ? `<span class="sg-pill-est hot">推估</span>` : "";
+
+  hgEl.innerHTML = `<div class="sg-bar-head">
+      <span class="sg-day-tag">${isLatest ? "最新 " + r.d : r.d}</span>
+      <span class="sg-taiex-tag">加權 <b>${r.c != null ? Math.round(r.c).toLocaleString() : "—"}</b></span>
+      ${sgTwoTail(r) ? `<span class="sg-flag two">雙尾警示</span>` : ""}
+      ${estPill}
+      ${isLatest ? "" : `<button class="sg-reset" type="button" onclick="sgResetLatest()">回到最新</button>`}
+    </div>
+    <div class="sg-gauges">
+      <div class="sg-gauge">
+        <div class="sg-g-top"><span class="lbl">恐慌</span><span class="zone">${fZone}</span></div>
+        <div class="sg-g-row">
+          <span class="big" style="color:${r.score != null && r.score >= 80 ? "var(--short)" : "var(--text)"}">${r.score ?? "—"}</span>
+          <div class="sg-bar-wrap">
+            <div class="sg-bar fear"><i style="left:${r.score ?? 50}%"></i></div>
+            <div class="sg-ticks"><span>0</span><span>50</span><span>100</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="sg-gauge">
+        <div class="sg-g-top"><span class="lbl">FOMO</span><span class="zone">${hZone}</span></div>
+        <div class="sg-g-row">
+          <span class="big" style="color:${r.fomo != null && r.fomo >= 80 ? "var(--long)" : "var(--text)"}">${r.fomo ?? "—"}</span>
+          <div class="sg-bar-wrap">
+            <div class="sg-bar hot"><i style="left:${r.fomo ?? 50}%"></i></div>
+            <div class="sg-ticks"><span>0</span><span>50</span><span>100</span></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
 
   const kpi = (lbl, val, pr, md, tag) => `<div class="sg-kpi">
     <div class="l">${lbl}${tag || ""}</div>
-    <div class="v">${val}</div>
-    <div class="s"><span>PR ${pr ?? "—"}</span><span>中位數 ${md}</span></div>
+    <div class="v-row"><span class="v">${val}</span><span class="pr">PR ${pr ?? "—"}</span></div>
+    <div class="s">中位 ${md}</div>
   </div>`;
 
   const rrTag = estArr.includes("p25") && r.rr != null ? `<span class="sg-tag">推估</span>` : "";
   const pskTag = pEst && !r.over && r.psk != null ? `<span class="sg-tag">推估</span>` : "";
   const cskTag = cEst ? `<span class="sg-tag hot">推估</span>` : "";
 
-  el.innerHTML = `<div class="sg-card">
-      <div class="sg-gauge">
-        <div class="sg-score"><span class="lbl">恐慌</span><span class="big" style="color:${r.score != null && r.score >= 80 ? "var(--short)" : "var(--text)"}">${r.score ?? "—"}</span><span class="zone">${fZone}</span></div>
-        <div class="sg-bar fear"><i style="left:${r.score ?? 50}%"></i></div>
-        <div class="sg-ticks"><span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
-      </div>
-      <div class="sg-gauge">
-        <div class="sg-score"><span class="lbl">FOMO</span><span class="big" style="color:${r.fomo != null && r.fomo >= 80 ? "var(--long)" : "var(--text)"}">${r.fomo ?? "—"}</span><span class="zone">${hZone}</span></div>
-        <div class="sg-bar hot"><i style="left:${r.fomo ?? 50}%"></i></div>
-        <div class="sg-ticks"><span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100</span></div>
-      </div>
-      <div class="sg-flags">
-        ${sgTwoTail(r) ? `<span class="sg-flag two">雙尾警示</span>` : `<span class="muted">無雙尾警示</span>`}
-        <span class="sg-day-tag">${isLatest ? "最新 " + r.d : "檢視 " + r.d}</span>
-        ${isLatest ? "" : `<button class="sg-reset" type="button" onclick="sgResetLatest()">回到最新</button>`}
-      </div>
-      ${estBox}
-    </div>
-    <div class="sg-card">
-      <div class="sg-kpis">
-        ${kpi("ATM IV", r.atm != null ? sgF1(r.atm) + "%" : "—", r.pr_atm, r.md_atm != null ? sgF1(r.md_atm) + "%" : "—")}
-        ${kpi("RV（5 日）", r.rv5 != null ? sgF1(r.rv5) + "%" : "—", r.pr_rv5, r.md_rv5 != null ? sgF1(r.md_rv5) + "%" : "—")}
-        ${kpi("IV/RV", r.ivrv != null ? r.ivrv.toFixed(2) : "—", r.pr_ivrv, r.md_ivrv != null ? r.md_ivrv.toFixed(2) : "—")}
-        ${kpi("25D RR", r.rr == null ? "破表" : sgF1(r.rr), r.pr_rr, sgF1(r.md_rr), rrTag)}
-        ${kpi("Put Skew", r.psk == null ? "破表" : sgF1(r.psk), r.pr_psk, sgF1(r.md_psk), pskTag)}
-        ${kpi("Call Skew", sgSgn(r.csk), r.pr_csk, sgSgn(r.md_csk), cskTag)}
-      </div>
+  kpiEl.innerHTML = `<div class="sg-kpis">
+      ${kpi("ATM IV", r.atm != null ? sgF1(r.atm) + "%" : "—", r.pr_atm, r.md_atm != null ? sgF1(r.md_atm) + "%" : "—")}
+      ${kpi("RV（5 日）", r.rv5 != null ? sgF1(r.rv5) + "%" : "—", r.pr_rv5, r.md_rv5 != null ? sgF1(r.md_rv5) + "%" : "—")}
+      ${kpi("IV/RV", r.ivrv != null ? r.ivrv.toFixed(2) : "—", r.pr_ivrv, r.md_ivrv != null ? r.md_ivrv.toFixed(2) : "—")}
+      ${kpi("25D RR", r.rr == null ? "破表" : sgF1(r.rr), r.pr_rr, sgF1(r.md_rr), rrTag)}
+      ${kpi("Put Skew", r.psk == null ? "破表" : sgF1(r.psk), r.pr_psk, sgF1(r.md_psk), pskTag)}
+      ${kpi("Call Skew", sgSgn(r.csk), r.pr_csk, sgSgn(r.md_csk), cskTag)}
     </div>`;
 }
 
-function renderSgInfo(r) {
-  const el = document.getElementById("sgInfo");
-  if (!el) return;
-  if (!r) { el.innerHTML = ""; return; }
-  const estHint = r.psk != null && Array.isArray(r.est) && r.est.length > 0 ? "（推估）" : "";
-  el.innerHTML = `<span>${r.d}</span>`
-    + `<span>加權 <b>${r.c != null ? Math.round(r.c).toLocaleString() : "—"}</b></span>`
-    + `<span>恐慌 <b>${r.score ?? "—"}</b></span>`
-    + `<span>FOMO <b>${r.fomo ?? "—"}</b></span>`
-    + `<span>25D RR <b>${r.rr == null ? "破表" : sgF1(r.rr)}</b></span>`
-    + `<span>Put Skew <b>${r.psk == null ? "破表" : sgF1(r.psk)}</b>${estHint}</span>`
-    + `<span>Call Skew <b>${sgSgn(r.csk)}</b></span>`
-    + `<span>ATM IV <b>${r.atm != null ? sgF1(r.atm) + "%" : "—"}</b></span>`;
+function renderSgEst(r) {
+  const el = document.getElementById("sgEst");
+  if (!el || !r) return;
+  const estArr = Array.isArray(r.est) ? r.est : [];
+  const pEst = sgPEst(r), cEst = sgCEst(r);
+  if (r.over) {
+    el.className = "sg-est put";
+    el.innerHTML = `<b>破表</b>：賣權翼端無法計算（推估亦不可行），履約價遭跌穿，該項 PR 以 100 計。`;
+    el.style.display = "block";
+  } else if (pEst) {
+    const ks = estArr.filter(k => k[0] === "p").map(k => k.toUpperCase()).join("、");
+    el.className = "sg-est put";
+    el.innerHTML = `<b>推估（${ks}）</b>：週選賣權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭跌穿，恐慌刻度最低以 80 計。`;
+    el.style.display = "block";
+  } else if (cEst) {
+    const ks = estArr.filter(k => k[0] === "c").map(k => k.toUpperCase()).join("、");
+    el.className = "sg-est hot";
+    el.innerHTML = `<b>推估（${ks}）</b>：週選買權履約價不足，借用較遠到期日的曲線形狀推估；履約價遭漲穿，FOMO 刻度最低以 80 計。`;
+    el.style.display = "block";
+  } else {
+    el.className = "sg-est";
+    el.innerHTML = "";
+    el.style.display = "none";
+  }
 }
 
 function renderSgSmile(r) {
@@ -2386,16 +2456,20 @@ function renderSgSmile(r) {
   dayEl.textContent = r.d
     + (r.score != null ? `　恐慌 ${r.score}｜FOMO ${r.fomo}` : "")
     + (r.over ? "　破表" : (estArr.length ? "　含推估" : ""));
+  const isMob = window.innerWidth <= 860;
+  const W = isMob ? 320 : 300, H = isMob ? 114 : 200;
+  const xL = isMob ? 38 : 42, xR = isMob ? 302 : 284, yT = isMob ? 12 : 16, yB = isMob ? 96 : 176;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
   if (!Array.isArray(r.rel) || !Array.isArray(r.md_rel)) {
-    svg.innerHTML = `<text x="150" y="110" text-anchor="middle" font-size="12" fill="var(--text-muted)">近一年中位數資料累積中（滿 60 日顯示）</text>`;
+    svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" font-size="12" fill="var(--text-muted)">近一年中位數資料累積中（滿 60 日顯示）</text>`;
     return;
   }
   const med = r.md_rel;
-  const xL = 42, xR = 284, yT = 18, yB = 186;
   const lab = ["P10", "P25", "價平", "C25", "C10"];
   const ek = ["p10", "p25", "atm", "c25", "c10"];
   const all = [...r.rel, ...med].filter(v => v != null);
-  const T = niceTicks(Math.min(...all, 0), Math.max(...all, 0), 4);
+  const T = niceTicks(Math.min(...all, 0), Math.max(...all, 0), isMob ? 3 : 4);
   const lo = T.lo, hi = T.hi;
   const x = i => xL + i * (xR - xL) / 4;
   const y = v => yB - (v - lo) / (hi - lo) * (yB - yT);
@@ -2404,11 +2478,11 @@ function renderSgSmile(r) {
     const yy = y(v).toFixed(1);
     const isZero = Math.abs(v) < 1e-9;
     return `<line x1="${xL}" x2="${xR}" y1="${yy}" y2="${yy}" stroke="${isZero ? "var(--text-muted)" : "var(--divider)"}" stroke-width="${isZero ? 1.3 : 1}"/>`
-      + `<text x="${xL - 6}" y="${(+yy + 3.5).toFixed(1)}" text-anchor="end" font-size="10.5" font-family="Roboto Mono, monospace" fill="var(--text-muted)">${v > 0 ? "+" : ""}${axisNum(T.step)(v)}</text>`;
+      + `<text x="${xL - 6}" y="${(+yy + 3.5).toFixed(1)}" text-anchor="end" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)">${v > 0 ? "+" : ""}${axisNum(T.step)(v)}</text>`;
   }).join("");
 
   lab.forEach((t, i) => {
-    h += `<text x="${x(i)}" y="${yB + 18}" text-anchor="middle" font-size="11" fill="var(--text-muted)">${t}</text>`;
+    h += `<text x="${x(i)}" y="${yB + 15}" text-anchor="middle" font-size="10.5" fill="var(--text-muted)">${t}</text>`;
   });
 
   const pathOf = arr => {
@@ -2420,8 +2494,8 @@ function renderSgSmile(r) {
     });
     return d;
   };
-  h += `<path d="${pathOf(med)}" fill="none" stroke="var(--text-muted)" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.85"/>`;
-  h += `<path d="${pathOf(r.rel)}" fill="none" stroke="var(--margin)" stroke-width="2.4"/>`;
+  h += `<path d="${pathOf(med)}" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="5 4" opacity="0.85"/>`;
+  h += `<path d="${pathOf(r.rel)}" fill="none" stroke="var(--margin)" stroke-width="2.2"/>`;
 
   r.rel.forEach((v, i) => {
     if (v == null) return;
@@ -2429,15 +2503,16 @@ function renderSgSmile(r) {
     const cx = x(i).toFixed(1), cy = y(v).toFixed(1);
     if (isEst) {
       const col = i < 2 ? "var(--short)" : "var(--long)";
-      h += `<circle cx="${cx}" cy="${cy}" r="4.5" fill="var(--surface)" stroke="${col}" stroke-width="2"/>`;
+      h += `<circle cx="${cx}" cy="${cy}" r="4.2" fill="var(--surface)" stroke="${col}" stroke-width="2"/>`;
     } else {
-      h += `<circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--margin)"/>`;
+      h += `<circle cx="${cx}" cy="${cy}" r="3.3" fill="var(--margin)"/>`;
     }
     if (i !== 2) {
       const lx = x(i) + (i === 0 ? 6 : i === 4 ? -6 : 0);
-      const ly = v >= 0 ? Math.max(11, y(v) - 8) : Math.min(yB - 4, y(v) + 14);
+      const putAbove = v >= 0 || (i === 3 && r.rel[4] != null && r.rel[4] < v - 5);
+      const ly = putAbove ? Math.max(10, y(v) - 7) : Math.min(yB - 4, y(v) + 13);
       const anchor = i === 0 ? "start" : i === 4 ? "end" : "middle";
-      h += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="10.5" font-family="Roboto Mono, monospace" fill="var(--text)">${sgSgn(v)}</text>`;
+      h += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text)">${sgSgn(v)}</text>`;
     }
   });
   svg.innerHTML = h;
@@ -2465,14 +2540,14 @@ function sgSelectIndex(idx) {
     let g = c2.querySelector(".sg-cross");
     if (!g) { g = document.createElementNS("http://www.w3.org/2000/svg", "g"); g.setAttribute("class", "sg-cross"); c2.appendChild(g); }
     let marks = "";
-    if (r.score != null) marks += `<circle cx="${xx}" cy="${meta.yGauge(r.score).toFixed(1)}" r="4" fill="var(--short)" stroke="var(--surface)" stroke-width="1.5"/>`;
-    if (r.fomo != null) marks += `<circle cx="${xx}" cy="${meta.yGauge(r.fomo).toFixed(1)}" r="4" fill="var(--long)" stroke="var(--surface)" stroke-width="1.5"/>`;
+    if (SG_SHOW_FEAR && r.score != null) marks += `<circle cx="${xx}" cy="${meta.yGauge(r.score).toFixed(1)}" r="4" fill="var(--short)" stroke="var(--surface)" stroke-width="1.5"/>`;
+    if (SG_SHOW_FOMO && r.fomo != null) marks += `<circle cx="${xx}" cy="${meta.yGauge(r.fomo).toFixed(1)}" r="4" fill="var(--long)" stroke="var(--surface)" stroke-width="1.5"/>`;
     g.innerHTML = `<line x1="${xx}" y1="${meta.p2T}" x2="${xx}" y2="${meta.h2 - meta.p2B}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="2,3"/>${marks}`;
   }
 
-  renderSgInfo(r);
-  renderSgSmile(r);
   renderSentimentTop(r);
+  renderSgEst(r);
+  renderSgSmile(r);
 }
 
 function sgApplyDay(r) {
@@ -2481,74 +2556,79 @@ function sgApplyDay(r) {
     const idx = wrap._meta.view.findIndex(x => x.d === r.d);
     if (idx >= 0) { sgSelectIndex(idx); return; }
   }
-  renderSgInfo(r);
-  renderSgSmile(r);
   renderSentimentTop(r);
+  renderSgEst(r);
+  renderSgSmile(r);
 }
 
 function renderSgCharts() {
   const wrap = document.getElementById("sgSyncCharts");
   if (!wrap || !SKEW_DATA || !SKEW_DATA.rows || !SKEW_DATA.rows.length) return;
   const rows = SKEW_DATA.rows;
-  const view = SG_RANGE > 0 ? rows.slice(-SG_RANGE) : rows;
+  const view = inPeriod(rows, "sg", r => r.d.replace(/-/g, "/"));
+  const labels = view.map(r => r.d.replace(/-/g, "/"));
+  const lblEl = document.getElementById("sgRangeLbl");
+  if (lblEl && view.length) {
+    lblEl.textContent = PERIOD.sg === 0
+      ? `全部（${view.length}日）`
+      : isShort(labels, "sg")
+        ? `${view[0].d.slice(2).replace(/-/g, "/")}起`
+        : `近${view.length}日`;
+  }
   const fullIdx = new Map(rows.map((r, i) => [r.d, i]));
 
   const w = Math.max(300, Math.round(wrap.clientWidth || 540));
+  const isMob = w < 450;
   const padL = 44, padR = 12, plotW = w - padL - padR;
   const n = view.length;
   const x = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
 
-  // 上圖：加權指數
-  const h1 = w < 450 ? 155 : 185, p1T = 14, p1B = 10, plotH1 = h1 - p1T - p1B;
+  const buildXLabels = h => {
+    const step = Math.max(2, Math.ceil(n / Math.max(3, Math.floor(plotW / 90))));
+    const xlArr = [];
+    let lastLblX = -Infinity, lastLblIsStart = false;
+    for (let i = 0; i < n; i++) {
+      const xi = x(i);
+      if (i === n - 1) {
+        xlArr.push(`<text x="${xi.toFixed(1)}" y="${h - 4}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="${n > 1 ? "end" : "middle"}">${sgFmtDate(view[i].d)}</text>`);
+        continue;
+      }
+      if (i === 0) {
+        xlArr.push(`<text x="${xi.toFixed(1)}" y="${h - 4}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="start">${sgFmtDate(view[i].d)}</text>`);
+        lastLblX = xi; lastLblIsStart = true;
+        continue;
+      }
+      const minFromPrev = lastLblIsStart ? 84 : 66;
+      if (i % step === 0 && xi - lastLblX >= minFromPrev && x(n - 1) - xi >= 84) {
+        xlArr.push(`<text x="${xi.toFixed(1)}" y="${h - 4}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="middle">${sgFmtDate(view[i].d)}</text>`);
+        lastLblX = xi; lastLblIsStart = false;
+      }
+    }
+    return xlArr.join("");
+  };
+
+  const buildMarkers = (yIdx, topBound, botBound) => {
+    let m = "";
+    view.forEach((r, i) => {
+      if (r.c == null) return;
+      const fi = fullIdx.get(r.d);
+      const prev = fi > 0 ? rows[fi - 1] : {};
+      const xx = x(i), yy = yIdx(r.c);
+      if (sgTwoTail(r) && !sgTwoTail(prev)) {
+        m += `<circle cx="${xx.toFixed(1)}" cy="${Math.min(botBound - 3, yy + 7).toFixed(1)}" r="3.4" fill="var(--purple)"/>`;
+      }
+      if (sgPEst(r) && !sgPEst(prev)) {
+        m += `<rect x="${(xx - 3).toFixed(1)}" y="${Math.min(botBound - 6, yy + 7).toFixed(1)}" width="6" height="6" rx="1" fill="var(--short)"/>`;
+      }
+      if (sgCEst(r) && !sgCEst(prev)) {
+        m += `<rect x="${(xx - 3).toFixed(1)}" y="${Math.max(topBound, yy - 13).toFixed(1)}" width="6" height="6" rx="1" fill="var(--long)"/>`;
+      }
+    });
+    return m;
+  };
+
   const cs = view.map(r => r.c).filter(v => v != null);
-  const T1 = niceTicks(Math.min(...cs), Math.max(...cs), 4);
-  const yIdx = v => p1T + (T1.hi - v) / (T1.hi - T1.lo) * plotH1;
-  const fa1 = axisNum(T1.step);
-  const grid1 = T1.ticks.map(v => {
-    const yy = yIdx(v).toFixed(1);
-    return `<line x1="${padL}" y1="${yy}" x2="${w - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>`
-      + `<text x="${padL - 5}" y="${(+yy + 3).toFixed(1)}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="end">${fa1(v)}</text>`;
-  }).join("");
-
-  let idxPath = "", pen1 = false;
-  view.forEach((r, i) => {
-    if (r.c == null) { pen1 = false; return; }
-    idxPath += (pen1 ? "L" : "M") + x(i).toFixed(1) + "," + yIdx(r.c).toFixed(1) + " ";
-    pen1 = true;
-  });
-
-  // 事件標記：連續出現只標第一天
-  let markers = "";
-  view.forEach((r, i) => {
-    if (r.c == null) return;
-    const fi = fullIdx.get(r.d);
-    const prev = fi > 0 ? rows[fi - 1] : {};
-    const xx = x(i), yy = yIdx(r.c);
-    if (sgTwoTail(r) && !sgTwoTail(prev)) {
-      markers += `<circle cx="${xx.toFixed(1)}" cy="${Math.min(h1 - p1B - 3, yy + 7).toFixed(1)}" r="3.2" fill="var(--purple)"/>`;
-    }
-    if (sgPEst(r) && !sgPEst(prev)) {
-      markers += `<rect x="${(xx - 3).toFixed(1)}" y="${Math.min(h1 - p1B - 6, yy + 9).toFixed(1)}" width="6" height="6" rx="1" fill="var(--short)"/>`;
-    }
-    if (sgCEst(r) && !sgCEst(prev)) {
-      markers += `<rect x="${(xx - 3).toFixed(1)}" y="${Math.max(p1T + 1, yy - 14).toFixed(1)}" width="6" height="6" rx="1" fill="var(--gold)"/>`;
-    }
-  });
-
-  const svg1 = `<svg id="sgChartIdx" viewBox="0 0 ${w} ${h1}" style="width:100%;height:auto;display:block;">${grid1}<path d="${idxPath}" fill="none" stroke="var(--text)" stroke-width="1.8"/>${markers}</svg>`;
-
-  // 下圖：恐慌與 FOMO 刻度（0/20/40/60/80/100）
-  const h2 = w < 450 ? 145 : 165, p2T = 8, p2B = 22, plotH2 = h2 - p2T - p2B;
-  const yGauge = v => p2T + (100 - v) / 100 * plotH2;
-  const gTicks = [0, 20, 40, 60, 80, 100];
-  const grid2 = gTicks.map(v => {
-    const yy = yGauge(v).toFixed(1);
-    const isRef = v === 20 || v === 80;
-    return `<line x1="${padL}" y1="${yy}" x2="${w - padR}" y2="${yy}" stroke="${isRef ? "var(--text-muted)" : "var(--divider)"}" stroke-width="1" ${isRef ? 'stroke-dasharray="4,4" opacity="0.65"' : ""}/>`
-      + `<text x="${padL - 5}" y="${(+yy + 3).toFixed(1)}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="end">${v}</text>`;
-  }).join("");
-
-  const gPath = key => {
+  const gPath = (key, yGauge) => {
     let d = "", pen = false;
     view.forEach((r, i) => {
       const v = r[key];
@@ -2559,31 +2639,39 @@ function renderSgCharts() {
     return d;
   };
 
-  const step = Math.max(2, Math.ceil(n / Math.max(3, Math.floor(plotW / 90))));
-  const xlArr = [];
-  let lastLblX = -Infinity, lastLblIsStart = false;
-  for (let i = 0; i < n; i++) {
-    const xi = x(i);
-    if (i === n - 1) {
-      xlArr.push(`<text x="${xi.toFixed(1)}" y="${h2 - 5}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="${n > 1 ? "end" : "middle"}">${sgFmtDate(view[i].d)}</text>`);
-      continue;
-    }
-    if (i === 0) {
-      xlArr.push(`<text x="${xi.toFixed(1)}" y="${h2 - 5}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="start">${sgFmtDate(view[i].d)}</text>`);
-      lastLblX = xi; lastLblIsStart = true;
-      continue;
-    }
-    const minFromPrev = lastLblIsStart ? 84 : 66;
-    if (i % step === 0 && xi - lastLblX >= minFromPrev && x(n - 1) - xi >= 84) {
-      xlArr.push(`<text x="${xi.toFixed(1)}" y="${h2 - 5}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="middle">${sgFmtDate(view[i].d)}</text>`);
-      lastLblX = xi; lastLblIsStart = false;
-    }
-  }
-  const xl = xlArr.join("");
+  const titleIdx = `<div class="sg-ch-title">加權指數（● 雙尾警示　■ 推估／破表，連續出現只標第一天）</div>`;
 
-  const svg2 = `<svg id="sgChartGauge" viewBox="0 0 ${w} ${h2}" style="width:100%;height:auto;display:block;">${grid2}<path d="${gPath("score")}" fill="none" stroke="var(--short)" stroke-width="1.5"/><path d="${gPath("fomo")}" fill="none" stroke="var(--long)" stroke-width="1.5"/>${xl}</svg>`;
+  const h1 = isMob ? 78 : 132, p1T = isMob ? 11 : 15, p1B = isMob ? 9 : 11, plotH1 = h1 - p1T - p1B;
+  const T1 = niceTicks(Math.min(...cs), Math.max(...cs), 4);
+  const yIdx = v => p1T + (T1.hi - v) / (T1.hi - T1.lo) * plotH1;
+  const fa1 = axisNum(T1.step);
+  const grid1 = T1.ticks.map(v => {
+    const yy = yIdx(v).toFixed(1);
+    return `<line x1="${padL}" y1="${yy}" x2="${w - padR}" y2="${yy}" stroke="var(--divider)" stroke-width="1"/>`
+      + `<text x="${padL - 5}" y="${(+yy + 3).toFixed(1)}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="end">${fa1(v)}</text>`;
+  }).join("");
+  let idxPath = "", pen1 = false;
+  view.forEach((r, i) => {
+    if (r.c == null) { pen1 = false; return; }
+    idxPath += (pen1 ? "L" : "M") + x(i).toFixed(1) + "," + yIdx(r.c).toFixed(1) + " ";
+    pen1 = true;
+  });
+  const markers = buildMarkers(yIdx, 2, h1 - 2);
+  const svg1 = `<svg id="sgChartIdx" viewBox="0 0 ${w} ${h1}" style="width:100%;height:auto;display:block;">${grid1}<path d="${idxPath}" fill="none" stroke="var(--text)" stroke-width="1.8"/>${markers}</svg>`;
 
-  wrap.innerHTML = `<div class="sg-ch-title">加權指數（<span style="color:var(--purple)">●</span> 雙尾警示　<span style="color:var(--short)">■</span> 賣權推估／破表　<span style="color:var(--gold)">■</span> 買權推估，連續出現只標第一天）</div>${svg1}<div class="sg-ch-title">恐慌刻度與 FOMO 刻度（虛線 20／80）</div>${svg2}`;
+  const h2 = isMob ? 76 : 124, p2T = 5, p2B = isMob ? 15 : 18, plotH2 = h2 - p2T - p2B;
+  const yGauge = v => p2T + (100 - v) / 100 * plotH2;
+  const gTicks = [0, 20, 40, 60, 80, 100];
+  const grid2 = gTicks.map(v => {
+    const yy = yGauge(v).toFixed(1);
+    const isRef = v === 20 || v === 80;
+    return `<line x1="${padL}" y1="${yy}" x2="${w - padR}" y2="${yy}" stroke="${isRef ? "var(--text-muted)" : "var(--divider)"}" stroke-width="1" ${isRef ? 'stroke-dasharray="4,4" opacity="0.65"' : ""}/>`
+      + `<text x="${padL - 5}" y="${(+yy + 3).toFixed(1)}" font-size="10" font-family="Roboto Mono, monospace" fill="var(--text-muted)" text-anchor="end">${v}</text>`;
+  }).join("");
+  const fearSvg = SG_SHOW_FEAR ? `<path d="${gPath("score", yGauge)}" fill="none" stroke="var(--short)" stroke-width="1.5"/>` : "";
+  const fomoSvg = SG_SHOW_FOMO ? `<path d="${gPath("fomo", yGauge)}" fill="none" stroke="var(--long)" stroke-width="1.5"/>` : "";
+  const svg2 = `<svg id="sgChartGauge" viewBox="0 0 ${w} ${h2}" style="width:100%;height:auto;display:block;">${grid2}${fearSvg}${fomoSvg}${buildXLabels(h2)}</svg>`;
+  wrap.innerHTML = `${titleIdx}${svg1}<div class="sg-ch-title">恐慌刻度與 FOMO 刻度（虛線 20／80）</div>${svg2}`;
   wrap._meta = { view, w, padL, padR, plotW, n, x, yIdx, yGauge, h1, p1T, p1B, h2, p2T, p2B };
 
   const idxOfX = clientX => {
@@ -2630,7 +2718,7 @@ const SG_HELP_HTML = `<div class="sg-card sg-help">
   <table>
     <thead><tr><th>項目</th><th>說明</th></tr></thead>
     <tbody>
-      <tr><td>來源</td><td>期交所臺指選擇權每日交易行情（一般交易時段）</td></tr>
+      <tr><td>來源</td><td>期交所臺指選擇權每日交易行情（一般交易時段）；該到期合約總未平倉不到 1,000 口的不用（剛掛牌、幾乎沒成交的週選，結算價是理論值）</td></tr>
       <tr><td>價格</td><td>最後買賣價價差合理（≤ 中價 25% 或 ≤ 2 點）時採買賣中價，否則採結算價</td></tr>
       <tr><td>標的價 F</td><td>以買賣權平價反推：取買權、賣權價格最接近的 3 個履約價，各算 F = K + e<sup>rT</sup>(C − P)，取中位數</td></tr>
       <tr><td>剩餘時間 T</td><td>至到期日的日曆天數 ÷ 365；剩餘不足 1.5 天的到期不採用</td></tr>
@@ -2715,43 +2803,42 @@ function renderSentiment() {
     return;
   }
   const asof = SKEW_DATA.asof || SKEW_DATA.rows[SKEW_DATA.rows.length - 1].d;
-  const ranges = [[125, "半年"], [250, "一年"], [0, "全部"]];
-  const rangeBtns = `<div class="seg">${ranges.map(([n, lbl]) =>
-    `<button type="button" class="${SG_RANGE === n ? "on" : ""}" onclick="setSgRange(${n})">${lbl}</button>`
-  ).join("")}</div>`;
 
   box.innerHTML = `
     <div class="sg-head">
       <h2>情緒刻度</h2>
-      <span class="sg-sub">資料日期 ${asof}｜盤後．14 天固定天期</span>
+      <span class="sg-sub">${asof}｜盤後．14 天固定天期</span>
     </div>
-    <div class="sg-top" id="sgTop"></div>
-    <div class="sg-main">
-      <div class="sg-card">
-        <div class="hedge-head" style="margin-bottom:4px">
-          <h3 style="margin:0">歷史走勢</h3>
-          ${rangeBtns}
+    <div class="sg-card sg-cockpit">
+      <div class="sg-head-gauges" id="sgHeadGauges"></div>
+      <div class="sg-kpis-wrap" id="sgKpisWrap"></div>
+      <div class="sg-main">
+        <div class="sg-charts-col">
+          <div class="sg-range-bar">
+            <span class="sg-range-lbl" id="sgRangeLbl"></span>
+            ${periodSeg("sg")}
+          </div>
+          <div class="sg-ctrl-bar" id="sgCtrlBar"></div>
+          <div class="sg-sync-charts" id="sgSyncCharts"></div>
         </div>
-        <div class="sg-info" id="sgInfo"></div>
-        <div class="sg-sync-charts" id="sgSyncCharts"></div>
-        <div class="sg-legend">
-          <span class="legend-item"><span class="swatch" style="border-color:var(--short)"></span>恐慌</span>
-          <span class="legend-item"><span class="swatch" style="border-color:var(--long)"></span>FOMO</span>
+        <div class="sg-smile-col">
+          <div class="sg-smile-head">
+            <h3>微笑曲線（相對價平）</h3>
+            <div class="muted" id="sgSmileDay" style="font-size:11px"></div>
+          </div>
+          <svg id="sgSmile" viewBox="0 0 300 200" style="width:100%;max-width:340px;height:auto;display:block;margin:0 auto"></svg>
+          <div class="sg-legend" style="margin-top:2px">
+            <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>所選日期</span>
+            <span class="legend-item"><span class="swatch dash" style="border-color:var(--text-muted)"></span>當時近一年中位數</span>
+            <span class="legend-item">○ 推估</span>
+          </div>
         </div>
       </div>
-      <div class="sg-card">
-        <h3>微笑曲線形狀（相對價平）</h3>
-        <div class="muted" id="sgSmileDay" style="font-size:12px;margin-bottom:4px"></div>
-        <svg id="sgSmile" viewBox="0 0 300 220" style="width:100%;max-width:360px;height:auto;display:block;margin:0 auto"></svg>
-        <div class="sg-legend">
-          <span class="legend-item"><span class="swatch" style="border-color:var(--margin)"></span>所選日期</span>
-          <span class="legend-item"><span class="swatch dash" style="border-color:var(--text-muted)"></span>當時近一年中位數</span>
-          <span class="legend-item">○ 推估</span>
-        </div>
-      </div>
+      <div id="sgEst" class="sg-est" style="display:none"></div>
     </div>
     ${SG_HELP_HTML}`;
 
+  renderSgCtrlBar();
   renderSgCharts();
 }
 
